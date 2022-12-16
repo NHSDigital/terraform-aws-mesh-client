@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "mesh-client-aws-serverless"
+version = "0.1.0"
+description = "NHS MESH Client built using AWS serverless technologies only"
+authors = ["Rani Sen <rani.sen@nhs.net>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "mesh_client_aws_serverless"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+spine-aws-common = "^0.2.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

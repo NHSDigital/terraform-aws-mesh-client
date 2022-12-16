@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: "poetry"
+    directory: "/"
+    allow:
+      - dependency-type: "all"
+    schedule:
+      interval: "daily"
+    pull-request-branch-name:
+      separator: "-"
