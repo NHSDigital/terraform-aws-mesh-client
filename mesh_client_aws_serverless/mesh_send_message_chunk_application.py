@@ -9,8 +9,8 @@ import os
 import boto3
 
 from spine_aws_common import LambdaApplication
-from mesh_aws_client.mesh_mailbox import MeshMailbox, MeshMessage
-from mesh_aws_client.mesh_common import MeshCommon
+from mesh_client_aws_serverless.mesh_mailbox import MeshMailbox, MeshMessage
+from mesh_client_aws_serverless.mesh_common import MeshCommon
 
 
 class MeshSendMessageChunkApplication(
