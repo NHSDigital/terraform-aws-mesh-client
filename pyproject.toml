@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "mesh_client_aws_serverless"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 spine-aws-common = "^0.2.10"
 
 

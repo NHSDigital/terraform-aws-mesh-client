@@ -154,7 +154,8 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             sha256,
         ).hexdigest()
         header = (
-            f"{self.AUTH_SCHEMA_NAME} {self.mailbox}:{nonce}:{str(noncecount)}:"
+            f"{self.AUTH_SCHEMA_NAME} "
+            + f"{self.mailbox}:{nonce}:{str(noncecount)}:"
             + f"{timestamp}:{hash_code}"
         )
         self.log_object.write_log("MESHMBOX0003", None, {"header": header})

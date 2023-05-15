@@ -12,3 +12,5 @@ pytest
 coverage
 tox
 parameterized
+mesh-sandbox==0.1.27
+uvicorn
