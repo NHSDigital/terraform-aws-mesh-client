@@ -12,7 +12,7 @@ import json
 import requests
 
 from spine_aws_common.logger import Logger
-from mesh_aws_client.mesh_common import MeshCommon
+from mesh_client_aws_serverless.mesh_common import MeshCommon
 
 
 class MeshMessage(NamedTuple):

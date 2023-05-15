@@ -11,7 +11,10 @@ import boto3
 from spine_aws_common import LambdaApplication
 from spine_aws_common.utilities import human_readable_bytes
 
-from .mesh_common import MeshCommon, SingletonCheckFailure
+from mesh_client_aws_serverless.mesh_common import (
+    MeshCommon,
+    SingletonCheckFailure,
+)
 
 
 def calculate_chunks(file_size, chunk_size):
