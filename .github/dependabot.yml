@@ -16,7 +16,7 @@ updates:
 
       schedule:
           interval: "daily"
-          time: "11:43"
+          time: "12:00"
       commit-message:
           prefix: "py dev "
           include: scope
