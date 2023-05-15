@@ -1,10 +1,22 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
-    directory: "/"
-    allow:
-      - dependency-type: "all"
-    schedule:
-      interval: "daily"
-    pull-request-branch-name:
-      separator: "-"
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      open-pull-requests-limit: 2
+      schedule:
+          interval: "daily"
+          time: "03:00"
+      commit-message:
+          prefix: "github actions "
+          include: scope
+
+    - package-ecosystem: "pip"
+      directory: "/"
+      open-pull-requests-limit: 2
+
+      schedule:
+          interval: "daily"
+          time: "12:00"
+      commit-message:
+          prefix: "py dev "
+          include: scope
