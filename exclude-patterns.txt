@@ -1,2 +1,3 @@
 nhsd-git-secrets/git-secrets
 nhsd-git-secrets/nhsd-rules-deny.txt
+poetry.lock
