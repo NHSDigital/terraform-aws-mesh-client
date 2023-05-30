@@ -11,6 +11,8 @@ packages = [{include = "mesh_client_aws_serverless"}]
 python = "^3.9"
 spine-aws-common = "^0.2.10"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.1"
 
 [build-system]
 requires = ["poetry-core"]

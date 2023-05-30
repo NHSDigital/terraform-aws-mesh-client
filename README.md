@@ -42,4 +42,10 @@ poetry add https://github.com/NHSDigital/mesh-client-aws-serverless/releases/dow
 
 TBC
 
+## Testing
 
+1. Ensure Docker Desktop is running
+2. Run
+   ```shell
+   make pytest
+   ```

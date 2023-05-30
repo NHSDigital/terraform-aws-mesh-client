@@ -7,3 +7,6 @@ build: setup-venv
 
 test: setup-venv
 	docker compose up -d && . venv/bin/activate && tox --recreate && docker compose down
+
+pytest: 
+	docker compose up -d && pytest ; docker compose down
