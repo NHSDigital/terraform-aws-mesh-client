@@ -71,8 +71,8 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             {"mailbox": self.mailbox, "environment": self.environment},
         )
 
-        common_params = MeshCommon.get_ssm_params(f"/{self.environment}/mesh")
-        mailbox_params = MeshCommon.get_ssm_params(
+        common_params = MeshCommon.get_params(f"/{self.environment}/mesh")
+        mailbox_params = MeshCommon.get_params(
             f"/{self.environment}/mesh/mailboxes/{self.mailbox}"
         )
         self.params = {**common_params, **mailbox_params}
@@ -109,25 +109,19 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         temp_dir = self.temp_dir_object.name
 
         # store as temporary files for the mesh client / requests library
-        self.client_cert_file = tempfile.NamedTemporaryFile(
-            dir=temp_dir, delete=False
-        )
+        self.client_cert_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
         client_cert = self.params[MeshMailbox.MESH_CLIENT_CERT]
         self.client_cert_file.write(client_cert.encode("utf-8"))
         self.client_cert_file.seek(0)
 
-        self.client_key_file = tempfile.NamedTemporaryFile(
-            dir=temp_dir, delete=False
-        )
+        self.client_key_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
         client_key = self.params[MeshMailbox.MESH_CLIENT_KEY]
         self.client_key_file.write(client_key.encode("utf-8"))
         self.client_key_file.seek(0)
 
         self.ca_cert_file = None
         if self.maybe_verify_ssl:
-            self.ca_cert_file = tempfile.NamedTemporaryFile(
-                dir=temp_dir, delete=False
-            )
+            self.ca_cert_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
             ca_cert = self.params[MeshMailbox.MESH_CA_CERT]
             self.ca_cert_file.write(ca_cert.encode("utf-8"))
             self.ca_cert_file.seek(0)
@@ -240,9 +234,7 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
                 f"{mesh_url}/messageexchange/{self.mailbox}/outbox/"
                 + f"{mesh_message_object.message_id}/{chunk_num}"
             )
-        response = session.post(
-            url, data=mesh_message_object.data, stream=True
-        )
+        response = session.post(url, data=mesh_message_object.data, stream=True)
         response.raise_for_status()
         response.raw.decode_content = True
         message_id = json.loads(response.text)["messageID"]
@@ -264,17 +256,13 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
 
         # if chunk number = 1, get first part
         if chunk_num == 1:
-            url = (
-                f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
-            )
+            url = f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
         else:
             url = (
                 f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
                 + f"/{chunk_num}"
             )
-        response = session.get(
-            url, stream=True, headers={"Accept-Encoding": "gzip"}
-        )
+        response = session.get(url, stream=True, headers={"Accept-Encoding": "gzip"})
         response.raw.decode_content = True
         return response
 

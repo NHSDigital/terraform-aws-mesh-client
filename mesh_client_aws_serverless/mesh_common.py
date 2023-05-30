@@ -38,9 +38,7 @@ class MeshCommon:
         my_step_function_arn = None
         for step_function in response.get("stateMachines", []):
             if step_function.get("name", "") == my_step_function_name:
-                my_step_function_arn = step_function.get(
-                    "stateMachineArn", None
-                )
+                my_step_function_arn = step_function.get("stateMachineArn", None)
 
         # TODO add this check to tests
         if not my_step_function_arn:
@@ -59,17 +57,13 @@ class MeshCommon:
 
         exec_count = 0
         for execution_arn in currently_running_step_funcs:
-            response = sfn_client.describe_execution(
-                executionArn=execution_arn
-            )
+            response = sfn_client.describe_execution(executionArn=execution_arn)
             step_function_input = json.loads(response.get("input", "{}"))
             input_mailbox = step_function_input.get("mailbox", None)
             if input_mailbox == mailbox:
                 exec_count = exec_count + 1
             if exec_count > 1:
-                raise SingletonCheckFailure(
-                    "Process already running for this mailbox"
-                )
+                raise SingletonCheckFailure("Process already running for this mailbox")
 
         return True
 
@@ -87,9 +81,7 @@ class MeshCommon:
     @staticmethod
     def return_failure(log_object, status, logpoint, mailbox, message=""):
         """Return a failure response with retry"""
-        log_object.write_log(
-            logpoint, None, {"mailbox": mailbox, "error": message}
-        )
+        log_object.write_log(logpoint, None, {"mailbox": mailbox, "error": message})
         return {
             "statusCode": status,
             "headers": {
@@ -103,7 +95,7 @@ class MeshCommon:
         }
 
     @staticmethod
-    def get_ssm_params(path, recursive=False, decryption=True):
+    def get_params(path, recursive=False, decryption=True):
         """Get parameters from SSM param store and return as simple dict"""
         # TODO region name fix
         ssm_client = boto3.client("ssm", region_name="eu-west-2")
