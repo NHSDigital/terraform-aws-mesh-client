@@ -1,5 +1,5 @@
 six
-boto3==1.26.54
+boto3==1.26.147
 moto[s3,ssm,stepfunctions]==4.1.0
 requests_mock
 build
