@@ -1,6 +1,6 @@
 six
 boto3==1.26.54
-moto[s3,ssm,stepfunctions]==4.1.0
+moto[s3,ssm,stepfunctions]==4.1.14
 requests_mock
 build
 pep8-naming
