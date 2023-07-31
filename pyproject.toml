@@ -9,7 +9,81 @@ packages = [{include = "mesh_client_aws_serverless"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-spine-aws-common = "^0.2.10"
+aws-lambda-powertools = "2.14.1"
+importlib-metadata = "6.6.0"
+requests = "2.28.2"
+urllib3 = "1.26.15"
+spine-aws-common = "^0.2.13"
+
+
+
+[tool.poetry.group.dev.dependencies]
+# ci / testing dependencies
+boto3 = "1.26.54"
+black = "^22.12.0"
+isort = "^5.12.0"
+mypy = "^1.4.0"
+coverage = "^7.2.7"
+pytest = "^7.3.1"
+pytest-asyncio = "^0.21.0"
+flake8 = "^6.0.0"
+flake8-pyproject = "^1.2.3"
+flake8-black = "^0.3.6"
+
+requests-mock = "^1.11.0"
+moto = {extras = ["s3", "ssm", "stepfunctions", "secretsmanager"], version = "4.1.0"}
+parameterized = "^0.9.0"
+boto3-stubs = {extras = ["s3", "ssm", "secretsmanager", "dynamodb", "stepfunctions", "sqs", "lambda", "logs",], version = "^1.26.54"}
+types-requests = "^2.31.0.2"
+
+
+
+[tool.poetry.group.local.dependencies]
+ipython = "^8.12.2"
+
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+python_classes = "NoTestClasses"
+python_files = "*_test.py test_*.py"
+norecursedirs = ".git .venv .eggs build dist .tox"
+testpaths = [
+    "tests",
+]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    ".venv/*",
+    ".tox/*",
+    "tests/*",
+    "terraform/mesh_aws_client/*",
+    "terraform/mesh_aws_client_dependencies/*"
+]
+source = [
+    "."
+]
+
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_lines = [
+    "pragma: no cover",
+    "from .*",
+    "import .*"
+]
+omit = [
+    "tests/*",
+]
+sort = "-cover"
+ignore_errors = true
+precision = 2
+fail_under = 65
+show_missing = true
+
+[tool.coverage.xml]
+output = "reports/coverage.xml"
 
 
 [build-system]

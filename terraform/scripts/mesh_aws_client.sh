@@ -6,22 +6,22 @@ set -u
 set -x
 set -o pipefail
 
-CODE_DIR="../mesh_aws_client/mesh_aws_client"
+CODE_DIR="../mesh_aws_client/mesh_client_aws_serverless"
 PYTHON_BIN="python3"
 
 # Deterministic dir
 SCRIPT_DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
-cd ${SCRIPT_DIR}
+cd "${SCRIPT_DIR}"
 
 # Check for python
 which ${PYTHON_BIN}
 
 # Create code dir
 mkdir -p ${CODE_DIR}
-rm -rf ${CODE_DIR}/*
+rm -rf "${CODE_DIR:?}/*"
 
 # Copy code
-cp -r ../../../mesh_aws_client/*.py ${CODE_DIR}/
+cp -r ../../mesh_client_aws_serverless/*.py ${CODE_DIR}/
 
 # This will then be zipped by terraform
 exit 0

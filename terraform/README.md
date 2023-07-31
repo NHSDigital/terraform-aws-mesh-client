@@ -8,7 +8,7 @@ Example configuration required to use this module:
 
 ```
 module "mesh" {
-  source = "git::https://github.com/nhsdigital/spine-core-aws-common.git//terraform/mesh_aws?ref=mesh-v0.0.1"
+  source = "git::https://github.com/nhsdigital/mesh-client-aws-serverless.git//terraform?ref=mesh-v0.0.1"
 
   name_prefix = "example-project"
 

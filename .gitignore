@@ -1,26 +1,66 @@
 dist/
 *.pyc
 *.egg-info
+.venv
 venv/
 __pycache__
+.mypy_cache
+**/.pytest_cache/
 .tox
 .coverage
 .idea/
 htmlcov/
 coverage-all.txt
 *.zip
+requirements.txt
+**/requirements.txt
+.lock-hash
 
 # ignore packaging and lambda deps
 terraform/mesh_aws_client/*
 terraform/mesh_aws_client_dependencies/*
+terraform/mesh_client_aws_serverless/*
+terraform/mesh_client_aws_serverless_dependencies/*
+
+
+
+# certs/keys/pems
+*.crt
+*.csr
+*.key
+*.pem
+*.pfx
+*.srl*
+*.csr.cfg
+*id_rsa*
+
+
+# Big binaries
+*.bz2
+*.gz
+*.jar
+*.tar.gz
+*.tgz
+*.zip
+
+# Packaging
+build/
+dist/
+reports/
+
 
 ### Terraform ###
 # Local .terraform directories
 **/.terraform/*
-
-# .tfstate files
 *.tfstate
 *.tfstate.*
+.terraform/
+.terraform.plan
+terraform.log
+.tfplan.out
+.tfplan.exit
+localstack/.terraform.lock.hcl
+localstack/files/zips/
 
 # Crash log files
 crash.log

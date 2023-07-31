@@ -1,3 +1,6 @@
+.gitallowed:
+.gitdisallowed:
+.git/*
 .*git-secrets/.*:*
 .*terraform.tfstate.*:*
 .*.svg:*
@@ -7,3 +10,5 @@
 .*assembly: AssemblyVersion*
 .*assembly: AssemblyFileVersion*
 .*Version=*
+poetry.lock:
+token: \$\{\{ secrets.GITHUB_TOKEN \}\}

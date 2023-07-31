@@ -1,0 +1,6 @@
+---
+minimum_severity: MEDIUM
+#exclude:
+#  - aws-ec2-no-public-ingress-acl
+#  - aws-iam-no-policy-wildcards
+#  - aws-ec2-enforce-launch-config-http-token-imds

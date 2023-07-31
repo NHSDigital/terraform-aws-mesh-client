@@ -3,6 +3,27 @@ version: '3.9'
 
 services:
 
+  localstack:
+    container_name: localstack
+    image: "${LOCALSTACK_IMAGE:-localstack/localstack:2.1.0}"
+    restart: always
+    environment:
+      - SERVICES=ssm,secretsmanager,s3,dynamodb,logs,lambda,cloudwatch,iam,sqs,sns,sts,resourcegroupstaggingapi,monitoring,events,ec2,kms
+      - DEFAULT_REGION=eu-west-2
+      - DEBUG=1
+      - DYNAMODB_SHARE_DB=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    tmpfs:
+      - /var/lib/localstack:exec,mode=600
+    ports:
+      - "4567:4566" # edge service
+    healthcheck:
+      test: awslocal s3 ls && awslocal secretsmanager list-secrets
+      interval: 3s
+      timeout: 10s
+
   mesh_sandbox:
     build: 
       context: https://github.com/NHSDigital/mesh-sandbox.git#develop
