@@ -20,7 +20,9 @@ def _get_test_suites(test_src: str) -> List[dom.Element]:
     raise NotImplementedError(src_root.nodeName)
 
 
-def _add_test_detail_if_present(case_src: dom.Element, case_out: dom.Element, dom_out: dom.Document):
+def _add_test_detail_if_present(
+    case_src: dom.Element, case_out: dom.Element, dom_out: dom.Document
+):
     failures = [node for node in case_src.childNodes if node.nodeName == "failure"]
     skipped = [node for node in case_src.childNodes if node.nodeName == "skipped"]
     errors = [node for node in case_src.childNodes if node.nodeName == "error"]
@@ -37,7 +39,9 @@ def _add_test_detail_if_present(case_src: dom.Element, case_out: dom.Element, do
         message = f"{detail_type}{message}"
     detail_out = dom_out.createElement(detail_node.nodeName)
     detail_out.setAttribute("message", message)
-    detail_text = "".join([node.nodeValue for node in detail_node.childNodes if node.nodeValue])
+    detail_text = "".join(
+        [node.nodeValue for node in detail_node.childNodes if node.nodeValue]
+    )
     if detail_text:
         cdata = dom.CDATASection()
         cdata.nodeValue = detail_text
@@ -52,8 +56,16 @@ def _translate_test_case(
     test_name = case_src.getAttribute("name")
     duration = round(float(case_src.getAttribute("time") or "0") * 1000, 0)
     classname_dotsplit = classname.split(".")
-    test_file = f"features/{classname_dotsplit[0]}.py" if is_feature_file else f"{'/'.join(classname_dotsplit)}.py"
-    test_name = f"{'.'.join(classname_dotsplit[1:])} - {test_name}" if is_feature_file else test_name
+    test_file = (
+        f"features/{classname_dotsplit[0]}.py"
+        if is_feature_file
+        else f"{'/'.join(classname_dotsplit)}.py"
+    )
+    test_name = (
+        f"{'.'.join(classname_dotsplit[1:])} - {test_name}"
+        if is_feature_file
+        else test_name
+    )
     case_out = dom_out.createElement("testCase")
     case_out.setAttribute("name", test_name)
     case_out.setAttribute("duration", str(duration))
@@ -62,14 +74,18 @@ def _translate_test_case(
     return test_file, case_out
 
 
-def _get_tests_from_file(test_src: str, dom_out: dom.Document) -> Dict[str, List[dom.Element]]:
+def _get_tests_from_file(
+    test_src: str, dom_out: dom.Document
+) -> Dict[str, List[dom.Element]]:
 
     is_feature_file = os.path.basename(test_src).startswith("TESTS-")
     test_suites = _get_test_suites(test_src)
 
     test_cases = []
     for suite in test_suites:
-        test_cases.extend([node for node in suite.childNodes if node.nodeName == "testcase"])
+        test_cases.extend(
+            [node for node in suite.childNodes if node.nodeName == "testcase"]
+        )
 
     print(test_src, "suites", len(test_suites), "cases", len(test_cases))
 

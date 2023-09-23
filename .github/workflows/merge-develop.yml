@@ -8,7 +8,7 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
-    if: github.repository == 'NHSDigital/mesh-client-aws-serverless' && !contains(github.event.head_commit.message, 'tag release version:')
+    if: github.repository == 'NHSDigital/terraform-aws-mesh-client' && !contains(github.event.head_commit.message, 'tag release version:')
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -16,9 +16,9 @@ jobs:
           fetch-depth: 0
 
       - name: setup python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.8"
+          python-version-file: "pyproject.toml"
 
       - name: setup poetry
         uses: abatilo/actions-poetry@v2
@@ -30,7 +30,7 @@ jobs:
         with:
           path: |
             .venv
-          key: ${{ runner.os }}-poetry-v2-py3.8-${{ hashFiles('./poetry.lock') }}
+          key: ${{ runner.os }}-poetry-v2-py3.9-${{ hashFiles('./poetry.lock') }}
 
       - name: git reset
         run: git reset --hard

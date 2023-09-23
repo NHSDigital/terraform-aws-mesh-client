@@ -14,6 +14,7 @@ importlib-metadata = "6.6.0"
 requests = "2.28.2"
 urllib3 = "1.26.15"
 spine-aws-common = "^0.2.13"
+ruff = "^0.0.291"
 
 
 
@@ -21,13 +22,10 @@ spine-aws-common = "^0.2.13"
 # ci / testing dependencies
 boto3 = "1.26.54"
 black = "^22.12.0"
-isort = "^5.12.0"
 mypy = "^1.4.0"
 coverage = "^7.2.7"
 pytest = "^7.3.1"
 pytest-asyncio = "^0.21.0"
-flake8 = "^6.0.0"
-flake8-pyproject = "^1.2.3"
 
 requests-mock = "^1.11.0"
 moto = {extras = ["s3", "ssm", "stepfunctions", "secretsmanager"], version = "4.1.0"}

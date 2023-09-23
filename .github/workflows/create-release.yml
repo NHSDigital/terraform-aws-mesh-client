@@ -1,0 +1,42 @@
+name: create-release
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+
+  coverage:
+    runs-on: ubuntu-latest
+    if: github.repository == 'NHSDigital/terraform-aws-mesh-client' && !contains(github.event.head_commit.message, 'tag release version:')
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: setup poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.5.1
+
+      - name: get tag
+        run: |
+          VERSION="$(git describe --tags)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+
+      - name: create release
+        id: create_release
+        uses: actions/create-release@v1
+        continue-on-error: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: ${{ env.VERSION }}
