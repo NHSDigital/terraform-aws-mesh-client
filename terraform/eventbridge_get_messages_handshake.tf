@@ -13,7 +13,7 @@ resource "aws_cloudwatch_event_target" "get_messages_handshake" {
   role_arn  = aws_iam_role.get_messages_handshake_event.arn
 
   input = jsonencode({
-    mailbox = each.value
+    mailbox   = each.value
     handshake = "true"
   })
 }

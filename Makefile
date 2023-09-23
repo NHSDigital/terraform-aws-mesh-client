@@ -47,6 +47,7 @@ up: requirements
 
 down:
 	poetry run docker compose down --remove-orphans || true
+	make -C localstack clean
 
 build:
 	poetry run python -m build
@@ -70,7 +71,7 @@ tfsec:
 	tfsec terraform --config-file tfsec.yml
 
 mypy:
-	poetry run mypy . --exclude '(^|/)(build|dist|scripts)/.*\.py'
+	poetry run mypy .
 
 shellcheck:
 	@# Only swallow checking errors (rc=1), not fatal problems (rc=2)

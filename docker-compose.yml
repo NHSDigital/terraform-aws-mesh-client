@@ -5,10 +5,11 @@ services:
 
   localstack:
     container_name: localstack
-    image: "${LOCALSTACK_IMAGE:-localstack/localstack:2.1.0}"
+    image: "${LOCALSTACK_IMAGE:-localstack/localstack:latest}"
     restart: always
     environment:
-      - SERVICES=ssm,secretsmanager,s3,dynamodb,logs,lambda,cloudwatch,iam,sqs,sns,sts,resourcegroupstaggingapi,monitoring,events,ec2,kms
+#      - SERVICES=ssm,secretsmanager,s3,dynamodb,logs,lambda,cloudwatch,iam,sqs,sns,sts,resourcegroupstaggingapi,monitoring,events,ec2,kms,stepfunctions
+      - PROVIDER_OVERRIDE_STEPFUNCTIONS=v2
       - DEFAULT_REGION=eu-west-2
       - DEBUG=1
       - DYNAMODB_SHARE_DB=1
@@ -34,10 +35,11 @@ services:
         condition: on-failure
         max_attempts: 3
     healthcheck:
-      test: curl -sf http://localhost:80/health || exit 1
+      test: curl -sf https://localhost:443/health || exit 1
       interval: 3s
       timeout: 10s
     environment:
+      - SSL=yes
       - SHARED_KEY=TestKey
     volumes:
       # mount a different mailboxes.jsonl to pre created mailboxes

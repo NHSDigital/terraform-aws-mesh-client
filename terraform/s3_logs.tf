@@ -1,17 +1,32 @@
 #tfsec:ignore:aws-cloudtrail-require-bucket-access-logging tfsec:ignore:aws-s3-enable-versioning
 resource "aws_s3_bucket" "s3logs" {
   bucket = "${local.name}-s3logs"
+}
 
-  lifecycle_rule {
-    id      = "AWSLogs"
-    enabled = true
-    prefix  = "AWSLogs/"
+resource "aws_s3_bucket_lifecycle_configuration" "s3logs" {
+  bucket = aws_s3_bucket.s3logs.id
+
+  rule {
+    id     = "AWSLogs"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 10
+    }
 
     expiration {
       days = var.s3logs_retention_in_days
     }
+
+    filter {
+      prefix = "AWSLogs/"
+    }
+
   }
+
 }
+
+
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "s3logs_encryption_configuration" {
   bucket = aws_s3_bucket.s3logs.id

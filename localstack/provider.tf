@@ -28,7 +28,7 @@ provider "aws" {
     sns              = "http://localhost:4567"
     events           = "http://localhost:4567"
     ec2              = "http://localhost:4567"
-    stepfunctions = "http://localhost:4567"
+    stepfunctions    = "http://localhost:4567"
     sts              = "http://localhost:4567"
     kms              = "http://localhost:4567"
 

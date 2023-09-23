@@ -1,7 +1,7 @@
 module "main" {
   source = "../terraform"
 
-  mailbox_ids = ["TEST123", "TEST456", "TEST789"]
+  mailbox_ids = ["X26ABC1", "X26ABC2", "X26ABC3"]
 
   name_prefix = "local"
 
