@@ -1,12 +1,12 @@
 """Tests for MeshMailbox class (mesh_client wrapper)"""
+from unittest import TestCase, mock
 import os
-from unittest import TestCase, mock, skip
 
+from moto import mock_ssm, mock_secretsmanager
 import boto3
-from moto import mock_secretsmanager, mock_ssm
-from spine_aws_common.log.log_helper import LogHelper
 
-from mesh_client_aws_serverless.mesh_common import MeshCommon
+from mesh_aws_client.mesh_common import MeshCommon
+from spine_aws_common.log.log_helper import LogHelper
 
 
 class TestMeshCommon(TestCase):
@@ -42,7 +42,6 @@ class TestMeshCommon(TestCase):
     def tearDown(self):
         self.log_helper.clean_up()
 
-    @skip(reason="get_params not implemented here ..")
     @mock_ssm
     @mock_secretsmanager
     def test_get_params_ssm_and_secrets(self):
@@ -97,7 +96,6 @@ class TestMeshCommon(TestCase):
         self.assertEqual(expected_params, param_dict)
         os.environ["use_secrets_manager"] = ""
 
-    @skip(reason="get_params not implemented here ..")
     @mock_ssm
     @mock_secretsmanager
     def test_get_params_just_ssm(self):

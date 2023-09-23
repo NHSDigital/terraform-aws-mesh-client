@@ -6,10 +6,15 @@ from unittest import mock
 
 import boto3
 import requests_mock
-from moto import mock_s3, mock_secretsmanager, mock_ssm, mock_stepfunctions
+from moto import mock_s3, mock_ssm, mock_stepfunctions, mock_secretsmanager
 
-from mesh_client_aws_serverless.mesh_poll_mailbox_application import MeshPollMailboxApplication
-from .mesh_testing_common import MeshTestCase, MeshTestingCommon
+from mesh_aws_client.mesh_poll_mailbox_application import (
+    MeshPollMailboxApplication,
+)
+from mesh_aws_client.tests.mesh_testing_common import (
+    MeshTestCase,
+    MeshTestingCommon,
+)
 
 
 class TestMeshPollMailboxApplication(MeshTestCase):
@@ -49,7 +54,9 @@ class TestMeshPollMailboxApplication(MeshTestCase):
         s3_client = boto3.client("s3", region_name="eu-west-2")
         ssm_client = boto3.client("ssm", region_name="eu-west-2")
         MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(self.environment, ssm_client)
+        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
+            self.environment, ssm_client
+        )
         sfn_client = boto3.client("stepfunctions", region_name="eu-west-2")
         response = MeshTestingCommon.setup_step_function(
             sfn_client,
@@ -57,7 +64,9 @@ class TestMeshPollMailboxApplication(MeshTestCase):
             self.app.get_messages_step_function_name,
         )
         try:
-            response = self.app.main(event=mock_input, context=MeshTestingCommon.CONTEXT)
+            response = self.app.main(
+                event=mock_input, context=MeshTestingCommon.CONTEXT
+            )
         except Exception as e:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
             self.fail(f"Invocation crashed with Exception {str(e)}")
@@ -71,7 +80,9 @@ class TestMeshPollMailboxApplication(MeshTestCase):
             response["body"]["message_list"][0]["body"]["message_id"],
         )
         self.assertEqual(False, response["body"]["message_list"][0]["body"]["complete"])
-        self.assertEqual(mailbox_name, response["body"]["message_list"][0]["body"]["dest_mailbox"])
+        self.assertEqual(
+            mailbox_name, response["body"]["message_list"][0]["body"]["dest_mailbox"]
+        )
         # check the correct logs exist
         self.assertLogs("LAMBDA0001", level="INFO")
         self.assertLogs("LAMBDA0002", level="INFO")

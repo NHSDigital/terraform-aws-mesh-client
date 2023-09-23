@@ -66,9 +66,8 @@ jobs:
       - name: install dependencies
         run: make install-ci
 
-# todo: disabled till diffs can be evaluated
-#      - name: black
-#        run: make black-check
+      - name: black
+        run: make black-check
 
       - name: start localstack
         run: make up
@@ -188,15 +187,11 @@ jobs:
       - name: install dependencies
         run: make install-ci
 
-# todo: not yet being used
-#      - name: black
-#        run: make black-check
-#
-#      - name: isort
-#        run: make isort-check
-#
-#      - name: flake8
-#        run: make flake8
+      - name: black
+        run: make black-check
+
+      - name: ruff
+        run: make ruff-ci
 
 # todo: typing needs attention
 #      - name: mypy

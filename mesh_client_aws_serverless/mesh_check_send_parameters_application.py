@@ -11,10 +11,7 @@ import boto3
 from spine_aws_common import LambdaApplication
 from spine_aws_common.utilities import human_readable_bytes
 
-from mesh_client_aws_serverless.mesh_common import (
-    MeshCommon,
-    SingletonCheckFailure,
-)
+from .mesh_common import MeshCommon, SingletonCheckFailure
 
 
 def calculate_chunks(file_size, chunk_size):
@@ -33,8 +30,7 @@ class MeshCheckSendParametersApplication(LambdaApplication):
         self.environment = self.system_config.get("Environment", "default")
         self.chunk_size = None
         self.send_message_step_function_name = self.system_config.get(
-            "SEND_MESSAGE_STEP_FUNCTION_NAME",
-            f"{self.environment}-send-message",
+            "SEND_MESSAGE_STEP_FUNCTION_NAME", f"{self.environment}-send-message"
         )
 
     def _get_internal_id(self):
@@ -56,30 +52,23 @@ class MeshCheckSendParametersApplication(LambdaApplication):
         bucket = self.event.detail["requestParameters"]["bucketName"]
         key = self.event.detail["requestParameters"]["key"]
 
-        self.log_object.write_log(
-            "MESHSEND0001", None, {"bucket": bucket, "file": key}
-        )
+        self.log_object.write_log("MESHSEND0001", None, {"bucket": bucket, "file": key})
 
-        # TODO nicer failure, log error and parameters missing in
-        # SSM Parameter Store
-        (src_mailbox, dest_mailbox, workflow_id) = self._get_mapping(
-            bucket, key
-        )
+        # TODO nicer failure, log error and parameters missing in SSM Parameter Store
+        (src_mailbox, dest_mailbox, workflow_id) = self._get_mapping(bucket, key)
 
-        self.log_object.write_log(
-            "MESHSEND0002", None, {"mailbox": src_mailbox}
-        )
+        self.log_object.write_log("MESHSEND0002", None, {"mailbox": src_mailbox})
         try:
             MeshCommon.singleton_check(
                 src_mailbox, self.send_message_step_function_name
             )
-        except SingletonCheckFailure as exception:
+        except SingletonCheckFailure as e:
             self.response = MeshCommon.return_failure(
                 self.log_object,
                 HTTPStatus.TOO_MANY_REQUESTS.value,
                 "MESHSEND0003",
                 src_mailbox,
-                message=exception.msg,
+                message=e.msg,
             )
             return
 
@@ -145,6 +134,16 @@ class MeshCheckSendParametersApplication(LambdaApplication):
         src_mailbox = mailbox_mapping["src_mailbox"]
         dest_mailbox = mailbox_mapping["dest_mailbox"]
         workflow_id = mailbox_mapping["workflow_id"]
+        self.log_object.write_log(
+            "MESHSEND0004a",
+            None,
+            {
+                "src_mailbox": src_mailbox,
+                "dest_mailbox": dest_mailbox,
+                "workflow_id": workflow_id,
+                "path": path,
+            },
+        )
         return (src_mailbox, dest_mailbox, workflow_id)
 
     @staticmethod

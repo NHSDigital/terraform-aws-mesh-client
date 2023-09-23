@@ -1,5 +1,4 @@
 variable "name_prefix" {
-  type = string
   description = "Name to prefix on to the resources"
 }
 
@@ -60,9 +59,7 @@ variable "mailboxes" {
   default = []
 }
 
-variable "mailbox_ids" {
-  type = set(string)
-}
+variable "mailbox_ids" {}
 
 
 variable "account_admin_role" {
@@ -89,26 +86,17 @@ variable "s3logs_retention_in_days" {
 }
 
 variable "mesh_cloudwatch_log_retention_in_days" {
-  type    = number
   default = 30
 }
 
 variable "get_messages_enabled" {
-  type    = bool
   default = true
 }
 
 variable "mesh_s3_object_expiry_in_days" {
-  type    = number
   default = 60
 }
 
 variable "mesh_s3_object_expiry_enabled" {
-  type    = bool
   default = false
-}
-
-variable "cloudtrail_enabled" {
-  type    = bool
-  default = true
 }

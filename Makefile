@@ -76,20 +76,21 @@ shellcheck:
 	@# Only swallow checking errors (rc=1), not fatal problems (rc=2)
 	docker run --rm -i -v ${PWD}:/mnt:ro koalaman/shellcheck -f gcc -e SC1090,SC1091 `find . \( -path "*/.venv/*" -prune -o -path "*/build/*" -prune -o -path "*/.tox/*" -prune -o -path "*/java_client/*" -prune  \) -o -type f -name '*.sh' -print` || test $$? -eq 1
 
+ruff: black
+	poetry run ruff --fix --show-fixes .
 
-flake8:
-	poetry run flake8
+ruff-check:
+	poetry run ruff .
 
-lint: flake8 mypy shellcheck
+ruff-ci:
+	poetry run ruff --format=github .
+
+lint: ruff mypy shellcheck
 
 black-check:
 	poetry run black . --check
 
-isort-check:
-	poetry run isort . -c
-
 black:
-	poetry run isort .
 	poetry run black .
 
 coverage-cleanup:
@@ -139,14 +140,14 @@ check-secrets:
 check-secrets-all:
 	./nhsd-git-secrets/pre-commit.sh
 
-#delete-hooks:
-#	rm .git/hooks/pre-commit 2>/dev/null || true
-#	rm .git/hooks/commit-msg 2>/dev/null || true
-#
-#.git/hooks/pre-commit:
-#	cp scripts/hooks/pre-commit.sh .git/hooks/pre-commit
-#
-#.git/hooks/commit-msg:
-#	cp scripts/hooks/commit-msg.sh .git/hooks/commit-msg
-#
-#refresh-hooks: delete-hooks .git/hooks/pre-commit .git/hooks/commit-msg
+delete-hooks:
+	rm .git/hooks/pre-commit 2>/dev/null || true
+	rm .git/hooks/commit-msg 2>/dev/null || true
+
+.git/hooks/pre-commit:
+	cp scripts/hooks/pre-commit.sh .git/hooks/pre-commit
+
+.git/hooks/commit-msg:
+	cp scripts/hooks/commit-msg.sh .git/hooks/commit-msg
+
+refresh-hooks: delete-hooks .git/hooks/pre-commit .git/hooks/commit-msg

@@ -1,13 +1,16 @@
 """ Testing Get File From S3 Function """
 from unittest import mock
 
-import boto3
 from moto import mock_s3, mock_ssm
+import boto3
 
-from mesh_client_aws_serverless.mesh_send_message_chunk_application import (
+from mesh_aws_client.mesh_send_message_chunk_application import (
     MeshSendMessageChunkApplication,
 )
-from .mesh_testing_common import MeshTestCase, MeshTestingCommon
+from mesh_aws_client.tests.mesh_testing_common import (
+    MeshTestCase,
+    MeshTestingCommon,
+)
 
 
 class TestMeshGetFileFromS3(MeshTestCase):
@@ -38,7 +41,9 @@ class TestMeshGetFileFromS3(MeshTestCase):
         s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
         ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
         MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(self.environment, ssm_client)
+        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
+            self.environment, ssm_client
+        )
         self.app.current_byte = 0
         self.app.file_size = 33
         self.app.s3_client = s3_client
@@ -59,7 +64,9 @@ class TestMeshGetFileFromS3(MeshTestCase):
         s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
         ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
         MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(self.environment, ssm_client)
+        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
+            self.environment, ssm_client
+        )
         self.app.current_byte = 0
         self.app.file_size = 33
         self.app.s3_client = s3_client

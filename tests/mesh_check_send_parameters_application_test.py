@@ -5,12 +5,14 @@ from unittest import mock
 import boto3
 from moto import mock_s3, mock_ssm, mock_stepfunctions
 
-from mesh_client_aws_serverless.mesh_check_send_parameters_application import (
+from mesh_aws_client.mesh_check_send_parameters_application import (
     MeshCheckSendParametersApplication,
 )
-from mesh_client_aws_serverless.mesh_common import SingletonCheckFailure
-
-from .mesh_testing_common import MeshTestCase, MeshTestingCommon
+from mesh_aws_client.mesh_common import SingletonCheckFailure
+from mesh_aws_client.tests.mesh_testing_common import (
+    MeshTestCase,
+    MeshTestingCommon,
+)
 
 
 class TestMeshCheckSendParametersApplication(MeshTestCase):
@@ -36,7 +38,9 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             Key="MESH-TEST2/outbound/testfile.json",
             Body=file_content,
         )
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(self.environment, ssm_client)
+        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
+            self.environment, ssm_client
+        )
 
     @mock_stepfunctions
     @mock_ssm
@@ -81,15 +85,23 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             },
         }
         try:
-            response = self.app.main(event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT)
+            response = self.app.main(
+                event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
+            )
         except Exception as e:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
             self.fail(f"Invocation crashed with Exception {str(e)}")
 
         self.assertEqual(mock_response, response)
-        self.assertTrue(self.log_helper.was_value_logged("LAMBDA0001", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("LAMBDA0002", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO"))
+        self.assertTrue(
+            self.log_helper.was_value_logged("LAMBDA0001", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("LAMBDA0002", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
+        )
 
     def _singleton_test_setup(self):
         """Setup for singleton test"""
@@ -134,13 +146,21 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
 
         # do running check - should pass (1 step function running, just mine)
         try:
-            response = self.app.main(event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT)
+            response = self.app.main(
+                event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
+            )
         except SingletonCheckFailure as e:
             self.fail(e.msg)
         self.assertIsNotNone(response)
-        self.assertFalse(self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO"))
+        self.assertFalse(
+            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
+        )
         self.log_helper.clean_up()
 
         print("------------------------- TEST 2 -------------------------------")
@@ -165,13 +185,21 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
 
         # do running check - should pass (1 step function of my name with my mailbox)
         try:
-            response = self.app.main(event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT)
+            response = self.app.main(
+                event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
+            )
         except SingletonCheckFailure as e:
             self.fail(e.msg)
         self.assertIsNotNone(response)
-        self.assertFalse(self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO"))
+        self.assertFalse(
+            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
+        )
         self.log_helper.clean_up()
 
         print("------------------------- TEST 3 -------------------------------")
@@ -187,13 +215,21 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
 
         # do running check - should pass (1 step function running with my mailbox)
         try:
-            response = self.app.main(event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT)
+            response = self.app.main(
+                event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
+            )
         except SingletonCheckFailure as e:
             self.fail(e.msg)
         self.assertIsNotNone(response)
-        self.assertFalse(self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO"))
+        self.assertFalse(
+            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
+        )
         self.log_helper.clean_up()
 
         print("------------------------- TEST 4 -------------------------------")
@@ -207,14 +243,24 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         step_func_exec_arn = response.get("executionArn", None)
         self.assertIsNotNone(step_func_exec_arn)
         # do running check - should return 503 and log MESHSEND0003 error message
-        response = self.app.main(event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT)
+        response = self.app.main(
+            event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
+        )
         expected_return_code = {"statusCode": HTTPStatus.TOO_MANY_REQUESTS.value}
         expected_header = {"Retry-After": 18000}
         self.assertEqual(response, {**response, **expected_return_code})
-        self.assertEqual(response["headers"], {**response["headers"], **expected_header})
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR"))
-        self.assertFalse(self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO"))
+        self.assertEqual(
+            response["headers"], {**response["headers"], **expected_header}
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        )
+        self.assertFalse(
+            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
+        )
 
 
 def sample_trigger_event():
@@ -239,7 +285,7 @@ def sample_trigger_event():
                 "bucketName": "meshtest-mesh",
                 "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
                 "x-amz-acl": "private",
-                "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # noqa pylint: disable=line-too-long
+                "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class", # noqa pylint: disable=line-too-long
                 "Host": "meshtest-mesh.s3.eu-west-2.amazonaws.com",
                 "X-Amz-Expires": "300",
                 "key": "MESH-TEST2/outbound/testfile.json",
@@ -247,7 +293,7 @@ def sample_trigger_event():
             },
             "responseElements": {
                 "x-amz-server-side-encryption": "aws:kms",
-                "x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:eu-west-2:092420156801:key/4f295c4c-17fd-4c9d-84e9-266b01de0a5a",  # noqa pylint: disable=line-too-long
+                "x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:eu-west-2:092420156801:key/4f295c4c-17fd-4c9d-84e9-266b01de0a5a", # noqa pylint: disable=line-too-long
             },
             "requestID": "1234567890123456",
             "eventID": "75e91cfc-f2db-4e09-8f80-a206ab4cd15e",
@@ -255,7 +301,7 @@ def sample_trigger_event():
             "resources": [
                 {
                     "type": "AWS::S3::Object",
-                    "ARN": "arn:aws:s3:::meshtest-mesh/MESH-TEST2/outbound/testfile.json",  # noqa pylint: disable=line-too-long
+                    "ARN": "arn:aws:s3:::meshtest-mesh/MESH-TEST2/outbound/testfile.json", # noqa pylint: disable=line-too-long
                 },
                 {
                     "accountId": "123456789012",

@@ -1,18 +1,20 @@
 """Mailbox class that handles all the complexity of talking to MESH API"""
-import platform
-import os
-from typing import NamedTuple
-from hashlib import sha256
 import atexit
 import datetime
 import hmac
+import json
+import os
+import platform
 import tempfile
 import uuid
-import json
-import requests
+from hashlib import sha256
+from typing import NamedTuple, Optional
 
+import requests
+import urllib3
+
+from mesh_aws_client.mesh_common import MeshCommon
 from spine_aws_common.logger import Logger
-from mesh_client_aws_serverless.mesh_common import MeshCommon
 
 
 class MeshMessage(NamedTuple):
@@ -25,6 +27,15 @@ class MeshMessage(NamedTuple):
     workflow_id: str = None
     message_id: str = None
     will_compress: bool = False
+    metadata: Optional[dict] = None
+
+
+class HandshakeFailure(Exception):
+    """Handshake failed"""
+
+    def __init__(self, msg=None):
+        super().__init__()
+        self.msg = msg
 
 
 class MeshMailbox:  # pylint: disable=too-many-instance-attributes
@@ -71,18 +82,25 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             {"mailbox": self.mailbox, "environment": self.environment},
         )
 
-        common_params = MeshCommon.get_ssm_params(f"/{self.environment}/mesh")
-        mailbox_params = MeshCommon.get_ssm_params(
+        common_params = MeshCommon.get_params(f"/{self.environment}/mesh")
+        mailbox_params = MeshCommon.get_params(
             f"/{self.environment}/mesh/mailboxes/{self.mailbox}"
         )
         self.params = {**common_params, **mailbox_params}
         self.maybe_verify_ssl = (
             self.params.get(MeshMailbox.MESH_VERIFY_SSL, False) == "True"
         )
+        if not self.maybe_verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self._write_certs_to_files()
 
     def clean_up(self) -> None:
         """Clear up after use"""
+        self.log_object.write_log(
+            "MESHMBOX0007",
+            None,
+            {"mailbox": self.mailbox, "environment": self.environment},
+        )
         if self.client_cert_file:
             filename = self.client_cert_file.name
             self.client_cert_file.close()
@@ -118,25 +136,19 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         temp_dir = self.temp_dir_object.name
 
         # store as temporary files for the mesh client / requests library
-        self.client_cert_file = tempfile.NamedTemporaryFile(
-            dir=temp_dir, delete=False
-        )
+        self.client_cert_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
         client_cert = self.params[MeshMailbox.MESH_CLIENT_CERT]
         self.client_cert_file.write(client_cert.encode("utf-8"))
         self.client_cert_file.seek(0)
 
-        self.client_key_file = tempfile.NamedTemporaryFile(
-            dir=temp_dir, delete=False
-        )
+        self.client_key_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
         client_key = self.params[MeshMailbox.MESH_CLIENT_KEY]
         self.client_key_file.write(client_key.encode("utf-8"))
         self.client_key_file.seek(0)
 
         self.ca_cert_file = None
         if self.maybe_verify_ssl:
-            self.ca_cert_file = tempfile.NamedTemporaryFile(
-                dir=temp_dir, delete=False
-            )
+            self.ca_cert_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
             ca_cert = self.params[MeshMailbox.MESH_CA_CERT]
             self.ca_cert_file.write(ca_cert.encode("utf-8"))
             self.ca_cert_file.seek(0)
@@ -150,8 +162,7 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             nonce = str(uuid.uuid4())
         timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M")
 
-        # e.g. NHSMESH
-        # AMP01HC001:bd0e2bd5-218e-41d0-83a9-73fdec414803:0:202005041305
+        # e.g. NHSMESH AMP01HC001:bd0e2bd5-218e-41d0-83a9-73fdec414803:0:202005041305
         hmac_msg = (
             f"{self.mailbox}:{nonce}:{str(noncecount)}:"
             + f"{self.params[MeshMailbox.MAILBOX_PASSWORD]}:{timestamp}"
@@ -163,8 +174,7 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             sha256,
         ).hexdigest()
         header = (
-            f"{self.AUTH_SCHEMA_NAME} "
-            + f"{self.mailbox}:{nonce}:{str(noncecount)}:"
+            f"{self.AUTH_SCHEMA_NAME} {self.mailbox}:{nonce}:{str(noncecount)}:"
             + f"{timestamp}:{hash_code}"
         )
         self.log_object.write_log("MESHMBOX0003", None, {"header": header})
@@ -211,13 +221,22 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         self.log_object.write_log(
             "MESHMBOX0004", None, {"http_status": response.status_code}
         )
+        if response.status_code < 200 or response.status_code > 299:
+            raise HandshakeFailure
         return response.status_code
 
-    def authenticate(self) -> int:
-        """
-        Povided for compatibility
-        """
-        return self.handshake()
+    def _headers_from_metadata(self, mesh_message_object: MeshMessage) -> dict:
+        headers = {}
+        if mesh_message_object.metadata is None:
+            return headers
+        if len(mesh_message_object.metadata.items()) == 0:
+            return headers
+
+        for key, value in mesh_message_object.metadata.items():
+            if "mex" in key.lower():
+                headers[key] = value
+
+        return headers
 
     def send_chunk(
         self,
@@ -240,6 +259,9 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             session.headers["Mex-Content-Compress"] = "Y"
             session.headers["Mex-Content-Compressed"] = "Y"
 
+        headers_from_metadata = self._headers_from_metadata(mesh_message_object)
+        session.headers.update(headers_from_metadata)
+
         mesh_url = self.params[MeshMailbox.MESH_URL]
         if chunk_num == 1:
             session.headers["Mex-MessageType"] = "DATA"
@@ -249,9 +271,7 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
                 f"{mesh_url}/messageexchange/{self.mailbox}/outbox/"
                 + f"{mesh_message_object.message_id}/{chunk_num}"
             )
-        response = session.post(
-            url, data=mesh_message_object.data, stream=True
-        )
+        response = session.post(url, data=mesh_message_object.data, stream=True)
         response.raise_for_status()
         response.raw.decode_content = True
         message_id = json.loads(response.text)["messageID"]
@@ -262,6 +282,8 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
                 "file": mesh_message_object.file_name,
                 "http_status": response.status_code,
                 "message_id": message_id,
+                "chunk_num": chunk_num,
+                "max_chunk": number_of_chunks,
             },
         )
         return response
@@ -270,21 +292,30 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         """Return a response object for a MESH chunk"""
         session = self._setup_session()
         mesh_url = self.params[MeshMailbox.MESH_URL]
-
         # if chunk number = 1, get first part
         if chunk_num == 1:
-            url = (
-                f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
-            )
+            url = f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
         else:
             url = (
                 f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
                 + f"/{chunk_num}"
             )
-        response = session.get(
-            url, stream=True, headers={"Accept-Encoding": "gzip"}
-        )
+        response = session.get(url, stream=True, headers={"Accept-Encoding": "gzip"})
         response.raw.decode_content = True
+        chunk_range = response.headers.get("Mex-Chunk-Range", "1:1")
+        number_of_chunks = int(chunk_range.split(":")[1])
+        number_of_chunks = chunk_num == number_of_chunks
+        self.log_object.write_log(
+            "MESHSEND0001b",
+            None,
+            {
+                "message_id": message_id,
+                "chunk_num": chunk_num,
+                "max_chunk": number_of_chunks,
+            },
+        )
+        # for 3 out of 5 fetch tests Mex-Chunk-Range does not exist is this ok?
+        # log chunk of chunk_max for message_id
         return response
 
     def list_messages(self):

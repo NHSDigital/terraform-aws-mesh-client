@@ -1,7 +1,4 @@
 resource "aws_cloudtrail" "s3logs" {
-
-  count = var.cloudtrail_enabled ? 1 : 0
-
   name                          = "${local.name}-s3logs"
   s3_bucket_name                = aws_s3_bucket.s3logs.id
   s3_key_prefix                 = "AWSLogs"
@@ -9,8 +6,8 @@ resource "aws_cloudtrail" "s3logs" {
   is_multi_region_trail         = true
   enable_log_file_validation    = true
   kms_key_id                    = aws_kms_key.mesh.arn
-  cloud_watch_logs_group_arn    = "${aws_cloudwatch_log_group.mesh_cloudtrail[0].arn}:*"
-  cloud_watch_logs_role_arn     = aws_iam_role.mesh_cloudtrail_to_cloudwatch_role[0].arn
+  cloud_watch_logs_group_arn    = "${aws_cloudwatch_log_group.mesh_cloudtrail.arn}:*"
+  cloud_watch_logs_role_arn     = aws_iam_role.mesh_cloudtrail_to_cloudwatch_role.arn
 
   event_selector {
     read_write_type           = "WriteOnly"
@@ -26,36 +23,30 @@ resource "aws_cloudtrail" "s3logs" {
 }
 
 resource "aws_cloudwatch_log_group" "mesh_cloudtrail" {
-  count = var.cloudtrail_enabled ? 1 : 0
-
   name              = "/aws/cloudtrail/mesh-s3-logs"
   retention_in_days = var.mesh_cloudwatch_log_retention_in_days
   kms_key_id        = aws_kms_key.mesh.arn
 }
 
 resource "aws_iam_role" "mesh_cloudtrail_to_cloudwatch_role" {
-  count              = var.cloudtrail_enabled ? 1 : 0
   name               = "cloudtrail-cloudwatch-mesh-role"
   description        = "cloudtrail-cloudwatch-mesh-role"
-  assume_role_policy = data.aws_iam_policy_document.role_assume[0].json
+  assume_role_policy = data.aws_iam_policy_document.role_assume.json
 }
 
 resource "aws_iam_role_policy_attachment" "policy_attachment" {
-  count      = var.cloudtrail_enabled ? 1 : 0
-  role       = aws_iam_role.mesh_cloudtrail_to_cloudwatch_role[0].name
-  policy_arn = aws_iam_policy.mesh_cloudtrail_cloudwatch_policy[0].arn
+  role       = aws_iam_role.mesh_cloudtrail_to_cloudwatch_role.name
+  policy_arn = aws_iam_policy.mesh_cloudtrail_cloudwatch_policy.arn
 }
 
 resource "aws_iam_policy" "mesh_cloudtrail_cloudwatch_policy" {
-  count       = var.cloudtrail_enabled ? 1 : 0
   name        = "mesh-cloudtrail-cloudwatch-policy"
   description = "mesh-cloudtrail-cloudwatch-policy"
-  policy      = data.aws_iam_policy_document.mesh_cloudtrail_policy[0].json
+  policy      = data.aws_iam_policy_document.mesh_cloudtrail_policy.json
 }
 
 
 data "aws_iam_policy_document" "role_assume" {
-  count = var.cloudtrail_enabled ? 1 : 0
   statement {
     actions = ["sts:AssumeRole"]
 
@@ -71,7 +62,6 @@ data "aws_iam_policy_document" "role_assume" {
 
 #tfsec:ignore:aws-iam-no-policy-wildcards
 data "aws_iam_policy_document" "mesh_cloudtrail_policy" {
-  count = var.cloudtrail_enabled ? 1 : 0
   statement {
     sid    = "MeshAllowAccessToLogsService"
     effect = "Allow"
@@ -83,8 +73,8 @@ data "aws_iam_policy_document" "mesh_cloudtrail_policy" {
     ]
 
     resources = [
-      aws_cloudwatch_log_group.mesh_cloudtrail[0].arn,
-      "${aws_cloudwatch_log_group.mesh_cloudtrail[0].arn}:*"
+      aws_cloudwatch_log_group.mesh_cloudtrail.arn,
+      "${aws_cloudwatch_log_group.mesh_cloudtrail.arn}:*"
     ]
   }
   statement {

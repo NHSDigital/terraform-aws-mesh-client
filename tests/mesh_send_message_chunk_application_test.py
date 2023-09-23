@@ -1,17 +1,20 @@
 """ Testing MeshSendMessageChunk Application """
 import json
 from http import HTTPStatus
-from unittest import mock, skip
+from unittest import mock
 
 import boto3
 import requests_mock
 from moto import mock_s3, mock_ssm
 
-from mesh_client_aws_serverless.mesh_send_message_chunk_application import (
-    # MaxByteExceededException,
+from mesh_aws_client.mesh_send_message_chunk_application import (
     MeshSendMessageChunkApplication,
+    MaxByteExceededException,
 )
-from .mesh_testing_common import MeshTestCase, MeshTestingCommon
+from mesh_aws_client.tests.mesh_testing_common import (
+    MeshTestCase,
+    MeshTestingCommon,
+)
 
 
 class TestMeshSendMessageChunkApplication(MeshTestCase):
@@ -34,7 +37,9 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
     @mock_s3
     @mock.patch.object(MeshSendMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
-    def test_mesh_send_file_chunk_app_no_chunks_happy_path(self, mock_create_new_internal_id, response_mocker):
+    def test_mesh_send_file_chunk_app_no_chunks_happy_path(
+        self, mock_create_new_internal_id, response_mocker
+    ):
         """Test the lambda with small file, no chunking, happy path"""
         mock_create_new_internal_id.return_value = MeshTestingCommon.KNOWN_INTERNAL_ID
 
@@ -77,13 +82,17 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
         ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
         MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(self.environment, ssm_client)
+        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
+            self.environment, ssm_client
+        )
         mock_lambda_input = self._sample_single_chunk_input_event()
         expected_lambda_response = self._sample_single_chunk_input_event()
         expected_lambda_response["body"].update({"complete": True})
 
         try:
-            lambda_response = self.app.main(event=mock_lambda_input, context=MeshTestingCommon.CONTEXT)
+            lambda_response = self.app.main(
+                event=mock_lambda_input, context=MeshTestingCommon.CONTEXT
+            )
         except Exception as e:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
             self.fail(f"Invocation crashed with Exception {str(e)}")
@@ -91,8 +100,12 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         lambda_response["body"].pop("message_id")
         self.assertDictEqual(expected_lambda_response, lambda_response)
         # Check completion
-        self.assertTrue(self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO"))
+        self.assertTrue(
+            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO")
+        )
 
     # pylint: disable=too-many-locals
     @mock_ssm
@@ -177,7 +190,9 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
         ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
         MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(self.environment, ssm_client)
+        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
+            self.environment, ssm_client
+        )
         mock_input = self._sample_multi_chunk_input_event()
         mock_response = self._sample_multi_chunk_input_event()
         mock_response["body"].update({"complete": True})
@@ -189,7 +204,9 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
             chunk_number = mock_input["body"].get("chunk_number", 1)
             print(f">>>>>>>>>>> Chunk {chunk_number} >>>>>>>>>>>>>>>>>>>>")
             try:
-                response = self.app.main(event=mock_input, context=MeshTestingCommon.CONTEXT)
+                response = self.app.main(
+                    event=mock_input, context=MeshTestingCommon.CONTEXT
+                )
             except Exception as exception:  # pylint: disable=broad-except
                 # need to fail happy pass on any exception
                 self.fail(f"Invocation crashed with Exception {str(exception)}")
@@ -203,15 +220,20 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         self.assertDictEqual(mock_response, response)
 
         # Check completion
-        self.assertTrue(self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO"))
-        self.assertTrue(self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO"))
+        self.assertTrue(
+            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
+        )
+        self.assertTrue(
+            self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO")
+        )
 
-    @skip(reason="MaxByteExceededException doesn't exist in this version .. not sure why ?")
     @mock_ssm
     @mock_s3
     @mock.patch.object(MeshSendMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
-    def test_mesh_send_file_chunk_app_too_many_chunks(self, mock_create_new_internal_id, fake_mesh_server):
+    def test_mesh_send_file_chunk_app_too_many_chunks(
+        self, mock_create_new_internal_id, fake_mesh_server
+    ):
         """Test lambda throws MaxByteExceededException when too many chunks specified"""
         mock_create_new_internal_id.return_value = MeshTestingCommon.KNOWN_INTERNAL_ID
 
@@ -252,7 +274,9 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
         ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
         MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(self.environment, ssm_client)
+        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
+            self.environment, ssm_client
+        )
         mock_input = self._sample_too_many_chunks_input_event()
         mock_response = self._sample_too_many_chunks_input_event()
         mock_response["body"].update({"complete": True})

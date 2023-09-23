@@ -9,8 +9,16 @@ import os
 import boto3
 
 from spine_aws_common import LambdaApplication
-from mesh_client_aws_serverless.mesh_mailbox import MeshMailbox, MeshMessage
-from mesh_client_aws_serverless.mesh_common import MeshCommon
+from mesh_aws_client.mesh_mailbox import MeshMailbox, MeshMessage
+from mesh_aws_client.mesh_common import MeshCommon
+
+
+class MaxByteExceededException(Exception):
+    """Raised when a file has more chunks, but no more bytes"""
+
+    def __init__(self, msg=None):
+        super().__init__()
+        self.msg = msg
 
 
 class MeshSendMessageChunkApplication(
@@ -35,7 +43,7 @@ class MeshSendMessageChunkApplication(
         self.chunked = False
         self.current_byte = 0
         self.current_chunk = 1
-        self.chunk_size = 0
+        self.chunk_size = MeshCommon.DEFAULT_CHUNK_SIZE
         self.compression_ratio = 1
         self.will_compress = False
         self.s3_client = None
@@ -50,12 +58,12 @@ class MeshSendMessageChunkApplication(
         self.response = self.event.raw_event
         self.current_byte = self.input.get("current_byte_position", 0)
         self.current_chunk = self.input.get("chunk_number", 1)
-        self.chunk_size = self.input.get(
-            "chunk_size", MeshCommon.DEFAULT_CHUNK_SIZE
-        )
+        self.chunk_size = self.input.get("chunk_size", MeshCommon.DEFAULT_CHUNK_SIZE)
         self.chunked = self.input.get("chunked", False)
         self.compression_ratio = self.input.get("compress_ratio", 1)
         self.will_compress = self.input.get("will_compress", False)
+        if self.chunked:
+            self.will_compress = True
         self.s3_client = boto3.client("s3")
         self.bucket = self.input["bucket"]
         self.key = self.input["key"]
@@ -107,22 +115,24 @@ class MeshSendMessageChunkApplication(
             else:
                 yield file_content
 
+    def _get_metadata_from_s3(self):
+        """Get metadata from s3 object"""
+        response = self.s3_client.head_object(Bucket=self.bucket, Key=self.key)
+        metadata = response.get("Metadata", {})
+        return metadata
+
     def start(self):
         """Main body of lambda"""
 
         is_finished = self.input.get("complete", False)
         if is_finished:
-            self.response.update(
-                {"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value}
-            )
+            self.response.update({"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value})
             raise SystemError("Already completed upload to MESH")
 
         total_chunks = self.input.get("total_chunks", 1)
         message_id = self.input.get("message_id", None)
 
-        file_response = self.s3_client.head_object(
-            Bucket=self.bucket, Key=self.key
-        )
+        file_response = self.s3_client.head_object(Bucket=self.bucket, Key=self.key)
         self.file_size = file_response["ContentLength"]
         self.log_object.write_log(
             "MESHSEND0005",
@@ -145,6 +155,7 @@ class MeshSendMessageChunkApplication(
         message_object = MeshMessage(
             file_name=os.path.basename(self.key),
             data=self._get_file_from_s3(),
+            metadata=self._get_metadata_from_s3(),
             message_id=message_id,
             dest_mailbox=self.mailbox.dest_mailbox,
             src_mailbox=self.mailbox.mailbox,
@@ -152,29 +163,38 @@ class MeshSendMessageChunkApplication(
             will_compress=self.will_compress,
         )
         if self.file_size > 0:
-            response = self.mailbox.send_chunk(
+            mailbox_response = self.mailbox.send_chunk(
                 mesh_message_object=message_object,
                 number_of_chunks=total_chunks,
                 chunk_num=self.current_chunk,
             )
-            status_code = response.status_code
-            message_id = json.loads(response.text)["messageID"]
+            status_code = mailbox_response.status_code
+            message_id = json.loads(mailbox_response.text)["messageID"]
             status_code = HTTPStatus.OK.value
         else:
             status_code = HTTPStatus.NOT_FOUND.value
             self.response.update({"statusCode": status_code})
             raise FileNotFoundError
 
-        is_finished = (
-            self.current_chunk >= total_chunks if self.chunked else True
-        )
+        is_finished = self.current_chunk >= total_chunks if self.chunked else True
+        if self.current_byte >= self.file_size and not is_finished:
+            raise MaxByteExceededException
         if self.chunked and not is_finished:
             self.current_chunk += 1
 
         if is_finished:
             # check mailbox for any reports
+            self.log_object.write_log(
+                "MESHSEND0008",
+                None,
+                {
+                    "file": self.key,
+                    "bucket": self.bucket,
+                    "chunk_num": self.current_chunk,
+                    "max_chunk": total_chunks,
+                },
+            )
             _response, _messages = self.mailbox.list_messages()
-
         # update input event to send as response
         self.response.update({"statusCode": status_code})
         self.response["body"].update(
@@ -183,6 +203,7 @@ class MeshSendMessageChunkApplication(
                 "message_id": message_id,
                 "chunk_number": self.current_chunk,
                 "current_byte_position": self.current_byte,
+                "will_compress": self.will_compress,
             }
         )
 
