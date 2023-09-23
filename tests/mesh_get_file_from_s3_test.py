@@ -1,13 +1,14 @@
 """ Testing Get File From S3 Function """
 from unittest import mock
 
-from moto import mock_s3, mock_ssm
 import boto3
+from moto import mock_s3, mock_ssm
 
-from mesh_aws_client.mesh_send_message_chunk_application import (
+from mesh_client_aws_serverless.mesh_send_message_chunk_application import (
     MeshSendMessageChunkApplication,
 )
-from mesh_aws_client.tests.mesh_testing_common import (
+
+from .mesh_testing_common import (
     MeshTestCase,
     MeshTestingCommon,
 )
@@ -53,7 +54,7 @@ class TestMeshGetFileFromS3(MeshTestCase):
         self.app.buffer_size = 33
         gen = self.app._get_file_from_s3()
         all_33_bytes = next(gen)
-        self.assertEqual(b"123456789012345678901234567890123", all_33_bytes)
+        assert all_33_bytes == b"123456789012345678901234567890123"
 
     @mock_ssm
     @mock_s3
@@ -75,11 +76,11 @@ class TestMeshGetFileFromS3(MeshTestCase):
         self.app.chunk_size = 33
         self.app.buffer_size = 7
         gen = self.app._get_file_from_s3()
-        self.assertEqual(b"1234567", next(gen))
-        self.assertEqual(b"8901234", next(gen))
-        self.assertEqual(b"5678901", next(gen))
-        self.assertEqual(b"2345678", next(gen))
-        self.assertEqual(b"90123", next(gen))
+        assert next(gen) == b"1234567"
+        assert next(gen) == b"8901234"
+        assert next(gen) == b"5678901"
+        assert next(gen) == b"2345678"
+        assert next(gen) == b"90123"
 
 
 # pylint: enable=protected-access

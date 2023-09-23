@@ -3,10 +3,9 @@ import os
 import re
 import xml.dom.minidom as dom
 from collections import defaultdict
-from typing import Dict, List, Tuple
 
 
-def _get_test_suites(test_src: str) -> List[dom.Element]:
+def _get_test_suites(test_src: str) -> list[dom.Element]:
 
     src_tree: dom.Document = dom.parse(test_src)
     src_root = src_tree.documentElement
@@ -51,7 +50,7 @@ def _add_test_detail_if_present(
 
 def _translate_test_case(
     case_src: dom.Element, dom_out: dom.Document, is_feature_file: bool
-) -> Tuple[str, dom.Element]:
+) -> tuple[str, dom.Element]:
     classname = case_src.getAttribute("classname")
     test_name = case_src.getAttribute("name")
     duration = round(float(case_src.getAttribute("time") or "0") * 1000, 0)
@@ -76,7 +75,7 @@ def _translate_test_case(
 
 def _get_tests_from_file(
     test_src: str, dom_out: dom.Document
-) -> Dict[str, List[dom.Element]]:
+) -> dict[str, list[dom.Element]]:
 
     is_feature_file = os.path.basename(test_src).startswith("TESTS-")
     test_suites = _get_test_suites(test_src)
@@ -89,7 +88,7 @@ def _get_tests_from_file(
 
     print(test_src, "suites", len(test_suites), "cases", len(test_cases))
 
-    tests: Dict[str, List[dom.Element]] = defaultdict(list)
+    tests: dict[str, list[dom.Element]] = defaultdict(list)
 
     for test_case in test_cases:
         test_file, case_out = _translate_test_case(test_case, dom_out, is_feature_file)
@@ -108,7 +107,7 @@ def _transform_coverage(reports_dir: str, output_sonar: str):
         return
 
     print("transform:", src_coverage, out_coverage)
-    with open(src_coverage, "r", encoding="utf-8") as src:
+    with open(src_coverage, encoding="utf-8") as src:
         coverage = src.read()
         coverage = re.sub(r"<source>.*?</source>", "<source>.</source>", coverage)
         with open(out_coverage, "w+", encoding="utf-8") as out:
@@ -122,7 +121,7 @@ def _transform_xunit_results(reports_dir: str, output_sonar: str):
 
     dom_out = dom.getDOMImplementation().createDocument(None, "testExecutions", None)
     dom_out.documentElement.setAttribute("version", "1")
-    all_tests: Dict[str, List[dom.Element]] = defaultdict(list)
+    all_tests: dict[str, list[dom.Element]] = defaultdict(list)
 
     for source_file in os.listdir(src_junit):
         if not source_file.endswith(".xml"):

@@ -1,7 +1,8 @@
 """Common methods and classes used for mesh client"""
-from collections import namedtuple
-import os
 import json
+import os
+from collections import namedtuple
+
 import boto3
 
 REGION_NAME = os.environ.get("AWS_REGION", "eu-west-2")
@@ -43,17 +44,16 @@ class MeshCommon:
         # TODO add this check to tests
         if not my_step_function_arn:
             raise SingletonCheckFailure(
-                "No executing step function arn for "
-                + f"step_function={my_step_function_name}"
+                f"No executing step function arn for step_function={my_step_function_name}"
             )
 
         response = sfn_client.list_executions(
             stateMachineArn=my_step_function_arn,
             statusFilter="RUNNING",
         )
-        currently_running_step_funcs = []
-        for execution in response["executions"]:
-            currently_running_step_funcs.append(execution["executionArn"])
+        currently_running_step_funcs = [
+            execution["executionArn"] for execution in response["executions"]
+        ]
 
         exec_count = 0
         for execution_arn in currently_running_step_funcs:

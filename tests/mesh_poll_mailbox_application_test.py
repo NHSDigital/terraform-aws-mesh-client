@@ -6,12 +6,13 @@ from unittest import mock
 
 import boto3
 import requests_mock
-from moto import mock_s3, mock_ssm, mock_stepfunctions, mock_secretsmanager
+from moto import mock_s3, mock_secretsmanager, mock_ssm, mock_stepfunctions
 
-from mesh_aws_client.mesh_poll_mailbox_application import (
+from mesh_client_aws_serverless.mesh_poll_mailbox_application import (
     MeshPollMailboxApplication,
 )
-from mesh_aws_client.tests.mesh_testing_common import (
+
+from .mesh_testing_common import (
     MeshTestCase,
     MeshTestingCommon,
 )
@@ -69,19 +70,19 @@ class TestMeshPollMailboxApplication(MeshTestCase):
             )
         except Exception as e:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(e)}")
+            self.fail(f"Invocation crashed with Exception {e!s}")
 
-        self.assertEqual(HTTPStatus.OK.value, response["statusCode"])
+        assert HTTPStatus.OK.value == response["statusCode"]
         # check 3 messages received
-        self.assertEqual(3, response["body"]["message_count"])
+        assert response["body"]["message_count"] == 3
         # check first message format in message_list
-        self.assertEqual(
-            MeshTestingCommon.KNOWN_MESSAGE_ID1,
-            response["body"]["message_list"][0]["body"]["message_id"],
+        assert (
+            response["body"]["message_list"][0]["body"]["message_id"]
+            == MeshTestingCommon.KNOWN_MESSAGE_ID1
         )
-        self.assertEqual(False, response["body"]["message_list"][0]["body"]["complete"])
-        self.assertEqual(
-            mailbox_name, response["body"]["message_list"][0]["body"]["dest_mailbox"]
+        assert False is response["body"]["message_list"][0]["body"]["complete"]
+        assert (
+            mailbox_name == response["body"]["message_list"][0]["body"]["dest_mailbox"]
         )
         # check the correct logs exist
         self.assertLogs("LAMBDA0001", level="INFO")

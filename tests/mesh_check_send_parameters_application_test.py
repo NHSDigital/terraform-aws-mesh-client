@@ -5,11 +5,12 @@ from unittest import mock
 import boto3
 from moto import mock_s3, mock_ssm, mock_stepfunctions
 
-from mesh_aws_client.mesh_check_send_parameters_application import (
+from mesh_client_aws_serverless.mesh_check_send_parameters_application import (
     MeshCheckSendParametersApplication,
 )
-from mesh_aws_client.mesh_common import SingletonCheckFailure
-from mesh_aws_client.tests.mesh_testing_common import (
+from mesh_client_aws_serverless.mesh_common import SingletonCheckFailure
+
+from .mesh_testing_common import (
     MeshTestCase,
     MeshTestingCommon,
 )
@@ -90,18 +91,12 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             )
         except Exception as e:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(e)}")
+            self.fail(f"Invocation crashed with Exception {e!s}")
 
-        self.assertEqual(mock_response, response)
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0001", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0002", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
-        )
+        assert mock_response == response
+        assert self.log_helper.was_value_logged("LAMBDA0001", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("LAMBDA0002", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
     def _singleton_test_setup(self):
         """Setup for singleton test"""
@@ -134,7 +129,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             f"{self.environment}-send-message",
         )
         step_func_arn = response.get("stateMachineArn", None)
-        self.assertIsNotNone(step_func_arn)
+        assert step_func_arn is not None
 
         # 'start' fake state machine
         response = sfn_client.start_execution(
@@ -142,7 +137,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             input='{"mailbox": "MESH-TEST2"}',
         )
         step_func_exec_arn = response.get("executionArn", None)
-        self.assertIsNotNone(step_func_exec_arn)
+        assert step_func_exec_arn is not None
 
         # do running check - should pass (1 step function running, just mine)
         try:
@@ -151,16 +146,12 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             )
         except SingletonCheckFailure as e:
             self.fail(e.msg)
-        self.assertIsNotNone(response)
-        self.assertFalse(
-            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        assert response is not None
+        assert not self.log_helper.was_value_logged(
+            "MESHSEND0003", "Log_Level", "ERROR"
         )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
         self.log_helper.clean_up()
 
         print("------------------------- TEST 2 -------------------------------")
@@ -173,7 +164,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             f"{self.environment}-get-messages",
         )
         step_func2_arn = response.get("stateMachineArn", None)
-        self.assertIsNotNone(step_func2_arn)
+        assert step_func2_arn is not None
 
         # 'start' state machine 2 with my mailbox
         response = sfn_client.start_execution(
@@ -181,7 +172,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             input='{"mailbox": "MESH-TEST2"}',
         )
         step_func_exec_arn = response.get("executionArn", None)
-        self.assertIsNotNone(step_func_exec_arn)
+        assert step_func_exec_arn is not None
 
         # do running check - should pass (1 step function of my name with my mailbox)
         try:
@@ -190,16 +181,12 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             )
         except SingletonCheckFailure as e:
             self.fail(e.msg)
-        self.assertIsNotNone(response)
-        self.assertFalse(
-            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        assert response is not None
+        assert not self.log_helper.was_value_logged(
+            "MESHSEND0003", "Log_Level", "ERROR"
         )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
         self.log_helper.clean_up()
 
         print("------------------------- TEST 3 -------------------------------")
@@ -211,7 +198,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             input='{"mailbox": "SOMETHING-ELSE"}',
         )
         step_func_exec_arn = response.get("executionArn", None)
-        self.assertIsNotNone(step_func_exec_arn)
+        assert step_func_exec_arn is not None
 
         # do running check - should pass (1 step function running with my mailbox)
         try:
@@ -220,16 +207,12 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             )
         except SingletonCheckFailure as e:
             self.fail(e.msg)
-        self.assertIsNotNone(response)
-        self.assertFalse(
-            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        assert response is not None
+        assert not self.log_helper.was_value_logged(
+            "MESHSEND0003", "Log_Level", "ERROR"
         )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
         self.log_helper.clean_up()
 
         print("------------------------- TEST 4 -------------------------------")
@@ -241,26 +224,18 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             input='{"mailbox": "MESH-TEST2"}',
         )
         step_func_exec_arn = response.get("executionArn", None)
-        self.assertIsNotNone(step_func_exec_arn)
+        assert step_func_exec_arn is not None
         # do running check - should return 503 and log MESHSEND0003 error message
         response = self.app.main(
             event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
         )
         expected_return_code = {"statusCode": HTTPStatus.TOO_MANY_REQUESTS.value}
         expected_header = {"Retry-After": 18000}
-        self.assertEqual(response, {**response, **expected_return_code})
-        self.assertEqual(
-            response["headers"], {**response["headers"], **expected_header}
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
-        )
-        self.assertFalse(
-            self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
-        )
+        assert response == {**response, **expected_return_code}
+        assert response["headers"] == {**response["headers"], **expected_header}
+        assert self.log_helper.was_value_logged("MESHSEND0003", "Log_Level", "ERROR")
+        assert not self.log_helper.was_value_logged("MESHSEND0004", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
 
 
 def sample_trigger_event():

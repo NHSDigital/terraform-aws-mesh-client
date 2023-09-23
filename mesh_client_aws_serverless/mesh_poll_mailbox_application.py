@@ -4,9 +4,10 @@ Module for MESH API functionality for step functions
 import os
 from http import HTTPStatus
 
-from mesh_aws_client.mesh_common import MeshCommon, SingletonCheckFailure
-from mesh_aws_client.mesh_mailbox import MeshMailbox
 from spine_aws_common import LambdaApplication
+
+from mesh_client_aws_serverless.mesh_common import MeshCommon, SingletonCheckFailure
+from mesh_client_aws_serverless.mesh_mailbox import MeshMailbox
 
 
 class MeshPollMailboxApplication(LambdaApplication):
@@ -60,23 +61,24 @@ class MeshPollMailboxApplication(LambdaApplication):
         list_response, message_list = mailbox.list_messages()
         list_response.raise_for_status()
         message_count = len(message_list)
-        output_list = []
+
         if message_count == 0:
             # return 204 to keep state transitions to minimum if no messages
             self.response = {"statusCode": HTTPStatus.NO_CONTENT.value, "body": {}}
             return
-        for message in message_list:
-            output_list.append(
-                {
-                    "headers": {"Content-Type": "application/json"},
-                    "body": {
-                        "complete": False,
-                        "internal_id": self.log_object.internal_id,
-                        "message_id": message,
-                        "dest_mailbox": self.mailbox_name,
-                    },
-                }
-            )
+
+        output_list = [
+            {
+                "headers": {"Content-Type": "application/json"},
+                "body": {
+                    "complete": False,
+                    "internal_id": self.log_object.internal_id,
+                    "message_id": message,
+                    "dest_mailbox": self.mailbox_name,
+                },
+            }
+            for message in message_list
+        ]
 
         self.log_object.write_log(
             "MESHPOLL0001",

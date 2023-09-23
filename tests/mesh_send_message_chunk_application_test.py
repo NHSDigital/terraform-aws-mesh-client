@@ -4,14 +4,16 @@ from http import HTTPStatus
 from unittest import mock
 
 import boto3
+import pytest
 import requests_mock
 from moto import mock_s3, mock_ssm
 
-from mesh_aws_client.mesh_send_message_chunk_application import (
-    MeshSendMessageChunkApplication,
+from mesh_client_aws_serverless.mesh_send_message_chunk_application import (
     MaxByteExceededException,
+    MeshSendMessageChunkApplication,
 )
-from mesh_aws_client.tests.mesh_testing_common import (
+
+from .mesh_testing_common import (
     MeshTestCase,
     MeshTestingCommon,
 )
@@ -95,17 +97,14 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
             )
         except Exception as e:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(e)}")
+            self.fail(f"Invocation crashed with Exception {e!s}")
 
         lambda_response["body"].pop("message_id")
-        self.assertDictEqual(expected_lambda_response, lambda_response)
+
+        assert lambda_response == expected_lambda_response
         # Check completion
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO")
 
     # pylint: disable=too-many-locals
     @mock_ssm
@@ -209,7 +208,7 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
                 )
             except Exception as exception:  # pylint: disable=broad-except
                 # need to fail happy pass on any exception
-                self.fail(f"Invocation crashed with Exception {str(exception)}")
+                self.fail(f"Invocation crashed with Exception {exception!s}")
             if count == 1:
                 message_id = response["body"]["message_id"]
             count = count + 1
@@ -217,15 +216,12 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
             print(response)
 
         mock_response["body"]["message_id"] = message_id
-        self.assertDictEqual(mock_response, response)
+
+        response = mock_response
 
         # Check completion
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHSEND0008", "Log_Level", "INFO")
 
     @mock_ssm
     @mock_s3
@@ -282,9 +278,9 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         mock_response["body"].update({"complete": True})
         mock_response["body"].update({"will_compress": True})
 
-        with self.assertRaises(MaxByteExceededException) as context:
+        with pytest.raises(MaxByteExceededException) as context:
             self.app.main(event=mock_input, context=MeshTestingCommon.CONTEXT)
-        self.assertIsInstance(context.exception, MaxByteExceededException)
+        assert isinstance(context.value, MaxByteExceededException)
 
     def _sample_single_chunk_input_event(self):
         """Return Example input event"""

@@ -1,9 +1,9 @@
 """Common methods and classes used for testing mesh client"""
+from typing import ClassVar
 from unittest import TestCase
 
 from botocore.config import Config
 from moto import mock_s3, mock_ssm
-
 from spine_aws_common.log.log_helper import LogHelper
 
 FILE_CONTENT = "123456789012345678901234567890123"
@@ -12,7 +12,7 @@ FILE_CONTENT = "123456789012345678901234567890123"
 class MeshTestingCommon:
     """Mock helpers"""
 
-    CONTEXT = {"aws_request_id": "TESTREQUEST"}
+    CONTEXT: ClassVar[dict[str, str]] = {"aws_request_id": "TESTREQUEST"}
     KNOWN_INTERNAL_ID = "20210701225219765177_TESTER"
     KNOWN_INTERNAL_ID1 = "20210701225219765177_TEST01"
     KNOWN_INTERNAL_ID2 = "20210701225219765177_TEST02"
@@ -23,7 +23,7 @@ class MeshTestingCommon:
 
     aws_config = Config(region_name="eu-west-2")
 
-    os_environ_values = {
+    os_environ_values: ClassVar[dict[str, str]] = {
         "AWS_REGION": "eu-west-2",
         "AWS_EXECUTION_ENV": "AWS_Lambda_python3.8",
         "AWS_LAMBDA_FUNCTION_NAME": "lambda_test",
@@ -101,18 +101,15 @@ class MeshTestingCommon:
         """Setup ssm param store for tests"""
         # Setup mapping
         ssm_client.put_parameter(
-            Name=f"/{environment}/mesh/mapping/"
-            + f"{environment}-mesh/MESH-TEST2/outbound/src_mailbox",
+            Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/src_mailbox",
             Value="MESH-TEST2",
         )
         ssm_client.put_parameter(
-            Name=f"/{environment}/mesh/mapping/"
-            + f"{environment}-mesh/MESH-TEST2/outbound/dest_mailbox",
+            Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/dest_mailbox",
             Value="MESH-TEST1",
         )
         ssm_client.put_parameter(
-            Name=f"/{environment}/mesh/mapping/"
-            + f"{environment}-mesh/MESH-TEST2/outbound/workflow_id",
+            Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/workflow_id",
             Value="TESTWORKFLOW",
         )
         # Setup secrets

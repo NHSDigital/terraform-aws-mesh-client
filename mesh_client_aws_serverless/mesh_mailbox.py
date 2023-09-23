@@ -1,5 +1,6 @@
 """Mailbox class that handles all the complexity of talking to MESH API"""
 import atexit
+import contextlib
 import datetime
 import hmac
 import json
@@ -12,9 +13,9 @@ from typing import NamedTuple, Optional
 
 import requests
 import urllib3
-
-from mesh_aws_client.mesh_common import MeshCommon
 from spine_aws_common.logger import Logger
+
+from mesh_client_aws_serverless.mesh_common import MeshCommon
 
 
 class MeshMessage(NamedTuple):
@@ -104,24 +105,18 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         if self.client_cert_file:
             filename = self.client_cert_file.name
             self.client_cert_file.close()
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 os.remove(filename)
-            except FileNotFoundError:
-                pass
         if self.client_key_file:
             filename = self.client_key_file.name
             self.client_key_file.close()
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 os.remove(filename)
-            except FileNotFoundError:
-                pass
         if self.ca_cert_file:
             filename = self.ca_cert_file.name
             self.ca_cert_file.close()
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 os.remove(filename)
-            except FileNotFoundError:
-                pass
 
     def get_param(self, param) -> str:
         """Shortcut to get a parameter"""
@@ -155,7 +150,7 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         # pylint: enable=consider-using-with
 
     def _build_mesh_authorization_header(
-        self, nonce: str = None, noncecount: int = 0
+        self, nonce: Optional[str] = None, noncecount: int = 0
     ) -> str:
         """Generate MESH Authorization header for mailbox"""
         if not nonce:
@@ -163,20 +158,14 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M")
 
         # e.g. NHSMESH AMP01HC001:bd0e2bd5-218e-41d0-83a9-73fdec414803:0:202005041305
-        hmac_msg = (
-            f"{self.mailbox}:{nonce}:{str(noncecount)}:"
-            + f"{self.params[MeshMailbox.MAILBOX_PASSWORD]}:{timestamp}"
-        )
+        hmac_msg = f"{self.mailbox}:{nonce}:{noncecount!s}:{self.params[MeshMailbox.MAILBOX_PASSWORD]}:{timestamp}"
 
         hash_code = hmac.HMAC(
             self.params[MeshMailbox.MESH_SHARED_KEY].encode(),
             hmac_msg.encode(),
             sha256,
         ).hexdigest()
-        header = (
-            f"{self.AUTH_SCHEMA_NAME} {self.mailbox}:{nonce}:{str(noncecount)}:"
-            + f"{timestamp}:{hash_code}"
-        )
+        header = f"{self.AUTH_SCHEMA_NAME} {self.mailbox}:{nonce}:{noncecount!s}:{timestamp}:{hash_code}"
         self.log_object.write_log("MESHMBOX0003", None, {"header": header})
         return header
 
@@ -267,10 +256,7 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             session.headers["Mex-MessageType"] = "DATA"
             url = f"{mesh_url}/messageexchange/{self.mailbox}/outbox"
         else:
-            url = (
-                f"{mesh_url}/messageexchange/{self.mailbox}/outbox/"
-                + f"{mesh_message_object.message_id}/{chunk_num}"
-            )
+            url = f"{mesh_url}/messageexchange/{self.mailbox}/outbox/{mesh_message_object.message_id}/{chunk_num}"
         response = session.post(url, data=mesh_message_object.data, stream=True)
         response.raise_for_status()
         response.raw.decode_content = True
@@ -296,10 +282,7 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         if chunk_num == 1:
             url = f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
         else:
-            url = (
-                f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
-                + f"/{chunk_num}"
-            )
+            url = f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}/{chunk_num}"
         response = session.get(url, stream=True, headers={"Accept-Encoding": "gzip"})
         response.raw.decode_content = True
         chunk_range = response.headers.get("Mex-Chunk-Range", "1:1")

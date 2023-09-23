@@ -1,12 +1,12 @@
 """Tests for MeshMailbox class (mesh_client wrapper)"""
-from unittest import TestCase, mock
 import os
+from unittest import TestCase, mock
 
-from moto import mock_ssm, mock_secretsmanager
 import boto3
-
-from mesh_aws_client.mesh_common import MeshCommon
+from moto import mock_secretsmanager, mock_ssm
 from spine_aws_common.log.log_helper import LogHelper
+
+from mesh_client_aws_serverless.mesh_common import MeshCommon
 
 
 class TestMeshCommon(TestCase):
@@ -93,7 +93,7 @@ class TestMeshCommon(TestCase):
             "MESH_CLIENT_KEY": "DummyKey1",
             "MESH_CLIENT_KEY2": "DummyKey2",
         }
-        self.assertEqual(expected_params, param_dict)
+        assert expected_params == param_dict
         os.environ["use_secrets_manager"] = ""
 
     @mock_ssm
@@ -142,4 +142,4 @@ class TestMeshCommon(TestCase):
         )
         param_dict = MeshCommon.get_params(f"/{self.environment}/mesh/")
         expected_params = {"MESH_URL1": "DummyUrl1", "MESH_URL2": "DummyUrl2"}
-        self.assertEqual(expected_params, param_dict)
+        assert expected_params == param_dict

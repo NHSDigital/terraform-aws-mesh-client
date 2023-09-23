@@ -1,16 +1,16 @@
 """
 Module for MESH API functionality for step functions
 """
-import json
 import gzip
-from http import HTTPStatus
+import json
 import os
+from http import HTTPStatus
 
 import boto3
-
 from spine_aws_common import LambdaApplication
-from mesh_aws_client.mesh_mailbox import MeshMailbox, MeshMessage
-from mesh_aws_client.mesh_common import MeshCommon
+
+from mesh_client_aws_serverless.mesh_common import MeshCommon
+from mesh_client_aws_serverless.mesh_mailbox import MeshMailbox, MeshMessage
 
 
 class MaxByteExceededException(Exception):
@@ -78,10 +78,7 @@ class MeshSendMessageChunkApplication(
         while self.current_byte < end_byte:
             bytes_to_end = end_byte - self.current_byte
             if bytes_to_end > self.buffer_size:
-                range_spec = (
-                    f"bytes={self.current_byte}-"
-                    + f"{self.current_byte + self.buffer_size - 1}"
-                )
+                range_spec = f"bytes={self.current_byte}-{self.current_byte + self.buffer_size - 1}"
                 self.current_byte = self.current_byte + self.buffer_size
             else:
                 range_spec = f"bytes={self.current_byte}-{end_byte-1}"

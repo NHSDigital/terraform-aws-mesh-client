@@ -1,13 +1,12 @@
 """
 Module for MESH API functionality for step functions
 """
+import os
 from http import HTTPStatus
 from math import ceil
-import os
 
-from aws_lambda_powertools.utilities.data_classes import EventBridgeEvent
 import boto3
-
+from aws_lambda_powertools.utilities.data_classes import EventBridgeEvent
 from spine_aws_common import LambdaApplication
 from spine_aws_common.utilities import human_readable_bytes
 

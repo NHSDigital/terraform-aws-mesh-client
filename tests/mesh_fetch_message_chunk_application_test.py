@@ -9,10 +9,11 @@ from moto import mock_s3, mock_ssm
 from parameterized import parameterized
 from requests.exceptions import HTTPError
 
-from mesh_aws_client.mesh_fetch_message_chunk_application import (
+from mesh_client_aws_serverless.mesh_fetch_message_chunk_application import (
     MeshFetchMessageChunkApplication,
 )
-from mesh_aws_client.tests.mesh_testing_common import (
+
+from .mesh_testing_common import (
     MeshTestCase,
     MeshTestingCommon,
 )
@@ -64,8 +65,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             },
         )
         response_mocker.put(
-            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}"
-            + "/status/acknowledged",
+            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}/status/acknowledged",
             text=json.dumps({"messageId": MeshTestingCommon.KNOWN_MESSAGE_ID1}),
             headers={
                 "Content-Type": "application/json",
@@ -89,53 +89,42 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             )
         except Exception as exception:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(exception)}")
+            self.fail(f"Invocation crashed with Exception {exception!s}")
 
         # print(response)
 
-        self.assertEqual(
-            mock_input["body"].get("internal_id"), response["body"].get("internal_id")
+        assert mock_input["body"].get("internal_id") == response["body"].get(
+            "internal_id"
         )
-        self.assertEqual(
-            response["body"].get("internal_id"),
-            MeshTestingCommon.KNOWN_INTERNAL_ID1,
+        assert (
+            response["body"].get("internal_id") == MeshTestingCommon.KNOWN_INTERNAL_ID1
         )
         # Some checks on the response body
-        self.assertEqual(response["body"].get("complete"), True)
-        self.assertIn("aws_current_part_id", response["body"])
-        self.assertIn("aws_upload_id", response["body"])
+        assert response["body"].get("complete") is True
+        assert "aws_current_part_id" in response["body"]
+        assert "aws_upload_id" in response["body"]
 
         # Should be 0 etags uploaded to S3 as multipart not used on single chunk
-        self.assertEqual(len(response["body"].get("aws_part_etags")), 0)
+        assert len(response["body"].get("aws_part_etags")) == 0
 
         # Check we got the logs we expect
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0002a", "Log_Level", "INFO")
+        assert not self.log_helper.was_value_logged(
+            "MESHFETCH0003", "Log_Level", "INFO"
         )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0002a", "Log_Level", "INFO")
-        )
-        self.assertFalse(
-            self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0011", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("MESHFETCH0011", "Log_Level", "INFO")
         # self.assertTrue(
         #     self.log_helper.was_value_logged("MESHFETCH0005a", "Log_Level", "INFO")
         # )
         # self.assertFalse(
         #     self.log_helper.was_value_logged("MESHFETCH0008", "Log_Level", "INFO")
         # )
-        self.assertFalse(
-            self.log_helper.was_value_logged("MESHFETCH0010a", "Log_Level", "INFO")
+        assert not self.log_helper.was_value_logged(
+            "MESHFETCH0010a", "Log_Level", "INFO"
         )
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
     @parameterized.expand([("_happy_path", 20), ("odd_sized_chunk_with_temp_file", 18)])
     @mock_ssm
@@ -144,7 +133,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
     @requests_mock.Mocker()
     def test_mesh_fetch_file_chunk_app_2_chunks(
         self,
-        _,
+        _,  # noqa: PT019
         mock_data1_length,
         mock_create_new_internal_id,
         mock_response,
@@ -195,8 +184,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         )
         # next chunk http response
         mock_response.get(
-            "/messageexchange/MESH-TEST1/inbox/"
-            + f"{MeshTestingCommon.KNOWN_MESSAGE_ID1}/2",
+            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}/2",
             text=data2,
             status_code=HTTPStatus.OK.value,
             headers={
@@ -223,8 +211,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             },
         )
         mock_response.put(
-            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}"
-            + "/status/acknowledged",
+            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}/status/acknowledged",
             text=json.dumps({"messageId": MeshTestingCommon.KNOWN_MESSAGE_ID1}),
             headers={
                 "Content-Type": "application/json",
@@ -249,12 +236,12 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             )
         except Exception as exception:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(exception)}")
+            self.fail(f"Invocation crashed with Exception {exception!s}")
 
         expected_return_code = HTTPStatus.PARTIAL_CONTENT.value
-        self.assertEqual(response["statusCode"], expected_return_code)
-        self.assertEqual(response["body"]["chunk_num"], 2)
-        self.assertEqual(response["body"]["complete"], False)
+        assert response["statusCode"] == expected_return_code
+        assert response["body"]["chunk_num"] == 2
+        assert response["body"]["complete"] is False
 
         # feed response into next lambda invocation
         mock_input = response
@@ -265,37 +252,25 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             )
         except Exception as exception:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(exception)}")
+            self.fail(f"Invocation crashed with Exception {exception!s}")
 
         expected_return_code = HTTPStatus.OK.value
-        self.assertEqual(response["statusCode"], expected_return_code)
-        self.assertEqual(response["body"]["complete"], True)
+        assert response["statusCode"] == expected_return_code
+        assert response["body"]["complete"] is True
 
         # Check we got the logs we expect
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0002", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0004", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0002", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0004", "Log_Level", "INFO")
         # self.assertTrue(
         #     self.log_helper.was_value_logged("MESHFETCH0005a", "Log_Level", "INFO")
         # )
         # self.assertFalse(
         #     self.log_helper.was_value_logged("MESHFETCH0008", "Log_Level", "INFO")
         # )
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
     @mock_ssm
     @mock_s3
@@ -350,8 +325,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         )
         # next chunk http response
         mock_response.get(
-            "/messageexchange/MESH-TEST1/inbox/"
-            + f"{MeshTestingCommon.KNOWN_MESSAGE_ID1}/2",
+            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}/2",
             text=data2,
             status_code=HTTPStatus.OK.value,
             headers={
@@ -378,8 +352,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             },
         )
         mock_response.put(
-            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}"
-            + "/status/acknowledged",
+            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}/status/acknowledged",
             text=json.dumps({"messageId": MeshTestingCommon.KNOWN_MESSAGE_ID1}),
             headers={
                 "Content-Type": "application/json",
@@ -404,12 +377,12 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             )
         except Exception as exception:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(exception)}")
+            self.fail(f"Invocation crashed with Exception {exception!s}")
 
         expected_return_code = HTTPStatus.PARTIAL_CONTENT.value
-        self.assertEqual(response["statusCode"], expected_return_code)
-        self.assertEqual(response["body"]["chunk_num"], 2)
-        self.assertEqual(response["body"]["complete"], False)
+        assert response["statusCode"] == expected_return_code
+        assert response["body"]["chunk_num"] == 2
+        assert response["body"]["complete"] is False
 
         # feed response into next lambda invocation
         mock_input = response
@@ -420,40 +393,24 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             )
         except Exception as exception:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(exception)}")
+            self.fail(f"Invocation crashed with Exception {exception!s}")
 
         expected_return_code = HTTPStatus.OK.value
-        self.assertEqual(response["statusCode"], expected_return_code)
-        self.assertEqual(response["body"]["complete"], True)
+        assert response["statusCode"] == expected_return_code
+        assert response["body"]["complete"] is True
 
         # Check we got the logs we expect
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0002", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0002a", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0004", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("MESHFETCH0005a", "Log_Level", "INFO")
+        assert not self.log_helper.was_value_logged(
+            "MESHFETCH0010a", "Log_Level", "INFO"
         )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0002", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0002a", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0004", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0005a", "Log_Level", "INFO")
-        )
-        self.assertFalse(
-            self.log_helper.was_value_logged("MESHFETCH0010a", "Log_Level", "INFO")
-        )
-        self.assertTrue(
-            self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
     @mock_ssm
     @mock_s3
@@ -490,8 +447,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             },
         )
         response_mocker.put(
-            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}"
-            + "/status/acknowledged",
+            f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}/status/acknowledged",
             text=json.dumps({"messageId": MeshTestingCommon.KNOWN_MESSAGE_ID1}),
             headers={
                 "Content-Type": "application/json",
@@ -513,17 +469,15 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             )
         except Exception as exception:  # pylint: disable=broad-except
             # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {str(exception)}")
+            self.fail(f"Invocation crashed with Exception {exception!s}")
 
         expected_return_code = HTTPStatus.OK.value
-        self.assertEqual(response["statusCode"], expected_return_code)
+        assert response["statusCode"] == expected_return_code
         # self.assertTrue(
         #     self.log_helper.was_value_logged("MESHFETCH0008", "Log_Level", "INFO")
         # )
 
-        self.assertTrue(
-            self.log_helper.was_value_logged("MESHFETCH0012", "Log_Level", "INFO")
-        )
+        assert self.log_helper.was_value_logged("MESHFETCH0012", "Log_Level", "INFO")
 
     @mock_ssm
     @mock_s3
