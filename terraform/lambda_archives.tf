@@ -10,8 +10,8 @@ resource "null_resource" "mesh_aws_client" {
 
 data "archive_file" "mesh_aws_client" {
   type        = "zip"
-  source_dir  = "${path.module}/mesh_aws_client"
-  output_path = "${path.module}/mesh_aws_client.zip"
+  source_dir  = "${path.module}/mesh_client_aws_serverless"
+  output_path = "${path.module}/mesh_client_aws_serverless.zip"
 
   depends_on = [
     null_resource.mesh_aws_client

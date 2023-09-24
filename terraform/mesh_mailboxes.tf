@@ -8,5 +8,5 @@ module "mailboxes" {
   mailbox_id = each.key
   mailbox    = each.value
   config     = var.config
-  key_id = aws_kms_key.mesh.key_id
+  key_id     = aws_kms_key.mesh.key_id
 }

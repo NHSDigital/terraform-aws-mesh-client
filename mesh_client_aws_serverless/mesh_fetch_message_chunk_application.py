@@ -1,21 +1,19 @@
 """
 Module for MESH API functionality for step functions
 """
-from http import HTTPStatus
-import os
 import json
+import os
+from http import HTTPStatus
 
-import boto3
 from botocore.exceptions import ClientError
-
+from nhs_aws_helpers import s3_client
 from spine_aws_common import LambdaApplication
+
 from mesh_client_aws_serverless.mesh_common import MeshCommon
 from mesh_client_aws_serverless.mesh_mailbox import MeshMailbox
 
 
-class MeshFetchMessageChunkApplication(
-    LambdaApplication
-):  # pylint: disable=too-many-instance-attributes
+class MeshFetchMessageChunkApplication(LambdaApplication):
     """
     MESH API Lambda for sending a message
     """
@@ -31,9 +29,7 @@ class MeshFetchMessageChunkApplication(
         self.mailbox = None
         self.input = {}
         self.environment = os.environ.get("Environment", "default")
-        self.chunk_size = os.environ.get(
-            "CHUNK_SIZE", MeshCommon.DEFAULT_CHUNK_SIZE
-        )
+        self.chunk_size = os.environ.get("CHUNK_SIZE", MeshCommon.DEFAULT_CHUNK_SIZE)
         self.http_response = None
         self.response = {}
         self.internal_id = None
@@ -44,7 +40,6 @@ class MeshFetchMessageChunkApplication(
         self.number_of_chunks = 0
         self.current_chunk = 0
         self.message_id = None
-        self.region = os.environ.get("AWS_REGION", "eu-west-2")
         self.s3_client = None
         self.s3_bucket = ""
         self.http_headers_bytes_read = 0
@@ -62,7 +57,7 @@ class MeshFetchMessageChunkApplication(
         self.current_chunk = self.input.get("chunk_num", 1)
         self.message_id = self.input["message_id"]
         self.response = self.event.raw_event
-        self.s3_client = boto3.client("s3", region_name=self.region)
+        self.s3_client = s3_client()
         self.log_object.internal_id = self.internal_id
         self._setup_mailbox()
 
@@ -142,7 +137,13 @@ class MeshFetchMessageChunkApplication(
 
     def _handle_report_message(self):
         self.log_object.write_log(
-            "MESHFETCH0010", None, {"message_id": self.message_id}
+            "MESHFETCH0010",
+            None,
+            {
+                "message_id": self.message_id,
+                "s3_bucket": self.s3_bucket,
+                "s3_key": self.s3_key,
+            },
         )
         buffer = json.dumps(dict(self.http_response.headers)).encode("utf-8")
         self.http_headers_bytes_read = len(buffer)
@@ -171,6 +172,17 @@ class MeshFetchMessageChunkApplication(
         self.s3_key = s3_folder + (
             file_name if len(file_name) > 0 else self.message_id + ".dat"
         )
+        self.log_object.write_log(
+            "MESHFETCH0001c",
+            None,
+            {
+                "message_id": self.message_id,
+                "chunk_num": self.current_chunk,
+                "s3_key": self.s3_key,
+                "s3_bucket": self.s3_bucket,
+                "s3_folder": s3_folder,
+            },
+        )
 
     def _is_last_chunk(self, chunk_num) -> bool:
         chunk_range = self.http_response.headers.get("Mex-Chunk-Range", "1:1")
@@ -185,19 +197,14 @@ class MeshFetchMessageChunkApplication(
     def _upload_part_to_s3(self, buffer):
         """Upload a part to S3 and check response"""
         overflow_filename = f"part_overflow_{self.message_id}.tmp"
-        self.s3_tempfile_key = (
-            os.path.basename(self.s3_key) + overflow_filename
-        )
+        self.s3_tempfile_key = os.path.basename(self.s3_key) + overflow_filename
 
         # check if part_overflow_{message_id}.tmp exists and pre-pend to buffer
         try:
             s3_response = self.s3_client.get_object(
                 Bucket=self.s3_bucket, Key=self.s3_tempfile_key
             )
-            if (
-                s3_response["ResponseMetadata"]["HTTPStatusCode"]
-                == HTTPStatus.OK.value
-            ):
+            if s3_response["ResponseMetadata"]["HTTPStatusCode"] == HTTPStatus.OK.value:
                 pre_buffer = s3_response["Body"].read()
                 buffer = pre_buffer + buffer
 
@@ -214,7 +221,6 @@ class MeshFetchMessageChunkApplication(
             self.s3_client.delete_object(
                 Bucket=self.s3_bucket,
                 Key=self.s3_tempfile_key,
-                BypassGovernanceRetention=True,
             )
         except ClientError as e:
             self.log_object.write_log(
@@ -237,9 +243,7 @@ class MeshFetchMessageChunkApplication(
                 UploadId=self.aws_upload_id,
             )
         except ClientError as e:
-            self.response.update(
-                {"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value}
-            )
+            self.response.update({"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value})
             self.log_object.write_log(
                 "MESHFETCH0006",
                 None,
@@ -308,12 +312,18 @@ class MeshFetchMessageChunkApplication(
                 Key=self.s3_key,
             )
             self.aws_upload_id = multipart_upload["UploadId"]
-        except ClientError as e:
-            self.response.update(
-                {"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value}
-            )
             self.log_object.write_log(
-                "MESHFETCH0005",
+                "MESHFETCH0005a",
+                None,
+                {
+                    "key": self.s3_key,
+                    "bucket": self.s3_bucket,
+                },
+            )
+        except ClientError as e:
+            self.response.update({"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value})
+            self.log_object.write_log(
+                "MESHFETCH0005b",
                 None,
                 {
                     "key": self.s3_key,
@@ -337,7 +347,6 @@ class MeshFetchMessageChunkApplication(
                     "PARTS": {"Parts": self.aws_part_etags},
                 },
             )
-
             self.s3_client.complete_multipart_upload(
                 Bucket=self.s3_bucket,
                 Key=self.s3_key,
@@ -346,9 +355,7 @@ class MeshFetchMessageChunkApplication(
             )
 
         except ClientError as e:
-            self.response.update(
-                {"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value}
-            )
+            self.response.update({"statusCode": HTTPStatus.INTERNAL_SERVER_ERROR.value})
             self.log_object.write_log(
                 "MESHFETCH0007",
                 None,

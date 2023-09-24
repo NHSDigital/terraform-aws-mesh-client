@@ -3,20 +3,42 @@ version: '3.9'
 
 services:
 
+  localstack:
+    container_name: localstack
+    image: "${LOCALSTACK_IMAGE:-localstack/localstack:latest}"
+    restart: always
+    environment:
+      - PROVIDER_OVERRIDE_STEPFUNCTIONS=v2
+      - DEFAULT_REGION=eu-west-2
+      - DEBUG=1
+      - DYNAMODB_SHARE_DB=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    tmpfs:
+      - /var/lib/localstack:exec,mode=600
+    ports:
+      - "4567:4566" # edge service
+    healthcheck:
+      test: awslocal s3 ls && awslocal secretsmanager list-secrets
+      interval: 3s
+      timeout: 10s
+
   mesh_sandbox:
     build: 
       context: https://github.com/NHSDigital/mesh-sandbox.git#develop
     ports:
-      - "8700:80"
+      - "8700:443"
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
     healthcheck:
-      test: curl -sf http://localhost:80/health || exit 1
+      test: curl -sf https://localhost:443/health || exit 1
       interval: 3s
       timeout: 10s
     environment:
+      - SSL=yes
       - SHARED_KEY=TestKey
     volumes:
       # mount a different mailboxes.jsonl to pre created mailboxes

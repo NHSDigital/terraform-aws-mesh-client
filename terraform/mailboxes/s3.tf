@@ -1,3 +1,6 @@
+
+# these are deprecated resources, but trying to migrate to aws_s3_object could potentially delete the folders
+# think a state rm / and remove these from terraform completely would be best
 resource "aws_s3_bucket_object" "inbound" {
   bucket       = var.bucket_id
   key          = "inbound_${var.mailbox_id}/"

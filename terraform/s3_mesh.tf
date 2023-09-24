@@ -1,39 +1,66 @@
 resource "aws_s3_bucket" "mesh" {
   bucket = local.name
-  acl    = "private"
+}
 
-  logging {
-    target_bucket = aws_s3_bucket.s3logs.id
-    target_prefix = "bucket_logs/"
-  }
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.mesh.key_id
-        sse_algorithm     = "aws:kms"
-      }
+resource "aws_s3_bucket_lifecycle_configuration" "mesh" {
+  bucket = aws_s3_bucket.mesh.id
+
+  rule {
+    id     = "ExpireMeshObjects"
+    status = var.mesh_s3_object_expiry_enabled ? "Enabled" : "Disabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 10
     }
-  }
-
-    lifecycle_rule {
-    id      = "ExpireMeshObjects"
-    enabled = var.mesh_s3_object_expiry_enabled
 
     expiration {
       days = var.mesh_s3_object_expiry_in_days
     }
 
     noncurrent_version_expiration {
-      days = var.mesh_s3_object_expiry_in_days
+      noncurrent_days = var.mesh_s3_object_expiry_in_days
+    }
+
+    filter {
     }
 
   }
 
-  versioning {
-    enabled = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "mesh" {
+  bucket = aws_s3_bucket.mesh.bucket
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.mesh.key_id
+      sse_algorithm     = "aws:kms"
+    }
   }
 }
+
+resource "aws_s3_bucket_logging" "mesh" {
+  bucket        = aws_s3_bucket.mesh.bucket
+  target_bucket = aws_s3_bucket.s3logs.id
+  target_prefix = "bucket_logs/"
+}
+
+
+resource "aws_s3_bucket_versioning" "mesh" {
+  bucket = aws_s3_bucket.mesh.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_ownership_controls" "mesh" {
+  bucket = aws_s3_bucket.mesh.id
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+
 
 resource "aws_s3_bucket_public_access_block" "mesh" {
   bucket = aws_s3_bucket.mesh.id

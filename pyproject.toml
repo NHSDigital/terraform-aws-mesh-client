@@ -9,7 +9,130 @@ packages = [{include = "mesh_client_aws_serverless"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-spine-aws-common = "^0.2.10"
+aws-lambda-powertools = "2.14.1"
+importlib-metadata = "6.6.0"
+requests = "2.28.2"
+urllib3 = "1.26.15"
+spine-aws-common = "^0.2.14"
+nhs-aws-helpers = "^0.3.4"
+
+
+
+
+[tool.poetry.group.dev.dependencies]
+# ci / testing dependencies
+boto3 = "^1.26.54"
+black = "^22.12.0"
+mypy = "^1.4.0"
+coverage = "^7.2.7"
+pytest = "^7.3.1"
+pytest-asyncio = "^0.21.0"
+requests-mock = "^1.11.0"
+moto = {extras = ["s3", "ssm", "stepfunctions", "secretsmanager"], version = "4.1.0"}
+parameterized = "^0.9.0"
+boto3-stubs = {extras = ["s3", "ssm", "secretsmanager", "dynamodb", "stepfunctions", "sqs", "lambda", "logs",], version = "^1.26.54"}
+types-requests = "^2.31.0.2"
+ruff = "^0.0.291"
+petname = "^2.6"
+
+
+[tool.poetry.group.local.dependencies]
+ipython = "^8.12.2"
+
+
+[tool.ruff]
+select = [
+    # See https://beta.ruff.rs/docs/rules/ for a full list
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "Q", # flake8-quotes
+    "YTT", # flake8-2020
+    "RSE", # flake8-raise
+    "T10", # flake8-debugger
+    "ISC", # flake8-implicit-str-concat
+    "ICN", # flake8-import-conventions
+    "PIE", # flake8-pie
+    "EXE", # flake8-executable
+    "A", # flake8-builtins
+    "UP",  # pyupgrade
+    "PT", # flake8-pytest-style
+    "PERF", # Perflint #
+    "RUF", # Ruff-specific rules
+    "SIM", # flake8-simplify
+]
+src = ["."]
+ignore = [
+    "SIM112"  # casing on environment variables
+]
+exclude = [
+    ".git",
+    ".venv",
+]
+unfixable = ["SIM112"]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.per-file-ignores]
+
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+show_error_codes = true
+check_untyped_defs = true
+exclude = [
+    "build",
+    "dist",
+    "scripts",
+    "terraform",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+python_classes = "NoTestClasses"
+python_files = "*_test.py test_*.py"
+norecursedirs = ".git .venv .eggs build dist .tox"
+testpaths = [
+    "tests",
+]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    ".venv/*",
+    ".tox/*",
+    "tests/*",
+    "terraform/mesh_aws_client/*",
+    "terraform/mesh_aws_client_dependencies/*"
+]
+source = [
+    "."
+]
+
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_lines = [
+    "pragma: no cover",
+    "from .*",
+    "import .*"
+]
+omit = [
+    "tests/*",
+]
+sort = "-cover"
+ignore_errors = true
+precision = 2
+fail_under = 65
+show_missing = true
+
+[tool.coverage.xml]
+output = "reports/coverage.xml"
 
 
 [build-system]

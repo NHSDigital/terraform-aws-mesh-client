@@ -5,5 +5,7 @@
 # These only need to be run once per workstation but are included to try and ensure they are present
 ./nhsd-git-secrets/git-secrets --add-provider -- cat nhsd-git-secrets/nhsd-rules-deny.txt
 
-# Just scan the files changed in this commit
-./nhsd-git-secrets/git-secrets --pre_commit_hook
+echo "Scanning staged and unstaged files for secrets"
+./nhsd-git-secrets/git-secrets --scan --recursive
+echo "Scanning untracked files for secrets"
+./nhsd-git-secrets/git-secrets --scan --untracked

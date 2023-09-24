@@ -1,3 +1,4 @@
 nhsd-git-secrets/git-secrets
 nhsd-git-secrets/nhsd-rules-deny.txt
 poetry.lock
+mesh_client_aws_serverless/requirements.txt

@@ -59,7 +59,9 @@ variable "mailboxes" {
   default = []
 }
 
-variable "mailbox_ids" {}
+variable "mailbox_ids" {
+  type = set(string)
+}
 
 
 variable "account_admin_role" {
@@ -99,4 +101,9 @@ variable "mesh_s3_object_expiry_in_days" {
 
 variable "mesh_s3_object_expiry_enabled" {
   default = false
+}
+
+
+variable "cloudtrail_enabled" {
+  default = true
 }

@@ -115,9 +115,9 @@ resource "aws_sfn_state_machine" "get_messages" {
             ErrorEquals = [
               "States.TaskFailed"
             ],
-            BackoffRate = 1,
+            BackoffRate     = 1,
             IntervalSeconds = 300,
-            MaxAttempts = 2
+            MaxAttempts     = 2
           },
         ]
         Type = "Task"

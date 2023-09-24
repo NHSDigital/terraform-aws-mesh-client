@@ -1,4 +1,5 @@
 resource "aws_cloudtrail" "s3logs" {
+  count                         = var.cloudtrail_enabled ? 1 : 0
   name                          = "${local.name}-s3logs"
   s3_bucket_name                = aws_s3_bucket.s3logs.id
   s3_key_prefix                 = "AWSLogs"
