@@ -3,7 +3,7 @@ from http import HTTPStatus
 from unittest import mock
 
 import boto3
-from moto import mock_s3, mock_ssm, mock_stepfunctions
+from moto import mock_s3, mock_secretsmanager, mock_ssm, mock_stepfunctions
 
 from mesh_client_aws_serverless.mesh_check_send_parameters_application import (
     MeshCheckSendParametersApplication,
@@ -16,6 +16,10 @@ from .mesh_testing_common import (
 )
 
 
+@mock_secretsmanager
+@mock_ssm
+@mock_s3
+@mock_stepfunctions
 class TestMeshCheckSendParametersApplication(MeshTestCase):
     """Testing MeshPollMailbox application"""
 
@@ -43,9 +47,6 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             self.environment, ssm_client
         )
 
-    @mock_stepfunctions
-    @mock_ssm
-    @mock_s3
     @mock.patch.object(
         MeshCheckSendParametersApplication,
         "_get_internal_id",
@@ -106,10 +107,6 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         sfn_client = boto3.client("stepfunctions", config=MeshTestingCommon.aws_config)
         return sfn_client
 
-    # pylint: disable=too-many-statements
-    @mock_stepfunctions
-    @mock_ssm
-    @mock_s3
     @mock.patch.object(
         MeshCheckSendParametersApplication,
         "_get_internal_id",

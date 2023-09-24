@@ -5,8 +5,8 @@ import os
 from http import HTTPStatus
 from math import ceil
 
-import boto3
 from aws_lambda_powertools.utilities.data_classes import EventBridgeEvent
+from nhs_aws_helpers import s3_client, ssm_client
 from spine_aws_common import LambdaApplication
 from spine_aws_common.utilities import human_readable_bytes
 
@@ -120,8 +120,8 @@ class MeshCheckSendParametersApplication(LambdaApplication):
             folder += "/"
 
         path = f"/{self.environment}/mesh/mapping/{bucket}/{folder}"
-        ssm_client = boto3.client("ssm", region_name="eu-west-2")
-        mailbox_mapping_params = ssm_client.get_parameters_by_path(
+        ssm = ssm_client()
+        mailbox_mapping_params = ssm.get_parameters_by_path(
             Path=path,
             Recursive=False,
             WithDecryption=True,
@@ -148,8 +148,8 @@ class MeshCheckSendParametersApplication(LambdaApplication):
     @staticmethod
     def _get_file_size(bucket, key):
         """Get file size"""
-        s3_client = boto3.client("s3")
-        response = s3_client.head_object(Bucket=bucket, Key=key)
+        s3 = s3_client()
+        response = s3.head_object(Bucket=bucket, Key=key)
         file_size = response.get("ContentLength")
         return file_size
 

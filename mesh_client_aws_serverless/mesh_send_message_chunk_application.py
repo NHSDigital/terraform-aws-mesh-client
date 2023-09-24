@@ -21,9 +21,7 @@ class MaxByteExceededException(Exception):
         self.msg = msg
 
 
-class MeshSendMessageChunkApplication(
-    LambdaApplication
-):  # pylint: disable=too-many-instance-attributes
+class MeshSendMessageChunkApplication(LambdaApplication):
     """
     MESH API Lambda for sending a message / message chunk
     """

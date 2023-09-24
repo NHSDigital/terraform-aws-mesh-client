@@ -3,7 +3,7 @@ from typing import ClassVar
 from unittest import TestCase
 
 from botocore.config import Config
-from moto import mock_s3, mock_ssm
+from moto import mock_s3, mock_ssm, mock_secretsmanager, mock_stepfunctions
 from spine_aws_common.log.log_helper import LogHelper
 
 FILE_CONTENT = "123456789012345678901234567890123"
@@ -174,8 +174,6 @@ class MeshTestCase(TestCase):
         self.environment = None
         self.app = None
 
-    @mock_s3
-    @mock_ssm
     def setUp(self):
         """Common setup for all tests"""
         self.log_helper = LogHelper()

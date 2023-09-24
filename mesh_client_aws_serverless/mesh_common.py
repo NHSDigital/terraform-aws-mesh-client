@@ -3,9 +3,7 @@ import json
 import os
 from collections import namedtuple
 
-import boto3
-
-REGION_NAME = os.environ.get("AWS_REGION", "eu-west-2")
+from nhs_aws_helpers import secrets_client, ssm_client, stepfunctions
 
 
 class SingletonCheckFailure(Exception):
@@ -33,7 +31,7 @@ class MeshCommon:
     @staticmethod
     def singleton_check(mailbox, my_step_function_name):
         """Find out whether there is another step function running for my mailbox"""
-        sfn_client = boto3.client("stepfunctions", region_name="eu-west-2")
+        sfn_client = stepfunctions()
         response = sfn_client.list_state_machines()
         # Get my step function arn
         my_step_function_arn = None
@@ -99,8 +97,8 @@ class MeshCommon:
         """
         Get parameters from SSM and secrets manager
         """
-        ssm_client = boto3.client("ssm", region_name=REGION_NAME)
-        params_result = ssm_client.get_parameters_by_path(
+        ssm = ssm_client()
+        params_result = ssm.get_parameters_by_path(
             Path=path,
             Recursive=recursive,
             WithDecryption=decryption,
@@ -113,13 +111,13 @@ class MeshCommon:
                 var_name = os.path.basename(name)
                 new_params_dict[var_name] = entry.get("Value", None)
         if os.environ.get("use_secrets_manager") == "true":
-            secrets_client = boto3.client("secretsmanager", region_name=REGION_NAME)
-            all_secrets_dict = secrets_client.list_secrets()
+            secrets = secrets_client()
+            all_secrets_dict = secrets.list_secrets()
             all_secrets_list = all_secrets_dict["SecretList"]
             for secret in all_secrets_list:
                 name = secret["Name"]
                 if name.startswith(path):
-                    secret_value = secrets_client.get_secret_value(SecretId=name)[
+                    secret_value = secrets.get_secret_value(SecretId=name)[
                         "SecretString"
                     ]
                     var_name = os.path.basename(name)

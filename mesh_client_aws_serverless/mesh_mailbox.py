@@ -39,7 +39,7 @@ class HandshakeFailure(Exception):
         self.msg = msg
 
 
-class MeshMailbox:  # pylint: disable=too-many-instance-attributes
+class MeshMailbox:
     """Mailbox class that handles all the complexity of talking to MESH API"""
 
     AUTH_SCHEMA_NAME = "NHSMESH"
@@ -126,7 +126,6 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
         """Write the certificates to a local file"""
         self.log_object.write_log("MESHMBOX0002", None, None)
 
-        # pylint: disable=consider-using-with
         self.temp_dir_object = tempfile.TemporaryDirectory()
         temp_dir = self.temp_dir_object.name
 
@@ -147,7 +146,6 @@ class MeshMailbox:  # pylint: disable=too-many-instance-attributes
             ca_cert = self.params[MeshMailbox.MESH_CA_CERT]
             self.ca_cert_file.write(ca_cert.encode("utf-8"))
             self.ca_cert_file.seek(0)
-        # pylint: enable=consider-using-with
 
     def _build_mesh_authorization_header(
         self, nonce: Optional[str] = None, noncecount: int = 0

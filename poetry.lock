@@ -97,17 +97,17 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "boto3"
-version = "1.26.54"
+version = "1.28.53"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.54-py3-none-any.whl", hash = "sha256:c729bb0af76e85a2776b6bd3da8d9fa0f4b91b425eab51612aa53956f644ee23"},
-    {file = "boto3-1.26.54.tar.gz", hash = "sha256:4e876ba5d64928cde0c416dd844f04f22d6b73d14002bbc3ca55591f80f49927"},
+    {file = "boto3-1.28.53-py3-none-any.whl", hash = "sha256:dc2da9aff7de359774030a243a09b74568664117e2afb77c6e4b90572ae3a6c3"},
+    {file = "boto3-1.28.53.tar.gz", hash = "sha256:b95b0cc39f08402029c3a2bb141e1775cfa46576ebe9f9916f79bde90e27f53f"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.54,<1.30.0"
+botocore = ">=1.31.53,<1.32.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -127,11 +127,16 @@ files = [
 
 [package.dependencies]
 botocore-stubs = "*"
+mypy-boto3-athena = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"athena\""}
 mypy-boto3-dynamodb = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"dynamodb\""}
+mypy-boto3-events = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"events\""}
+mypy-boto3-firehose = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"firehose\""}
+mypy-boto3-kms = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"kms\""}
 mypy-boto3-lambda = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"lambda\""}
 mypy-boto3-logs = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"logs\""}
 mypy-boto3-s3 = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"s3\""}
 mypy-boto3-secretsmanager = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"secretsmanager\""}
+mypy-boto3-sns = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"sns\""}
 mypy-boto3-sqs = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"sqs\""}
 mypy-boto3-ssm = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"ssm\""}
 mypy-boto3-stepfunctions = {version = ">=1.28.0,<1.29.0", optional = true, markers = "extra == \"stepfunctions\""}
@@ -500,13 +505,13 @@ xray = ["mypy-boto3-xray (>=1.28.0,<1.29.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.165"
+version = "1.31.53"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.165-py3-none-any.whl", hash = "sha256:6f35d59e230095aed7cd747604fe248fa384bebb7d09549077892f936a8ca3df"},
-    {file = "botocore-1.29.165.tar.gz", hash = "sha256:988b948be685006b43c4bbd8f5c0cb93e77c66deb70561994e0c5b31b5a67210"},
+    {file = "botocore-1.31.53-py3-none-any.whl", hash = "sha256:aa647f94039d21de97c969df21ce8c5186b68234eb5c53148f0d8bbd708e375d"},
+    {file = "botocore-1.31.53.tar.gz", hash = "sha256:905580ea724d74f11652bab63fcec6bf0d32f1cf8b2963f7388efc0ea406b69b"},
 ]
 
 [package.dependencies]
@@ -515,7 +520,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = ">=1.25.4,<1.27"
 
 [package.extras]
-crt = ["awscrt (==0.16.9)"]
+crt = ["awscrt (==0.16.26)"]
 
 [[package]]
 name = "botocore-stubs"
@@ -1179,6 +1184,20 @@ install-types = ["pip"]
 reports = ["lxml"]
 
 [[package]]
+name = "mypy-boto3-athena"
+version = "1.28.36"
+description = "Type annotations for boto3.Athena 1.28.36 service generated with mypy-boto3-builder 7.18.0"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mypy-boto3-athena-1.28.36.tar.gz", hash = "sha256:a76df6aace3dc1d91b3f74640d617cd1b4802e5f348a22db2f16dfce0b01ee26"},
+    {file = "mypy_boto3_athena-1.28.36-py3-none-any.whl", hash = "sha256:b79b77df6ba30c55ff2f1f8b36de410f537c8c978d892e958b4c5e165797915a"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
+
+[[package]]
 name = "mypy-boto3-dynamodb"
 version = "1.28.36"
 description = "Type annotations for boto3.DynamoDB 1.28.36 service generated with mypy-boto3-builder 7.18.0"
@@ -1187,6 +1206,48 @@ python-versions = ">=3.7"
 files = [
     {file = "mypy-boto3-dynamodb-1.28.36.tar.gz", hash = "sha256:5fe1d336fdc8c58f345c9c1b4e4c1a2d164660531cf3a074d4598975fb2687de"},
     {file = "mypy_boto3_dynamodb-1.28.36-py3-none-any.whl", hash = "sha256:9a3b49385d17e421661ab8639fc09cc64a706198be20287f82d83511289294a3"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
+
+[[package]]
+name = "mypy-boto3-events"
+version = "1.28.46"
+description = "Type annotations for boto3.EventBridge 1.28.46 service generated with mypy-boto3-builder 7.19.0"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mypy-boto3-events-1.28.46.tar.gz", hash = "sha256:fdae2b51c7c13d0045c6a0a7c2ddb735e67ae79077084a28f922870593091ad1"},
+    {file = "mypy_boto3_events-1.28.46-py3-none-any.whl", hash = "sha256:1220289549bd3b24a37561c5dbf6f20a9d97f66748b15dbfe9e218cc52cce246"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
+
+[[package]]
+name = "mypy-boto3-firehose"
+version = "1.28.47"
+description = "Type annotations for boto3.Firehose 1.28.47 service generated with mypy-boto3-builder 7.19.0"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mypy-boto3-firehose-1.28.47.tar.gz", hash = "sha256:0ae61e18f3bd6e85ec86b7e3cb985a164ef4bd1adfe080acfe764859dc669ea1"},
+    {file = "mypy_boto3_firehose-1.28.47-py3-none-any.whl", hash = "sha256:6c26643fcfe363b582c7e3a57e6f0cc78c76a8138c69f1091747c4f949c7c050"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
+
+[[package]]
+name = "mypy-boto3-kms"
+version = "1.28.37"
+description = "Type annotations for boto3.KMS 1.28.37 service generated with mypy-boto3-builder 7.18.2"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mypy-boto3-kms-1.28.37.tar.gz", hash = "sha256:97845c7d3d6f846f2195a59d6a974307a16a085b1e64fe7afe40e9a5c06b6b8f"},
+    {file = "mypy_boto3_kms-1.28.37-py3-none-any.whl", hash = "sha256:bc1d18d7d8f9f36932d672341c209e2be2705c1e40a048f910f0be61c74014af"},
 ]
 
 [package.dependencies]
@@ -1249,6 +1310,20 @@ files = [
 typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
 
 [[package]]
+name = "mypy-boto3-sns"
+version = "1.28.36"
+description = "Type annotations for boto3.SNS 1.28.36 service generated with mypy-boto3-builder 7.18.0"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mypy-boto3-sns-1.28.36.tar.gz", hash = "sha256:497591864101a5147d5d2fa7151048c0c4cb4b19af374a6b70ac2ef8aae43066"},
+    {file = "mypy_boto3_sns-1.28.36-py3-none-any.whl", hash = "sha256:e3d1a29420e83bd68bdd6236da3b27883ba315f2f36ea8b5b87e2defb9793155"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
+
+[[package]]
 name = "mypy-boto3-sqs"
 version = "1.28.36"
 description = "Type annotations for boto3.SQS 1.28.36 service generated with mypy-boto3-builder 7.18.0"
@@ -1302,6 +1377,22 @@ files = [
 ]
 
 [[package]]
+name = "nhs-aws-helpers"
+version = "0.3.4"
+description = ""
+optional = false
+python-versions = ">=3.8.1,<4.0"
+files = [
+    {file = "nhs_aws_helpers-0.3.4-py3-none-any.whl", hash = "sha256:8fd58332cddabf69d603704099476982326e57506dfb6a7366728d1e94a9ee5d"},
+    {file = "nhs_aws_helpers-0.3.4.tar.gz", hash = "sha256:d8d080c125b2884c4b3a6011476727bf84f6d5d18fff544d33f4dada63707444"},
+]
+
+[package.dependencies]
+boto3 = ">=1.26.159,<2.0.0"
+boto3-stubs = {version = ">=1.28.36,<2.0.0", extras = ["athena", "dynamodb", "events", "firehose", "kms", "lambda", "logs", "s3", "secretsmanager", "sns", "sqs", "ssm", "stepfunctions"]}
+botocore-stubs = ">=1.29.159,<2.0.0"
+
+[[package]]
 name = "packaging"
 version = "23.1"
 description = "Core utilities for Python packages"
@@ -1350,6 +1441,16 @@ python-versions = ">=3.7"
 files = [
     {file = "pathspec-0.11.2-py3-none-any.whl", hash = "sha256:1d6ed233af05e679efb96b1851550ea95bbb64b7c490b0f5aa52996c11e92a20"},
     {file = "pathspec-0.11.2.tar.gz", hash = "sha256:e0d8d0ac2f12da61956eb2306b69f9469b42f4deb0f3cb6ed47b9cce9996ced3"},
+]
+
+[[package]]
+name = "petname"
+version = "2.6"
+description = "Generate human-readable, random object names"
+optional = false
+python-versions = "*"
+files = [
+    {file = "petname-2.6.tar.gz", hash = "sha256:981c31ef772356a373640d1bb7c67c102e0159eda14578c67a1c99d5b34c9e4c"},
 ]
 
 [[package]]
@@ -1900,4 +2001,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "9b4c2ad939f35751dd9043085843f68dcb78ea72f18042b311b61ea1e4b94a12"
+content-hash = "2a500e28d7605232b067e79393c4b4dcd04127f30be3239779051db73353df22"

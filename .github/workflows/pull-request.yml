@@ -58,7 +58,9 @@ jobs:
         with:
           path: |
             .venv
-          key: ${{ runner.os }}-poetry-v2-py3.9-${{ hashFiles('./poetry.lock') }}
+            **/.lock-hash
+            **/requirements.txt
+          key: ${{ runner.os }}-poetry-v2-${{ hashFiles('./poetry.lock') }}
 
       - name: git reset
         run: git reset --hard
@@ -179,7 +181,9 @@ jobs:
         with:
           path: |
             .venv
-          key: ${{ runner.os }}-poetry-v2-py3.9-${{ hashFiles('./poetry.lock') }}
+            **/.lock-hash
+            **/requirements.txt
+          key: ${{ runner.os }}-poetry-v2-${{ hashFiles('./poetry.lock') }}
 
       - name: git reset
         run: git reset --hard

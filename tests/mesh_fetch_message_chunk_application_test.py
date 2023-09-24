@@ -5,7 +5,7 @@ from unittest import mock
 
 import boto3
 import requests_mock
-from moto import mock_s3, mock_ssm
+from moto import mock_s3, mock_secretsmanager, mock_ssm, mock_stepfunctions
 from parameterized import parameterized
 from requests.exceptions import HTTPError
 
@@ -19,6 +19,10 @@ from .mesh_testing_common import (
 )
 
 
+@mock_secretsmanager
+@mock_ssm
+@mock_s3
+@mock_stepfunctions
 class TestMeshFetchMessageChunkApplication(MeshTestCase):
     """Testing MeshFetchMessageChunk application"""
 
@@ -29,8 +33,6 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         self.app = MeshFetchMessageChunkApplication()
         self.environment = self.app.system_config["Environment"]
 
-    @mock_ssm
-    @mock_s3
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
     def test_mesh_fetch_file_chunk_app_no_chunks_happy_path(
@@ -127,8 +129,6 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
     @parameterized.expand([("_happy_path", 20), ("odd_sized_chunk_with_temp_file", 18)])
-    @mock_ssm
-    @mock_s3
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
     def test_mesh_fetch_file_chunk_app_2_chunks(
@@ -272,8 +272,6 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         # )
         assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
-    @mock_ssm
-    @mock_s3
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
     def test_mesh_fetch_file_chunk_app_2_chunks_using_temp_file(
@@ -412,8 +410,6 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         )
         assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
-    @mock_ssm
-    @mock_s3
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
     def test_mesh_fetch_file_chunk_app_report(
@@ -479,8 +475,6 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
 
         assert self.log_helper.was_value_logged("MESHFETCH0012", "Log_Level", "INFO")
 
-    @mock_ssm
-    @mock_s3
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
     def test_mesh_fetch_file_chunk_app_gone_away_unhappy_path(

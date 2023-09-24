@@ -5,17 +5,15 @@ import json
 import os
 from http import HTTPStatus
 
-import boto3
 from botocore.exceptions import ClientError
+from nhs_aws_helpers import s3_client
 from spine_aws_common import LambdaApplication
 
 from mesh_client_aws_serverless.mesh_common import MeshCommon
 from mesh_client_aws_serverless.mesh_mailbox import MeshMailbox
 
 
-class MeshFetchMessageChunkApplication(
-    LambdaApplication
-):  # pylint: disable=too-many-instance-attributes
+class MeshFetchMessageChunkApplication(LambdaApplication):
     """
     MESH API Lambda for sending a message
     """
@@ -42,7 +40,6 @@ class MeshFetchMessageChunkApplication(
         self.number_of_chunks = 0
         self.current_chunk = 0
         self.message_id = None
-        self.region = os.environ.get("AWS_REGION", "eu-west-2")
         self.s3_client = None
         self.s3_bucket = ""
         self.http_headers_bytes_read = 0
@@ -60,7 +57,7 @@ class MeshFetchMessageChunkApplication(
         self.current_chunk = self.input.get("chunk_num", 1)
         self.message_id = self.input["message_id"]
         self.response = self.event.raw_event
-        self.s3_client = boto3.client("s3", region_name=self.region)
+        self.s3_client = s3_client()
         self.log_object.internal_id = self.internal_id
         self._setup_mailbox()
 
