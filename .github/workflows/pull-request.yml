@@ -164,7 +164,7 @@ jobs:
           echo "${TFSEC_VERSION}"
           wget -q "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/tfsec-linux-amd64" -O ./tfsec
           chmod +x ./tfsec
-          ./tfsec terraform --config-file tfsec.yml
+          ./tfsec module --config-file tfsec.yml
 
       - name: setup python
         uses: actions/setup-python@v4

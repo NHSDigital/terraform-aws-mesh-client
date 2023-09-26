@@ -1,5 +1,5 @@
 module "main" {
-  source = "../terraform"
+  source = "../../module"
 
   mailbox_ids = ["X26ABC1", "X26ABC2", "X26ABC3"]
 

@@ -38,7 +38,7 @@ install-ci: requirements
 
 
 local-terraform:
-	make -C localstack
+	make -C stacks/localstack
 
 up: requirements
 	docker compose up -d --remove-orphans
@@ -47,7 +47,7 @@ up: requirements
 
 down:
 	poetry run docker compose down --remove-orphans || true
-	make -C localstack clean
+	make -C stacks/localstack clean
 
 build:
 	poetry run python -m build
@@ -59,16 +59,16 @@ test: pytest
 
 
 tf-lint:
-	docker run --rm -v $(pwd)/terraform:/data -t ghcr.io/terraform-linters/tflint --enable-plugin=aws
+	docker run --rm -v $(pwd)/module:/data -t ghcr.io/terraform-linters/tflint --enable-plugin=aws
 
 tf-format-check:
-	terraform fmt -check -recursive terraform
+	terraform fmt -check -recursive module
 
 tf-format:
 	terraform fmt --recursive
 
 tfsec:
-	tfsec terraform --config-file tfsec.yml
+	tfsec module --config-file tfsec.yml
 
 mypy:
 	poetry run mypy .
