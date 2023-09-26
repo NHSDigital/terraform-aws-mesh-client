@@ -27,7 +27,7 @@ jobs:
 
       - name: get tag
         run: |
-          VERSION="$(git describe --tags)
+          VERSION="${GITHUB_REF#refs/*/}"
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
 

@@ -1,14 +1,7 @@
 .gitallowed:
 .gitdisallowed:
 .git/*
-.*git-secrets/.*:*
-.*terraform.tfstate.*:*
-.*.svg:*
-.*.jquery.*.js:*
-.*engine_version*
-.*127.0.0.1*
-.*assembly: AssemblyVersion*
-.*assembly: AssemblyFileVersion*
-.*Version=*
-poetry.lock:
-token: \$\{\{ secrets.GITHUB_TOKEN \}\}
+mesh_sandbox/store/data/mailboxes.jsonl.*password.*
+"account": "123456789012"
+"accountId": "123456789012"
+123456789012:role
