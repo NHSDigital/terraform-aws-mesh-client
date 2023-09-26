@@ -137,9 +137,10 @@ requirements:
 	done
 
 check-secrets:
-	./nhsd-git-secrets/git-secrets --pre_commit_hook
+	scripts/check-secrets.sh
+
 check-secrets-all:
-	./nhsd-git-secrets/pre-commit.sh
+	scripts/check-secrets.sh unstaged
 
 delete-hooks:
 	rm .git/hooks/pre-commit 2>/dev/null || true
