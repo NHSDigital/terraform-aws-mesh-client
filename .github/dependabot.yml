@@ -4,7 +4,7 @@ updates:
       directory: "/"
       open-pull-requests-limit: 2
       schedule:
-          interval: "daily"
+          interval: "monthly"
           time: "03:00"
       commit-message:
           prefix: "github actions "
@@ -15,7 +15,7 @@ updates:
       open-pull-requests-limit: 2
 
       schedule:
-          interval: "daily"
+          interval: "monthly"
           time: "12:00"
       commit-message:
           prefix: "py dev "
