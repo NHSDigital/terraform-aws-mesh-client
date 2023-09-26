@@ -17,10 +17,10 @@ requirements.txt
 .lock-hash
 
 # ignore packaging and lambda deps
-terraform/mesh_aws_client/*
-terraform/mesh_aws_client_dependencies/*
-terraform/mesh_client_aws_serverless/*
-terraform/mesh_client_aws_serverless_dependencies/*
+module/mesh_aws_client/*
+module/mesh_aws_client_dependencies/*
+module/mesh_client_aws_serverless/*
+module/mesh_client_aws_serverless_dependencies/*
 
 
 

@@ -1,11 +1,23 @@
 """Common methods and classes used for testing mesh client"""
-from typing import ClassVar
+from typing import ClassVar, Literal
 from unittest import TestCase
 
 from botocore.config import Config
 from spine_aws_common.log.log_helper import LogHelper
 
 FILE_CONTENT = "123456789012345678901234567890123"
+
+
+def put_parameter(
+    ssm_client,
+    Name: str,
+    Value: str,
+    Type: Literal["String", "SecureString", "StringList"] = "String",
+    Overwrite: bool = True,
+):
+    """Setup ssm param store for tests"""
+    # Setup mapping
+    ssm_client.put_parameter(Name=Name, Value=Value, Type=Type, Overwrite=Overwrite)
 
 
 class MeshTestingCommon:
@@ -99,67 +111,82 @@ class MeshTestingCommon:
     def setup_mock_aws_ssm_parameter_store(environment, ssm_client):
         """Setup ssm param store for tests"""
         # Setup mapping
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/src_mailbox",
             Value="MESH-TEST2",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/dest_mailbox",
             Value="MESH-TEST1",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/workflow_id",
             Value="TESTWORKFLOW",
         )
         # Setup secrets
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/MESH_URL",
             Value="https://localhost",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/MESH_SHARED_KEY",
             Value="BackBone",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mailboxes/MESH-TEST1/MAILBOX_PASSWORD",
             Value="pwd123456",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mailboxes/MESH-TEST1/INBOUND_BUCKET",
             Value=f"{environment}-mesh",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mailboxes/MESH-TEST1/INBOUND_FOLDER",
             Value="inbound-mesh-test1",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mailboxes/MESH-TEST2/MAILBOX_PASSWORD",
             Value="pwd123456",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mailboxes/MESH-TEST2/INBOUND_BUCKET",
             Value=f"{environment}-mesh",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/mailboxes/MESH-TEST2/INBOUND_FOLDER",
             Value="inbound-mesh-test2",
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/MESH_VERIFY_SSL",
             Value="False",
         )
         ca_cert = "BLAH"
         client_cert = "BLAH"
         client_key = "BLAH"
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/MESH_CA_CERT",
             Value=ca_cert,
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/MESH_CLIENT_CERT",
             Value=client_cert,
         )
-        ssm_client.put_parameter(
+        put_parameter(
+            ssm_client,
             Name=f"/{environment}/mesh/MESH_CLIENT_KEY",
             Value=client_key,
         )
