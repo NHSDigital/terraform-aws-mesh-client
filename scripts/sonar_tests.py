@@ -6,7 +6,6 @@ from collections import defaultdict
 
 
 def _get_test_suites(test_src: str) -> list[dom.Element]:
-
     src_tree: dom.Document = dom.parse(test_src)
     src_root = src_tree.documentElement
 
@@ -76,7 +75,6 @@ def _translate_test_case(
 def _get_tests_from_file(
     test_src: str, dom_out: dom.Document
 ) -> dict[str, list[dom.Element]]:
-
     is_feature_file = os.path.basename(test_src).startswith("TESTS-")
     test_suites = _get_test_suites(test_src)
 
@@ -98,7 +96,6 @@ def _get_tests_from_file(
 
 
 def _transform_coverage(reports_dir: str, output_sonar: str):
-
     src_coverage = os.path.join(reports_dir, "coverage.xml")
     out_coverage = os.path.join(output_sonar, "coverage.xml")
 
@@ -115,7 +112,6 @@ def _transform_coverage(reports_dir: str, output_sonar: str):
 
 
 def _transform_xunit_results(reports_dir: str, output_sonar: str):
-
     src_junit = os.path.join(reports_dir, "junit")
     out_tests = os.path.join(output_sonar, "tests.xml")
 
