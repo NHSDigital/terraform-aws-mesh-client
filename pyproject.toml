@@ -21,7 +21,7 @@ aws-lambda-powertools = "^2.25.1"
 
 [tool.poetry.group.dev.dependencies]
 # ci / testing dependencies
-boto3 = "^1.26.54"
+boto3 = "^1.28.57"
 mypy = "^1.4.0"
 coverage = "^7.2.7"
 pytest = "^7.3.1"
