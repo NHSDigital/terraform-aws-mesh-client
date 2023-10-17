@@ -5,8 +5,6 @@ requests
 aws_lambda_powertools
 boto3
 botocore
-http
 collections
 json
 gzip
-request
