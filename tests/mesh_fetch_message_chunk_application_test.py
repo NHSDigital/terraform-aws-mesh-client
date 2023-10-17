@@ -434,7 +434,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
                 "Mex-Addresstype": "ALL",
                 "Mex-Statuscode": "14",
                 "Mex-Statusevent": "SEND",
-                "Mex-Statusdescription": "Message not collected by recipient after 5 days",  # noqa pylint: disable=line-too-long
+                "Mex-Statusdescription": "Message not collected by recipient after 5 days",  # pylint: disable=line-too-long
                 "Mex-Statussuccess": "ERROR",
                 "Mex-Statustimestamp": "20210705162157",
                 "Mex-Content-Compressed": "N",

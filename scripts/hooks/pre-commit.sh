@@ -5,6 +5,11 @@ PWD="$(pwd)"
 
 ps -ocommand= -p "${PPID}"
 
+if ! make requirements; then
+  echo "make requirements failed"
+  exit 1
+fi
+
 if ! make check-secrets-all; then
   echo "make check-secrets-all failed"
   exit 1
