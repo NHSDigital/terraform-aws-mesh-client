@@ -1,0 +1,8 @@
+nhs_aws_helpers
+spine_aws_common
+urllib3
+requests
+aws_lambda_powertools
+boto3
+botocore
+http

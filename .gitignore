@@ -12,8 +12,6 @@ __pycache__
 htmlcov/
 coverage-all.txt
 *.zip
-requirements.txt
-**/requirements.txt
 .lock-hash
 
 # ignore packaging and lambda deps
