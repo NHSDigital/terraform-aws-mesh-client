@@ -33,17 +33,19 @@ endif
 install:
 	poetry install --sync
 
-install-ci: requirements
+install-ci:
 	poetry install --without local --sync
 
 
 local-terraform:
 	make -C stacks/localstack
 
-up: requirements
+up-ci:
 	docker compose up -d --remove-orphans
 	scripts/wait-for-container.sh localstack
 	make local-terraform
+
+up: requirements up-ci
 
 down:
 	poetry run docker compose down --remove-orphans || true

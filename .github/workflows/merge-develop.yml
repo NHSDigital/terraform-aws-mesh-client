@@ -30,9 +30,7 @@ jobs:
         with:
           path: |
             .venv
-            **/.lock-hash
-            **/requirements.txt
-          key: ${{ runner.os }}-poetry-v2-${{ hashFiles('./poetry.lock') }}
+          key: ${{ runner.os }}-poetry-v3-${{ hashFiles('./poetry.lock') }}
 
       - name: git reset
         run: git reset --hard
@@ -41,7 +39,7 @@ jobs:
         run: make install-ci
 
       - name: start localstack
-        run: make up
+        run: make up-ci
 
       - name: code coverage
         run: make coverage-ci
