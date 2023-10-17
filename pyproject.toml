@@ -11,7 +11,7 @@ packages = [{include = "mesh_client_aws_serverless"}]
 python = "^3.9"
 importlib-metadata = "6.6.0"
 requests = "^2.31"
-urllib3 = "1.26.15"
+urllib3 = "^1.26.17"
 spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.3.4"
 aws-lambda-powertools = "^2.25.1"
@@ -31,7 +31,7 @@ moto = {extras = ["s3", "ssm", "stepfunctions", "secretsmanager"], version = "^4
 parameterized = "^0.9.0"
 boto3-stubs = {extras = ["s3", "ssm", "secretsmanager", "dynamodb", "stepfunctions", "sqs", "lambda", "logs",], version = "^1.26.54"}
 types-requests = "^2.31.0.2"
-ruff = "^0.0.291"
+ruff = "^0.1.0"
 petname = "^2.6"
 black = "^23.9.1"
 

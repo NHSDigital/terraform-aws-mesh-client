@@ -257,7 +257,7 @@ def sample_trigger_event():
                 "bucketName": "meshtest-mesh",
                 "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
                 "x-amz-acl": "private",
-                "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # noqa pylint: disable=line-too-long
+                "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # pylint: disable=line-too-long
                 "Host": "meshtest-mesh.s3.eu-west-2.amazonaws.com",
                 "X-Amz-Expires": "300",
                 "key": "MESH-TEST2/outbound/testfile.json",
@@ -273,7 +273,7 @@ def sample_trigger_event():
             "resources": [
                 {
                     "type": "AWS::S3::Object",
-                    "ARN": "arn:aws:s3:::meshtest-mesh/MESH-TEST2/outbound/testfile.json",  # noqa pylint: disable=line-too-long
+                    "ARN": "arn:aws:s3:::meshtest-mesh/MESH-TEST2/outbound/testfile.json",  # pylint: disable=line-too-long
                 },
                 {
                     "accountId": "123456789012",

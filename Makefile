@@ -86,7 +86,7 @@ ruff-check:
 	poetry run ruff .
 
 ruff-ci:
-	poetry run ruff --format=github .
+	poetry run ruff . --output-format=github
 
 lint: ruff mypy shellcheck
 
