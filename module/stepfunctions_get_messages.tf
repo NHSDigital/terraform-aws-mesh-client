@@ -84,7 +84,7 @@ resource "aws_sfn_state_machine" "get_messages" {
             }
           }
         }
-        MaxConcurrency = 1
+        MaxConcurrency = var.get_message_max_concurrency
         Next           = "Were there exactly 500 messages?"
         ResultPath     = null
         Type           = "Map"

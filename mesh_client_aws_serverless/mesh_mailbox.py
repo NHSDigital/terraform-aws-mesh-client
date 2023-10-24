@@ -8,11 +8,13 @@ import os
 import platform
 import tempfile
 import uuid
+from collections.abc import Generator
 from hashlib import sha256
-from typing import NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, Union
 
 import requests
 import urllib3
+from requests import Response
 from spine_aws_common.logger import Logger
 
 from mesh_client_aws_serverless.mesh_common import MeshCommon
@@ -21,12 +23,12 @@ from mesh_client_aws_serverless.mesh_common import MeshCommon
 class MeshMessage(NamedTuple):
     """Named tuple for holding Mesh Message info"""
 
-    file_name: str = None
-    data: any = None
-    src_mailbox: str = None
-    dest_mailbox: str = None
-    workflow_id: str = None
-    message_id: str = None
+    file_name: str = ""
+    data: Union[Generator[bytes, None, None], bytes] = b""
+    src_mailbox: str = ""
+    dest_mailbox: str = ""
+    workflow_id: str = ""
+    message_id: str = ""
     will_compress: bool = False
     metadata: Optional[dict] = None
 
@@ -62,15 +64,16 @@ class MeshMailbox:
     def __init__(self, log_object: Logger, mailbox: str, environment: str):
         self.mailbox = mailbox
         self.environment = environment
-        self.temp_dir_object = None
-        self.params = {}
+        self.temp_dir_object: Optional[tempfile.TemporaryDirectory] = None
+        self.params: dict[str, Any] = {}
         self.log_object = log_object
-        self.client_cert_file = None
-        self.client_key_file = None
-        self.ca_cert_file = None
+        self.client_cert_file: Optional[tempfile._TemporaryFileWrapper] = None
+        self.client_key_file: Optional[tempfile._TemporaryFileWrapper] = None
+        self.ca_cert_file: Optional[tempfile._TemporaryFileWrapper] = None
+
         self.maybe_verify_ssl = True
-        self.dest_mailbox = None
-        self.workflow_id = None
+        self.dest_mailbox: str = ""
+        self.workflow_id: str = ""
 
         self._setup()
         atexit.register(self.clean_up)
@@ -120,7 +123,7 @@ class MeshMailbox:
 
     def get_param(self, param) -> str:
         """Shortcut to get a parameter"""
-        return self.params.get(param, None)
+        return self.params.get(param, None)  # type: ignore[no-any-return]
 
     def _write_certs_to_files(self) -> None:
         """Write the certificates to a local file"""
@@ -143,6 +146,7 @@ class MeshMailbox:
         self.ca_cert_file = None
         if self.maybe_verify_ssl:
             self.ca_cert_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
+            assert self.ca_cert_file
             ca_cert = self.params[MeshMailbox.MESH_CA_CERT]
             self.ca_cert_file.write(ca_cert.encode("utf-8"))
             self.ca_cert_file.seek(0)
@@ -178,10 +182,12 @@ class MeshMailbox:
     def _setup_session(self) -> requests.Session:
         session = requests.Session()
         session.headers = self._default_headers()
-        if self.maybe_verify_ssl:
+        if self.maybe_verify_ssl and self.ca_cert_file:
             session.verify = self.ca_cert_file.name
         else:
             session.verify = False
+        assert self.client_cert_file
+        assert self.client_key_file
         session.cert = (self.client_cert_file.name, self.client_key_file.name)
         return session
 
@@ -213,7 +219,7 @@ class MeshMailbox:
         return response.status_code
 
     def _headers_from_metadata(self, mesh_message_object: MeshMessage) -> dict:
-        headers = {}
+        headers: dict[str, str] = {}
         if mesh_message_object.metadata is None:
             return headers
         if len(mesh_message_object.metadata.items()) == 0:
@@ -272,7 +278,7 @@ class MeshMailbox:
         )
         return response
 
-    def get_chunk(self, message_id, chunk_num=1):
+    def get_chunk(self, message_id, chunk_num=1) -> Response:
         """Return a response object for a MESH chunk"""
         session = self._setup_session()
         mesh_url = self.params[MeshMailbox.MESH_URL]

@@ -4,9 +4,10 @@ Module for MESH API functionality for step functions
 import gzip
 import json
 import os
+from collections.abc import Generator
 from http import HTTPStatus
 
-import boto3
+from nhs_aws_helpers import s3_client
 from spine_aws_common import LambdaApplication
 
 from mesh_client_aws_serverless.mesh_common import MeshCommon
@@ -44,7 +45,7 @@ class MeshSendMessageChunkApplication(LambdaApplication):
         self.chunk_size = MeshCommon.DEFAULT_CHUNK_SIZE
         self.compression_ratio = 1
         self.will_compress = False
-        self.s3_client = None
+        self.s3_client = s3_client()
         self.bucket = ""
         self.key = ""
         self.buffer_size = self.DEFAULT_BUFFER_SIZE
@@ -62,12 +63,11 @@ class MeshSendMessageChunkApplication(LambdaApplication):
         self.will_compress = self.input.get("will_compress", False)
         if self.chunked:
             self.will_compress = True
-        self.s3_client = boto3.client("s3")
         self.bucket = self.input["bucket"]
         self.key = self.input["key"]
         return super().initialise()
 
-    def _get_file_from_s3(self):
+    def _get_file_from_s3(self) -> Generator[bytes, None, None]:
         """Get a file or chunk of a file from S3"""
         start_byte = self.current_byte
         end_byte = start_byte + (self.chunk_size * self.compression_ratio)
@@ -87,28 +87,27 @@ class MeshSendMessageChunkApplication(LambdaApplication):
             )
 
             body = response.get("Body", None)
-            if body:
-                file_content = body.read()
-                if len(file_content) == 0:
-                    file_content = None
-                self.log_object.write_log(
-                    "MESHSEND0006",
-                    None,
-                    {
-                        "file": self.key,
-                        "bucket": self.bucket,
-                        "num_bytes": len(file_content),
-                        "byte_range": range_spec,
-                    },
-                )
-            else:
-                file_content = None
+            if not body:
+                continue
 
-            if self.will_compress:
-                compressed_bytes = gzip.compress(file_content)
-                yield compressed_bytes
-            else:
+            file_content = body.read()
+
+            self.log_object.write_log(
+                "MESHSEND0006",
+                None,
+                {
+                    "file": self.key,
+                    "bucket": self.bucket,
+                    "num_bytes": len(file_content),
+                    "byte_range": range_spec,
+                },
+            )
+            if not self.will_compress:
                 yield file_content
+                continue
+
+            compressed_bytes = gzip.compress(file_content)
+            yield compressed_bytes
 
     def _get_metadata_from_s3(self):
         """Get metadata from s3 object"""
@@ -146,6 +145,8 @@ class MeshSendMessageChunkApplication(LambdaApplication):
         self.mailbox.set_destination_and_workflow(
             self.input["dest_mailbox"], self.input["workflow_id"]
         )
+
+        assert self.mailbox.dest_mailbox
 
         message_object = MeshMessage(
             file_name=os.path.basename(self.key),

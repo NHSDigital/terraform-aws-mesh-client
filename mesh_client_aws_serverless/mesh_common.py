@@ -3,6 +3,7 @@ import json
 import os
 from collections import namedtuple
 
+from mypy_boto3_ssm.type_defs import ParameterTypeDef
 from nhs_aws_helpers import secrets_client, ssm_client, stepfunctions
 
 
@@ -32,10 +33,10 @@ class MeshCommon:
     def singleton_check(mailbox, my_step_function_name):
         """Find out whether there is another step function running for my mailbox"""
         sfn_client = stepfunctions()
-        response = sfn_client.list_state_machines()
+        sm_response = sfn_client.list_state_machines()
         # Get my step function arn
         my_step_function_arn = None
-        for step_function in response.get("stateMachines", []):
+        for step_function in sm_response.get("stateMachines", []):
             if step_function.get("name", "") == my_step_function_name:
                 my_step_function_arn = step_function.get("stateMachineArn", None)
 
@@ -45,18 +46,18 @@ class MeshCommon:
                 f"No executing step function arn for step_function={my_step_function_name}"
             )
 
-        response = sfn_client.list_executions(
+        exs_response = sfn_client.list_executions(
             stateMachineArn=my_step_function_arn,
             statusFilter="RUNNING",
         )
         currently_running_step_funcs = [
-            execution["executionArn"] for execution in response["executions"]
+            execution["executionArn"] for execution in exs_response["executions"]
         ]
 
         exec_count = 0
         for execution_arn in currently_running_step_funcs:
-            response = sfn_client.describe_execution(executionArn=execution_arn)
-            step_function_input = json.loads(response.get("input", "{}"))
+            ex_response = sfn_client.describe_execution(executionArn=execution_arn)
+            step_function_input = json.loads(ex_response.get("input", "{}"))
             input_mailbox = step_function_input.get("mailbox", None)
             if input_mailbox == mailbox:
                 exec_count = exec_count + 1
@@ -103,7 +104,7 @@ class MeshCommon:
             Recursive=recursive,
             WithDecryption=decryption,
         )
-        params = params_result.get("Parameters", {})
+        params: list[ParameterTypeDef] = params_result.get("Parameters", [])
         new_params_dict = {}
         for entry in params:
             name = entry.get("Name", None)
