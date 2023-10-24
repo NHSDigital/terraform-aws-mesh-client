@@ -3,6 +3,7 @@ Module for MESH API functionality for step functions
 """
 import os
 from http import HTTPStatus
+from typing import Any
 
 from spine_aws_common import LambdaApplication
 
@@ -20,12 +21,13 @@ class MeshPollMailboxApplication(LambdaApplication):
         Init variables
         """
         super().__init__(additional_log_config, load_ssm_params)
-        self.mailbox_name = None
+        self.mailbox_name: str = ""
         self.environment = os.environ.get("Environment", "default")
         self.get_messages_step_function_name = self.system_config.get(
             "GET_MESSAGES_STEP_FUNCTION_NAME", f"{self.environment}-get-messages"
         )
-        self.handshake = "false"
+        self.handshake: str = "false"
+        self.response: dict[str, Any] = {}
 
     def initialise(self):
         # initialise

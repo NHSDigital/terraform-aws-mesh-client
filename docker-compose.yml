@@ -18,7 +18,7 @@ services:
     tmpfs:
       - /var/lib/localstack:exec,mode=600
     ports:
-      - "4567:4566" # edge service
+      - "4569:4566" # edge service
     healthcheck:
       test: awslocal s3 ls && awslocal secretsmanager list-secrets
       interval: 3s

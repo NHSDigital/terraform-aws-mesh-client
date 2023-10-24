@@ -15,21 +15,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-
-      - name: setup poetry
-        uses: abatilo/actions-poetry@v2
-        with:
-          poetry-version: 1.5.1
+      - name: common build setup
+        uses: ./.github/actions/build-common
 
       - name: get tag
         run: |
           VERSION="${GITHUB_REF#refs/*/}"
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
 
       - name: create release
         id: create_release

@@ -6,7 +6,6 @@ from unittest import mock
 import boto3
 import requests_mock
 from moto import mock_s3, mock_secretsmanager, mock_ssm, mock_stepfunctions
-from parameterized import parameterized
 from requests.exceptions import HTTPError
 
 from mesh_client_aws_serverless.mesh_fetch_message_chunk_application import (
@@ -84,7 +83,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             self.environment, ssm_client
         )
         mock_input = self._sample_first_input_event()
-
+        assert self.app
         try:
             response = self.app.main(
                 event=mock_input, context=MeshTestingCommon.CONTEXT
@@ -128,13 +127,31 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         )
         assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
 
-    @parameterized.expand([("_happy_path", 20), ("odd_sized_chunk_with_temp_file", 18)])
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
-    def test_mesh_fetch_file_chunk_app_2_chunks(
+    def test_mesh_fetch_file_chunk_app_2_chunks_happy_path(
         self,
-        _,  # noqa: PT019
-        mock_data1_length,
+        mock_create_new_internal_id,
+        mock_response,
+    ):
+        self._fetch_file_chunk_app_2_chunks_(
+            20, mock_create_new_internal_id, mock_response
+        )
+
+    @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
+    @requests_mock.Mocker()
+    def test_mesh_fetch_file_chunk_app_2_chunks_odd_sized_chunk_with_temp_file(
+        self,
+        mock_create_new_internal_id,
+        mock_response,
+    ):
+        self._fetch_file_chunk_app_2_chunks_(
+            18, mock_create_new_internal_id, mock_response
+        )
+
+    def _fetch_file_chunk_app_2_chunks_(
+        self,
+        data_length,
         mock_create_new_internal_id,
         mock_response,
     ):
@@ -143,7 +160,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         """
         mebibyte = 1024 * 1024
         # Create some test data
-        data1_length = mock_data1_length * mebibyte  # 20 MiB
+        data1_length = data_length * mebibyte  # 20 MiB
         data1 = ""
         while len(data1) < data1_length:
             data1 += "1234567890"
@@ -229,7 +246,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             self.environment, ssm_client
         )
         mock_input = self._sample_first_input_event()
-
+        assert self.app
         try:
             response = self.app.main(
                 event=mock_input, context=MeshTestingCommon.CONTEXT
@@ -368,7 +385,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             self.environment, ssm_client
         )
         mock_input = self._sample_first_input_event()
-
+        assert self.app
         try:
             response = self.app.main(
                 event=mock_input, context=MeshTestingCommon.CONTEXT
@@ -459,6 +476,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             self.environment, ssm_client
         )
         mock_input = self._sample_first_input_event()
+        assert self.app
         try:
             response = self.app.main(
                 event=mock_input, context=MeshTestingCommon.CONTEXT
@@ -499,7 +517,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             self.environment, ssm_client
         )
         mock_input = self._sample_first_input_event()
-
+        assert self.app
         try:
             self.app.main(event=mock_input, context=MeshTestingCommon.CONTEXT)
         except HTTPError:

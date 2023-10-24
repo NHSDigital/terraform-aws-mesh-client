@@ -1,8 +1,8 @@
 
 
 resource "aws_ssm_parameter" "mesh_url" {
-  name = "/${var.env}/mesh/MESH_URL"
-  type = "String"
+  name  = "/${var.env}/mesh/MESH_URL"
+  type  = "String"
   value = "https://mesh_sandbox"
 }
 
@@ -15,7 +15,7 @@ resource "aws_ssm_parameter" "passwords" {
 
   for_each = local.local_mailboxes
 
-  name = "/${var.env}/mesh/mailboxes/${each.key}/MAILBOX_PASSWORD"
-  type = "SecureString"
+  name  = "/${var.env}/mesh/mailboxes/${each.key}/MAILBOX_PASSWORD"
+  type  = "SecureString"
   value = "password"
 }

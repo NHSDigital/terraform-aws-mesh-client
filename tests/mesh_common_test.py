@@ -50,6 +50,8 @@ class TestMeshCommon(TestCase):
         when use_secrets_manager is true
         """
         os.environ["use_secrets_manager"] = "true"
+        assert self.secrets_manager
+        assert self.ssm_client
         self.secrets_manager.create_secret(
             Name=f"/{self.environment}/mesh/MESH_CLIENT_KEY",
             Description=f"/{self.environment}/mesh/MESH_CLIENT_KEY",
@@ -104,6 +106,8 @@ class TestMeshCommon(TestCase):
         use_secrets_manager is false
         """
         os.environ["use_secrets_manager"] = "false"
+        assert self.secrets_manager
+        assert self.ssm_client
         self.secrets_manager.create_secret(
             Name=f"/{self.environment}/mesh/MESH_CLIENT_KEY",
             Description=f"/{self.environment}/mesh/MESH_CLIENT_KEY",

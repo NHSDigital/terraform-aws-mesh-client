@@ -46,6 +46,7 @@ class TestMeshGetFileFromS3(MeshTestCase):
         MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
             self.environment, ssm_client
         )
+        assert self.app
         self.app.current_byte = 0
         self.app.file_size = 33
         self.app.s3_client = s3_client
@@ -67,6 +68,7 @@ class TestMeshGetFileFromS3(MeshTestCase):
         MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
             self.environment, ssm_client
         )
+        assert self.app
         self.app.current_byte = 0
         self.app.file_size = 33
         self.app.s3_client = s3_client

@@ -59,6 +59,7 @@ class TestMeshPollMailboxApplication(MeshTestCase):
             self.environment, ssm_client
         )
         sfn_client = boto3.client("stepfunctions", region_name="eu-west-2")
+        assert self.app
         response = MeshTestingCommon.setup_step_function(
             sfn_client,
             self.environment,

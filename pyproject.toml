@@ -28,7 +28,6 @@ pytest = "^7.3.1"
 pytest-asyncio = "^0.21.0"
 requests-mock = "^1.11.0"
 moto = {extras = ["s3", "ssm", "stepfunctions", "secretsmanager"], version = "^4.1.0"}
-parameterized = "^0.9.0"
 boto3-stubs = {extras = ["s3", "ssm", "secretsmanager", "dynamodb", "stepfunctions", "sqs", "lambda", "logs",], version = "^1.26.54"}
 types-requests = "^2.31.0.2"
 ruff = "^0.1.0"
@@ -90,7 +89,17 @@ exclude = [
     "dist",
     "scripts",
     "terraform",
+    "module"
 ]
+
+[[tool.mypy.overrides]]
+module = "spine_aws_common.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "moto.*"
+ignore_missing_imports = true
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

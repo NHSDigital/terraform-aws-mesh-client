@@ -4,6 +4,7 @@ Module for MESH API functionality for step functions
 import os
 from http import HTTPStatus
 from math import ceil
+from typing import Any
 
 from aws_lambda_powertools.utilities.data_classes import EventBridgeEvent
 from nhs_aws_helpers import s3_client, ssm_client
@@ -13,11 +14,11 @@ from spine_aws_common.utilities import human_readable_bytes
 from .mesh_common import MeshCommon, SingletonCheckFailure
 
 
-def calculate_chunks(file_size, chunk_size):
+def calculate_chunks(file_size, chunk_size) -> tuple[bool, int]:
     """Helper for number of chunks"""
     chunks = ceil(file_size / chunk_size)
-    do_chunking = chunks > 1
-    return (do_chunking, chunks)
+    do_chunking = bool(chunks > 1)
+    return do_chunking, chunks
 
 
 class MeshCheckSendParametersApplication(LambdaApplication):
@@ -31,6 +32,7 @@ class MeshCheckSendParametersApplication(LambdaApplication):
         self.send_message_step_function_name = self.system_config.get(
             "SEND_MESSAGE_STEP_FUNCTION_NAME", f"{self.environment}-send-message"
         )
+        self.response: dict[str, Any] = {}
 
     def _get_internal_id(self):
         """Override to stop crashing when getting from non-dict event"""

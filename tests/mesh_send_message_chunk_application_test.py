@@ -92,7 +92,7 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         mock_lambda_input = self._sample_single_chunk_input_event()
         expected_lambda_response = self._sample_single_chunk_input_event()
         expected_lambda_response["body"].update({"complete": True})
-
+        assert self.app
         try:
             lambda_response = self.app.main(
                 event=mock_lambda_input, context=MeshTestingCommon.CONTEXT
@@ -196,7 +196,7 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         mock_response["body"].update({"complete": True})
         mock_response["body"].update({"will_compress": True})
         mock_response["body"].update({"chunk_number": 4})
-
+        assert self.app
         count = 1
         while not mock_input["body"]["complete"]:
             chunk_number = mock_input["body"].get("chunk_number", 1)
@@ -274,7 +274,7 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         mock_response = self._sample_too_many_chunks_input_event()
         mock_response["body"].update({"complete": True})
         mock_response["body"].update({"will_compress": True})
-
+        assert self.app
         with pytest.raises(MaxByteExceededException) as context:
             self.app.main(event=mock_input, context=MeshTestingCommon.CONTEXT)
         assert isinstance(context.value, MaxByteExceededException)

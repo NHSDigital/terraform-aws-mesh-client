@@ -86,6 +86,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
                 "will_compress": False,
             },
         }
+        assert self.app
         try:
             response = self.app.main(
                 event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
@@ -135,7 +136,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         )
         step_func_exec_arn = response.get("executionArn", None)
         assert step_func_exec_arn is not None
-
+        assert self.app
         # do running check - should pass (1 step function running, just mine)
         try:
             response = self.app.main(

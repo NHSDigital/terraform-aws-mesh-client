@@ -4,9 +4,11 @@ Module for MESH API functionality for step functions
 import json
 import os
 from http import HTTPStatus
+from typing import Optional
 
 from botocore.exceptions import ClientError
 from nhs_aws_helpers import s3_client
+from requests import Response
 from spine_aws_common import LambdaApplication
 
 from mesh_client_aws_serverless.mesh_common import MeshCommon
@@ -26,21 +28,21 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
         Init variables
         """
         super().__init__(additional_log_config, load_ssm_params)
-        self.mailbox = None
+        self._mailbox: Optional[MeshMailbox] = None
         self.input = {}
         self.environment = os.environ.get("Environment", "default")
         self.chunk_size = os.environ.get("CHUNK_SIZE", MeshCommon.DEFAULT_CHUNK_SIZE)
-        self.http_response = None
+        self._http_response: Optional[Response] = None
         self.response = {}
         self.internal_id = None
-        self.aws_upload_id = None
+        self.aws_upload_id: str = ""
         self.aws_current_part_id = 0
         self.aws_part_etags = []
         self.chunked = False
         self.number_of_chunks = 0
         self.current_chunk = 0
         self.message_id = None
-        self.s3_client = None
+        self.s3_client = s3_client()
         self.s3_bucket = ""
         self.http_headers_bytes_read = 0
         self.s3_key = ""
@@ -53,18 +55,29 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
         self.aws_upload_id = self.input.get("aws_upload_id", "Not Provided")
         self.aws_current_part_id = self.input.get("aws_current_part_id", 1)
         self.aws_part_etags = self.input.get("aws_part_etags", [])
-        self.chunked = self.input.get("chunked")
+        self.chunked = bool(self.input.get("chunked", False))
         self.current_chunk = self.input.get("chunk_num", 1)
         self.message_id = self.input["message_id"]
         self.response = self.event.raw_event
-        self.s3_client = s3_client()
         self.log_object.internal_id = self.internal_id
         self._setup_mailbox()
 
     def _setup_mailbox(self):
-        self.mailbox = MeshMailbox(
+        self._mailbox = MeshMailbox(
             self.log_object, self.input["dest_mailbox"], self.environment
         )
+
+    @property
+    def http_response(self) -> Response:
+        assert (
+            self._http_response is not None
+        ), "http_response not initialised, call start"
+        return self._http_response
+
+    @property
+    def mailbox(self) -> MeshMailbox:
+        assert self._mailbox is not None, "mailbox not initialised, call initialise"
+        return self._mailbox
 
     def start(self):
         self.log_object.write_log(
@@ -75,7 +88,7 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
             },
         )
         # get stream for this chunk
-        self.http_response = self.mailbox.get_chunk(
+        self._http_response = self.mailbox.get_chunk(
             self.message_id, chunk_num=self.current_chunk
         )
         self.number_of_chunks = self._get_number_of_chunks()
@@ -155,23 +168,26 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
         )
 
     def _get_filename(self):
-        file_name = self.http_response.headers.get("Mex-Filename", "")
-        if len(file_name) == 0:
-            if self.http_response.headers.get("Mex-Messagetype") == "REPORT":
-                file_name = self.message_id + ".ctl"
-            else:
-                file_name = self.message_id + ".dat"
-        return file_name
+        file_name = (self.http_response.headers.get("Mex-Filename", "") or "").strip()
+        if file_name:
+            return file_name
+        assert self.message_id
+        if (
+            self.http_response.headers.get("Mex-Messagetype", "") or ""
+        ).upper() == "REPORT":
+            return f"{self.message_id}.ctl"
+
+        return f"{self.message_id}.dat"
 
     def _get_aws_bucket_and_key(self):
         self.s3_bucket = self.mailbox.params["INBOUND_BUCKET"]
-        s3_folder = self.mailbox.params.get("INBOUND_FOLDER", "")
+        s3_folder = (
+            (self.mailbox.params.get("INBOUND_FOLDER", "") or "").strip().rstrip("/")
+        )
         if len(s3_folder) > 0:
             s3_folder += "/"
         file_name = self._get_filename()
-        self.s3_key = s3_folder + (
-            file_name if len(file_name) > 0 else self.message_id + ".dat"
-        )
+        self.s3_key = f"{s3_folder}{file_name}"
         self.log_object.write_log(
             "MESHFETCH0001c",
             None,
@@ -184,7 +200,7 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
             },
         )
 
-    def _is_last_chunk(self, chunk_num) -> bool:
+    def _is_last_chunk(self, chunk_num: int) -> bool:
         chunk_range = self.http_response.headers.get("Mex-Chunk-Range", "1:1")
         self.number_of_chunks = int(chunk_range.split(":")[1])
         return chunk_num == self.number_of_chunks

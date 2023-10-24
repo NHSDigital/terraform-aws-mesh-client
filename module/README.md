@@ -6,10 +6,11 @@ A terraform module to provide AWS infrastructure capable of sending and recievin
 
 Example configuration required to use this module:
 
+find the release you want from https://github.com/NHSDigital/terraform-aws-mesh-client/releases and substitute in the module version below ... e.g. ref=v0.2.1
+
 ```
 module "mesh" {
-  source = "git::https://github.com/nhsdigital/terraform-aws-mesh-client.git//module?ref=v0.1.1"
-
+  source = "git::https://github.com/nhsdigital/terraform-aws-mesh-client.git//module?ref=<version>
   name_prefix = "example-project"
 
   config = {
