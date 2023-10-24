@@ -1,0 +1,17 @@
+name: "install ci"
+description: "ci install and git ssh setup"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: cache virtualenv
+      uses: actions/cache@v3
+      with:
+        path: |
+          .venv
+        key: ${{ runner.os }}-poetry-v2-${{ hashFiles('./poetry.lock') }}
+
+    - name: install dependencies
+      shell: bash
+      run: make install-ci

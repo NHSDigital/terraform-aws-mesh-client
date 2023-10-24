@@ -1,0 +1,56 @@
+name: "sonar scan"
+description: "run sonar scan"
+inputs:
+  github-token:
+    required: true
+    description: "github token secret"
+  sonar-token:
+    required: true
+    description: "sonar token secret"
+
+runs:
+  using: "composite"
+  steps:
+    - name: code coverage
+      shell: bash
+      run: make coverage-ci
+
+    - name: code coverage report
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: orgoro/coverage@c65003f41276ea33fe3a3a5d53df8b340462e8fa
+      with:
+        coverageFile: reports/coverage.xml
+        token: ${{ inputs.github-token }}
+        thresholdAll: 0.65 # TODO increase to 0.85 as coverage improves
+
+    - name: setup java
+      if: success() || failure()
+      uses: actions/setup-java@v3
+      with:
+        distribution: "corretto"
+        java-version: "17"
+
+    - name: provision sonar-scanner
+      if: success() || failure()
+      shell: bash
+      run: |
+        export SONAR_VERSION="5.0.1.3006"
+        wget -q "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_VERSION}.zip" -O sonar-scanner.zip
+        unzip -q ./sonar-scanner.zip
+        mv ./sonar-scanner-${SONAR_VERSION} ./sonar-scanner
+        scripts/sonar_tests.py
+
+    - name: run sonar scan
+      if: success() || failure()
+      shell: bash
+      run: |
+        PATH="$PWD/sonar-scanner/bin:$PATH"
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          git checkout "${GITHUB_HEAD_REF}"
+          sonar-scanner -Dsonar.pullrequest.branch="{{ github.event.pull_request.head.sha }}" -Dsonar.pullrequest.base="{{ github.event.pull_request.base.sha }}" -Dsonar.pullrequest.key="${{ github.event.number }}"
+        else
+          sonar-scanner
+        fi
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
