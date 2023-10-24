@@ -59,7 +59,6 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
         self.current_chunk = self.input.get("chunk_num", 1)
         self.message_id = self.input["message_id"]
         self.response = self.event.raw_event
-        # self._s3_client = s3_client()
         self.log_object.internal_id = self.internal_id
         self._setup_mailbox()
 

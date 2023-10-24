@@ -1,5 +1,5 @@
 variable "name_prefix" {
-  type = string
+  type        = string
   description = "Name to prefix on to the resources"
 }
 
@@ -89,12 +89,12 @@ variable "s3logs_retention_in_days" {
 }
 
 variable "mesh_cloudwatch_log_retention_in_days" {
-  type = number
+  type    = number
   default = 30
 }
 
 variable "get_messages_enabled" {
-  type = bool
+  type    = bool
   default = true
 }
 
@@ -103,17 +103,17 @@ variable "mesh_s3_object_expiry_in_days" {
 }
 
 variable "mesh_s3_object_expiry_enabled" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "cloudtrail_enabled" {
-  type = bool
+  type    = bool
   default = true
 }
 
 
 variable "get_message_max_concurrency" {
-  type = number
+  type    = number
   default = 1
 }
