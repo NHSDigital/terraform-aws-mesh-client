@@ -9,7 +9,7 @@ packages = [{include = "mesh_client_aws_serverless"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-importlib-metadata = "6.6.0"
+importlib-metadata = "6.8.0"
 requests = "^2.31"
 urllib3 = "^1.26.17"
 spine-aws-common = "^0.2.14"
