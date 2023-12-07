@@ -5,3 +5,7 @@ mesh_sandbox/store/data/mailboxes.jsonl.*password.*
 "account": "123456789012"
 "accountId": "123456789012"
 123456789012:role
+
+mesh_client_aws_serverless/mesh_mailbox.py:[0-9]+:\s*password=self.params\[MeshMailbox.MAILBOX_PASSWORD\]
+tests/mesh_testing_common.py:[0-9]+:\s*-----BEGIN CERTIFICATE-----
+tests/mesh_testing_common.py:[0-9]+:\s*-----(BEGIN|END) PRIVATE KEY-----

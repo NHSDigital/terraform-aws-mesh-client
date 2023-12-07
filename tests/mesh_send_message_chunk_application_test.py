@@ -73,7 +73,7 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         )
         response_mocker.post(
             "/messageexchange/MESH-TEST2/outbox",
-            text=json.dumps({"messageID": "20210711164906010267_97CCD9"}),
+            text=json.dumps({"message_id": "20210711164906010267_97CCD9"}),
             headers={
                 "Content-Type": "application/json",
                 "Content-Length": "44",
@@ -147,7 +147,7 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         }
         response_mocker.post(
             "/messageexchange/MESH-TEST2/outbox",
-            text=json.dumps({"messageID": "20210711164906010267_97CCD9"}),
+            text=json.dumps({"message_id": "20210711164906010267_97CCD9"}),
             headers={
                 "Content-Type": "application/json",
                 "Content-Length": "33",
@@ -157,33 +157,12 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         )
         response_mocker.post(
             "/messageexchange/MESH-TEST2/outbox/20210711164906010267_97CCD9/2",
-            text=json.dumps({"messageID": "20210711164906010267_97CCD9"}),
-            headers={
-                "Content-Type": "application/json",
-                "Content-Length": "33",
-                "Connection": "keep-alive",
-            },
-            request_headers=custom_request_headers,
         )
         response_mocker.post(
             "/messageexchange/MESH-TEST2/outbox/20210711164906010267_97CCD9/3",
-            text=json.dumps({"messageID": "20210711164906010267_97CCD9"}),
-            headers={
-                "Content-Type": "application/json",
-                "Content-Length": "33",
-                "Connection": "keep-alive",
-            },
-            request_headers=custom_request_headers,
         )
         response_mocker.post(
             "/messageexchange/MESH-TEST2/outbox/20210711164906010267_97CCD9/4",
-            text=json.dumps({"messageID": "20210711164906010267_97CCD9"}),
-            headers={
-                "Content-Type": "application/json",
-                "Content-Length": "33",
-                "Connection": "keep-alive",
-            },
-            request_headers=custom_request_headers,
         )
         s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
         ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
@@ -256,7 +235,7 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         )
         fake_mesh_server.post(
             "/messageexchange/MESH-TEST2/outbox",
-            text=json.dumps({"messageID": "20210711164906010267_97CCD9"}),
+            text=json.dumps({"message_id": "20210711164906010267_97CCD9"}),
             headers={
                 "Content-Type": "application/json",
                 "Content-Length": "33",

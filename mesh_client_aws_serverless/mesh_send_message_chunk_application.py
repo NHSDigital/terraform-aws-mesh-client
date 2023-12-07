@@ -1,8 +1,6 @@
 """
 Module for MESH API functionality for step functions
 """
-import gzip
-import json
 import os
 from collections.abc import Generator
 from http import HTTPStatus
@@ -35,7 +33,6 @@ class MeshSendMessageChunkApplication(LambdaApplication):
         Init variables
         """
         super().__init__(additional_log_config, load_ssm_params)
-        self.mailbox = None
         self.input = {}
         self.body = None
         self.environment = os.environ.get("Environment", "default")
@@ -86,9 +83,8 @@ class MeshSendMessageChunkApplication(LambdaApplication):
                 Bucket=self.bucket, Key=self.key, Range=range_spec
             )
 
-            body = response.get("Body", None)
-            if not body:
-                continue
+            body = response.get("Body")
+            assert body
 
             file_content = body.read()
 
@@ -102,12 +98,7 @@ class MeshSendMessageChunkApplication(LambdaApplication):
                     "byte_range": range_spec,
                 },
             )
-            if not self.will_compress:
-                yield file_content
-                continue
-
-            compressed_bytes = gzip.compress(file_content)
-            yield compressed_bytes
+            yield file_content
 
     def _get_metadata_from_s3(self):
         """Get metadata from s3 object"""
@@ -139,58 +130,56 @@ class MeshSendMessageChunkApplication(LambdaApplication):
             },
         )
 
-        self.mailbox = MeshMailbox(
+        with MeshMailbox(
             self.log_object, self.input["src_mailbox"], self.environment
-        )
-        self.mailbox.set_destination_and_workflow(
-            self.input["dest_mailbox"], self.input["workflow_id"]
-        )
+        ) as mailbox:
+            dest_mailbox = self.input["dest_mailbox"]
+            assert dest_mailbox
 
-        assert self.mailbox.dest_mailbox
-
-        message_object = MeshMessage(
-            file_name=os.path.basename(self.key),
-            data=self._get_file_from_s3(),
-            metadata=self._get_metadata_from_s3(),
-            message_id=message_id,
-            dest_mailbox=self.mailbox.dest_mailbox,
-            src_mailbox=self.mailbox.mailbox,
-            workflow_id=self.mailbox.workflow_id,
-            will_compress=self.will_compress,
-        )
-        if self.file_size > 0:
-            mailbox_response = self.mailbox.send_chunk(
-                mesh_message_object=message_object,
-                number_of_chunks=total_chunks,
-                chunk_num=self.current_chunk,
+            message_object = MeshMessage(
+                content=self._get_file_from_s3(),
+                file_name=os.path.basename(self.key),
+                metadata=self._get_metadata_from_s3(),
+                message_id=message_id,
+                dest_mailbox=dest_mailbox,
+                src_mailbox=mailbox.mailbox,
+                workflow_id=self.input["workflow_id"],
+                will_compress=self.will_compress,
             )
-            status_code = mailbox_response.status_code
-            message_id = json.loads(mailbox_response.text)["messageID"]
-            status_code = HTTPStatus.OK.value
-        else:
-            status_code = HTTPStatus.NOT_FOUND.value
-            self.response.update({"statusCode": status_code})
-            raise FileNotFoundError
 
-        is_finished = self.current_chunk >= total_chunks if self.chunked else True
-        if self.current_byte >= self.file_size and not is_finished:
-            raise MaxByteExceededException
-        if self.chunked and not is_finished:
-            self.current_chunk += 1
+            if self.file_size > 0:
+                mailbox_response = mailbox.send_chunk(
+                    mesh_message_object=message_object,
+                    number_of_chunks=total_chunks,
+                    chunk_num=self.current_chunk,
+                )
+                status_code = mailbox_response.status_code
+                if self.current_chunk == 1:
+                    message_id = mailbox_response.json()["message_id"]
+                status_code = HTTPStatus.OK.value
+            else:
+                status_code = HTTPStatus.NOT_FOUND.value
+                self.response.update({"statusCode": status_code})
+                raise FileNotFoundError
 
-        if is_finished:
-            # check mailbox for any reports
-            self.log_object.write_log(
-                "MESHSEND0008",
-                None,
-                {
-                    "file": self.key,
-                    "bucket": self.bucket,
-                    "chunk_num": self.current_chunk,
-                    "max_chunk": total_chunks,
-                },
-            )
-            _response, _messages = self.mailbox.list_messages()
+            is_finished = self.current_chunk >= total_chunks if self.chunked else True
+            if self.current_byte >= self.file_size and not is_finished:
+                raise MaxByteExceededException
+            if self.chunked and not is_finished:
+                self.current_chunk += 1
+
+            if is_finished:
+                # check mailbox for any reports
+                self.log_object.write_log(
+                    "MESHSEND0008",
+                    None,
+                    {
+                        "file": self.key,
+                        "bucket": self.bucket,
+                        "chunk_num": self.current_chunk,
+                        "max_chunk": total_chunks,
+                    },
+                )
         # update input event to send as response
         self.response.update({"statusCode": status_code})
         self.response["body"].update(
@@ -202,8 +191,6 @@ class MeshSendMessageChunkApplication(LambdaApplication):
                 "will_compress": self.will_compress,
             }
         )
-
-        self.mailbox.clean_up()
 
 
 # create instance of class in global space
