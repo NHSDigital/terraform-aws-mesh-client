@@ -1,20 +1,14 @@
 """Mailbox class that handles all the complexity of talking to MESH API"""
-import atexit
 import contextlib
-import datetime
-import hmac
-import json
 import os
-import platform
 import tempfile
-import uuid
 from collections.abc import Generator
-from hashlib import sha256
+from io import BytesIO
 from typing import Any, NamedTuple, Optional, Union
 
-import requests
-import urllib3
-from requests import Response
+from aws_lambda_powertools.shared.functions import strtobool
+from mesh_client import MeshClient, optional_header_map
+from requests import HTTPError, Response
 from spine_aws_common.logger import Logger
 
 from mesh_client_aws_serverless.mesh_common import MeshCommon
@@ -23,8 +17,8 @@ from mesh_client_aws_serverless.mesh_common import MeshCommon
 class MeshMessage(NamedTuple):
     """Named tuple for holding Mesh Message info"""
 
+    content: Generator[bytes, None, None]
     file_name: str = ""
-    data: Union[Generator[bytes, None, None], bytes] = b""
     src_mailbox: str = ""
     dest_mailbox: str = ""
     workflow_id: str = ""
@@ -41,6 +35,9 @@ class HandshakeFailure(Exception):
         self.msg = msg
 
 
+_OPTIONAL_SEND_ARGS = {v.lower(): k for k, v in optional_header_map().items()}
+
+
 class MeshMailbox:
     """Mailbox class that handles all the complexity of talking to MESH API"""
 
@@ -52,6 +49,7 @@ class MeshMailbox:
     MESH_SHARED_KEY = "MESH_SHARED_KEY"
     MESH_URL = "MESH_URL"
     MESH_VERIFY_SSL = "MESH_VERIFY_SSL"
+    MESH_HOSTNAME_CHECKS_COMMON_NAME = "MESH_HOSTNAME_CHECKS_COMMON_NAME"
     MAILBOX_PASSWORD = "MAILBOX_PASSWORD"
     INBOUND_BUCKET = "INBOUND_BUCKET"
     INBOUND_FOLDER = "INBOUND_FOLDER"
@@ -72,11 +70,45 @@ class MeshMailbox:
         self.ca_cert_file: Optional[tempfile._TemporaryFileWrapper] = None
 
         self.maybe_verify_ssl = True
-        self.dest_mailbox: str = ""
-        self.workflow_id: str = ""
+        self._client: Optional[MeshClient] = None
 
+    @property
+    def client(self) -> MeshClient:
+        if not self._client:
+            raise ValueError("MeshClient has not been intialised")
+        return self._client
+
+    def __enter__(self):
         self._setup()
-        atexit.register(self.clean_up)
+
+        verify: Union[bool, str] = False
+        if self.maybe_verify_ssl:
+            assert self.ca_cert_file
+            verify = self.ca_cert_file.name
+
+        hostname_checks_common_name = strtobool(
+            self.params.get(MeshMailbox.MESH_HOSTNAME_CHECKS_COMMON_NAME, "True")
+        )
+        assert self.client_key_file
+        assert self.client_cert_file
+
+        self._client = MeshClient(
+            url=self.params[MeshMailbox.MESH_URL],
+            mailbox=self.mailbox,
+            password=self.params[MeshMailbox.MAILBOX_PASSWORD],
+            shared_key=self.params[MeshMailbox.MESH_SHARED_KEY],
+            cert=(self.client_cert_file.name, self.client_key_file.name),
+            verify=verify,
+            hostname_checks_common_name=hostname_checks_common_name,
+            transparent_compress=False,
+            application_name=f"AWS Serverless=={MeshMailbox.VERSION}",
+        ).__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._client:
+            self._client.close()
+        self._clean_up()
 
     def _setup(self) -> None:
         """Get mailbox config from SSM parameter store"""
@@ -91,14 +123,12 @@ class MeshMailbox:
             f"/{self.environment}/mesh/mailboxes/{self.mailbox}"
         )
         self.params = {**common_params, **mailbox_params}
-        self.maybe_verify_ssl = (
-            self.params.get(MeshMailbox.MESH_VERIFY_SSL, False) == "True"
+        self.maybe_verify_ssl = strtobool(
+            self.params.get(MeshMailbox.MESH_VERIFY_SSL, "True")
         )
-        if not self.maybe_verify_ssl:
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self._write_certs_to_files()
 
-    def clean_up(self) -> None:
+    def _clean_up(self) -> None:
         """Clear up after use"""
         self.log_object.write_log(
             "MESHMBOX0007",
@@ -151,85 +181,34 @@ class MeshMailbox:
             self.ca_cert_file.write(ca_cert.encode("utf-8"))
             self.ca_cert_file.seek(0)
 
-    def _build_mesh_authorization_header(
-        self, nonce: Optional[str] = None, noncecount: int = 0
-    ) -> str:
-        """Generate MESH Authorization header for mailbox"""
-        if not nonce:
-            nonce = str(uuid.uuid4())
-        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M")
-
-        # e.g. NHSMESH AMP01HC001:bd0e2bd5-218e-41d0-83a9-73fdec414803:0:202005041305
-        hmac_msg = f"{self.mailbox}:{nonce}:{noncecount!s}:{self.params[MeshMailbox.MAILBOX_PASSWORD]}:{timestamp}"
-
-        hash_code = hmac.HMAC(
-            self.params[MeshMailbox.MESH_SHARED_KEY].encode(),
-            hmac_msg.encode(),
-            sha256,
-        ).hexdigest()
-        header = f"{self.AUTH_SCHEMA_NAME} {self.mailbox}:{nonce}:{noncecount!s}:{timestamp}:{hash_code}"
-        self.log_object.write_log("MESHMBOX0003", None, {"header": header})
-        return header
-
-    def _default_headers(self):
-        """
-        Build standard headers including authorization
-        """
-        return {
-            "Authorization": self._build_mesh_authorization_header(),
-        }
-
-    def _setup_session(self) -> requests.Session:
-        session = requests.Session()
-        session.headers = self._default_headers()
-        if self.maybe_verify_ssl and self.ca_cert_file:
-            session.verify = self.ca_cert_file.name
-        else:
-            session.verify = False
-        assert self.client_cert_file
-        assert self.client_key_file
-        session.cert = (self.client_cert_file.name, self.client_key_file.name)
-        return session
-
-    def set_destination_and_workflow(self, dest_mailbox, workflow_id) -> None:
-        """Set destination mailbox and workflow_id"""
-        self.dest_mailbox = dest_mailbox
-        self.workflow_id = workflow_id
-
     def handshake(self) -> int:
         """
         Do an authenticated handshake with the MESH server
         """
-        session = self._setup_session()
-        session.headers[
-            "Mex-ClientVersion"
-        ] = f"AWS Serverless MESH Client={MeshMailbox.VERSION}"
-        session.headers["Mex-OSArchitecture"] = platform.machine()
-        session.headers["Mex-OSName"] = platform.system()
-        session.headers["Mex-OSVersion"] = platform.release()
 
-        mesh_url = self.params[MeshMailbox.MESH_URL]
-        url = f"{mesh_url}/messageexchange/{self.mailbox}"
-        response = session.get(url)
-        self.log_object.write_log(
-            "MESHMBOX0004", None, {"http_status": response.status_code}
-        )
-        if response.status_code < 200 or response.status_code > 299:
-            raise HandshakeFailure
-        return response.status_code
+        try:
+            self.client.handshake()
+        except HTTPError as ex:
+            self.log_object.write_log(
+                "MESHMBOX0004", None, {"http_status": ex.response.status_code}
+            )
+            raise HandshakeFailure from ex
 
-    def _headers_from_metadata(self, mesh_message_object: MeshMessage) -> dict:
-        headers: dict[str, str] = {}
-        if mesh_message_object.metadata is None:
-            return headers
-        if len(mesh_message_object.metadata.items()) == 0:
-            return headers
+        self.log_object.write_log("MESHMBOX0004", None, {"http_status": 200})
 
-        for key, value in mesh_message_object.metadata.items():
-            if "mex" in key.lower():
-                headers[key] = value
+        return 200
 
-        return headers
+    def _send_args_from_metadata(
+        self, mesh_message_object: MeshMessage
+    ) -> dict[str, str]:
+        if not mesh_message_object.metadata:
+            return {}
+
+        return {
+            _OPTIONAL_SEND_ARGS[key.lower()]: value
+            for key, value in mesh_message_object.metadata.items()
+            if key.lower() in _OPTIONAL_SEND_ARGS
+        }
 
     def send_chunk(
         self,
@@ -238,33 +217,32 @@ class MeshMailbox:
         chunk_num: int = 1,
     ):
         """Send a chunk from a stream"""
-        # override mailbox dest_mailbox if provided in message_object
-        session = self._setup_session()
-        session.headers["Mex-From"] = mesh_message_object.src_mailbox
-        session.headers["Mex-To"] = mesh_message_object.dest_mailbox
-        session.headers["Mex-WorkflowID"] = mesh_message_object.workflow_id
-        session.headers["Mex-FileName"] = mesh_message_object.file_name
-        session.headers["Mex-Chunk-Range"] = f"{chunk_num}:{number_of_chunks}"
-        session.headers["Content-Type"] = "application/octet-stream"
-        session.headers["Mex-Content-Encrypted"] = "N"
-        if mesh_message_object.will_compress:
-            session.headers["Content-Encoding"] = "gzip"
-            session.headers["Mex-Content-Compress"] = "Y"
-            session.headers["Mex-Content-Compressed"] = "Y"
 
-        headers_from_metadata = self._headers_from_metadata(mesh_message_object)
-        session.headers.update(headers_from_metadata)
+        kwargs = {
+            "workflow_id": mesh_message_object.workflow_id,
+            "filename": mesh_message_object.file_name,
+        }
+        if chunk_num > 1:
+            kwargs["message_id"] = mesh_message_object.message_id
 
-        mesh_url = self.params[MeshMailbox.MESH_URL]
-        if chunk_num == 1:
-            session.headers["Mex-MessageType"] = "DATA"
-            url = f"{mesh_url}/messageexchange/{self.mailbox}/outbox"
-        else:
-            url = f"{mesh_url}/messageexchange/{self.mailbox}/outbox/{mesh_message_object.message_id}/{chunk_num}"
-        response = session.post(url, data=mesh_message_object.data, stream=True)
-        response.raise_for_status()
+        kwargs.update(self._send_args_from_metadata(mesh_message_object))
+
+        chunk = BytesIO(b"".join(chunk for chunk in mesh_message_object.content))
+
+        response = self.client.send_chunk(
+            recipient=mesh_message_object.dest_mailbox,
+            chunk=chunk,
+            chunk_num=chunk_num,
+            total_chunks=number_of_chunks,
+            compress=mesh_message_object.will_compress,
+            **kwargs,
+        )
         response.raw.decode_content = True
-        message_id = json.loads(response.text)["messageID"]
+
+        message_id = mesh_message_object.message_id
+        if chunk_num == 1:
+            message_id = response.json()["message_id"]
+
         self.log_object.write_log(
             "MESHSEND0007",
             None,
@@ -280,14 +258,11 @@ class MeshMailbox:
 
     def get_chunk(self, message_id, chunk_num=1) -> Response:
         """Return a response object for a MESH chunk"""
-        session = self._setup_session()
-        mesh_url = self.params[MeshMailbox.MESH_URL]
-        # if chunk number = 1, get first part
-        if chunk_num == 1:
-            url = f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
-        else:
-            url = f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}/{chunk_num}"
-        response = session.get(url, stream=True, headers={"Accept-Encoding": "gzip"})
+
+        response = self.client.retrieve_message_chunk(
+            message_id=message_id, chunk_num=chunk_num
+        )
+
         response.raw.decode_content = True
         chunk_range = response.headers.get("Mex-Chunk-Range", "1:1")
         number_of_chunks = int(chunk_range.split(":")[1])
@@ -305,46 +280,33 @@ class MeshMailbox:
         # log chunk of chunk_max for message_id
         return response
 
-    def list_messages(self):
+    def list_messages(self) -> list[str]:
         """Return a list of messages in the mailbox in the form:
         [
             '20220610195418651944_2202CC',
             '20220613142621549393_6430C9'
         ]
         """
-        session = self._setup_session()
-        mesh_url = self.params[MeshMailbox.MESH_URL]
-        url = f"{mesh_url}/messageexchange/{self.mailbox}/inbox"
-        response = session.get(url)
-        response.raise_for_status()
 
-        response_data = json.loads(response.text)
-        message_ids = response_data["messages"]
+        message_ids = self.client.list_messages()
         self.log_object.write_log(
             "MESHMBOX0005",
             None,
             {
                 "mailbox": self.mailbox,
                 "message_count": len(message_ids),
-                "http_status": response.status_code,
             },
         )
-        return response, message_ids
+        return message_ids
 
     def acknowledge_message(self, message_id):
         """
         Acknowledge receipt of the last message from the mailbox.
         """
-        session = self._setup_session()
-        mesh_url = self.params[MeshMailbox.MESH_URL]
-        url = (
-            f"{mesh_url}/messageexchange/{self.mailbox}/inbox/{message_id}"
-            f"/status/acknowledged"
-        )
-        response = session.put(url)
+
+        self.client.acknowledge_message(message_id)
         self.log_object.write_log(
             "MESHMBOX0006",
             None,
-            {"message_id": message_id, "http_status": response.status_code},
+            {"message_id": message_id},
         )
-        return response

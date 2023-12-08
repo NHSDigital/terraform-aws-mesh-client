@@ -1,5 +1,7 @@
 """Tests for MeshMailbox class (mesh_client wrapper)"""
 import os
+import re
+from collections.abc import Generator
 from unittest import TestCase, mock
 
 import boto3
@@ -7,6 +9,24 @@ from moto import mock_secretsmanager, mock_ssm
 from spine_aws_common.log.log_helper import LogHelper
 
 from mesh_client_aws_serverless.mesh_common import MeshCommon
+
+
+def find_log_entries(
+    log_helper: LogHelper, log_reference
+) -> Generator[dict[str, str], None, None]:
+    for line in log_helper.captured_output.getvalue().split("\n"):
+        if f"logReference={log_reference} " not in line:
+            continue
+
+        yield {
+            k: v.strip("\"'")
+            for k, v in (
+                match.split("=", maxsplit=1)
+                for match in re.findall(
+                    r'.*?\s(\w+=(?:\'[^\']+\'|"[^"]+"|[^ ]+))', line
+                )
+            )
+        }
 
 
 class TestMeshCommon(TestCase):
