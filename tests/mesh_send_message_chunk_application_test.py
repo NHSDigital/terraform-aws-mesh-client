@@ -14,6 +14,7 @@ from mesh_client_aws_serverless.mesh_send_message_chunk_application import (
 )
 
 from .mesh_testing_common import (
+    FILE_CONTENT,
     MeshTestCase,
     MeshTestingCommon,
 )
@@ -92,6 +93,9 @@ class TestMeshSendMessageChunkApplication(MeshTestCase):
         mock_lambda_input = self._sample_single_chunk_input_event()
         expected_lambda_response = self._sample_single_chunk_input_event()
         expected_lambda_response["body"].update({"complete": True})
+        expected_lambda_response["body"].update(
+            {"current_byte_position": len(FILE_CONTENT)}
+        )
         assert self.app
         try:
             lambda_response = self.app.main(

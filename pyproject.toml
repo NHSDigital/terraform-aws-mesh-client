@@ -5,7 +5,12 @@ description = "NHS MESH Client built using AWS serverless technologies only"
 authors = ["Rani Sen <rani.sen@nhs.net>"]
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/NHSDigital/terraform-aws-mesh-client"
+
 packages = [{include = "mesh_client_aws_serverless"}]
+
+
+
 
 [tool.poetry.dependencies]
 python = "^3.9"

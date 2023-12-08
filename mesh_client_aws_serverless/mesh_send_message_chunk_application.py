@@ -100,12 +100,6 @@ class MeshSendMessageChunkApplication(LambdaApplication):
             )
             yield file_content
 
-    def _get_metadata_from_s3(self):
-        """Get metadata from s3 object"""
-        response = self.s3_client.head_object(Bucket=self.bucket, Key=self.key)
-        metadata = response.get("Metadata", {})
-        return metadata
-
     def start(self):
         """Main body of lambda"""
 
@@ -118,6 +112,14 @@ class MeshSendMessageChunkApplication(LambdaApplication):
         message_id = self.input.get("message_id", None)
 
         file_response = self.s3_client.head_object(Bucket=self.bucket, Key=self.key)
+        metadata = file_response.get("Metadata", {})
+
+        dest_mailbox = self.input.get("dest_mailbox") or metadata.get("mex-to")
+        assert dest_mailbox
+        workflow_id = self.input.get("workflow_id") or metadata.get(
+            "mex-workflowid", ""
+        )
+
         self.file_size = file_response["ContentLength"]
         self.log_object.write_log(
             "MESHSEND0005",
@@ -133,17 +135,14 @@ class MeshSendMessageChunkApplication(LambdaApplication):
         with MeshMailbox(
             self.log_object, self.input["src_mailbox"], self.environment
         ) as mailbox:
-            dest_mailbox = self.input["dest_mailbox"]
-            assert dest_mailbox
-
             message_object = MeshMessage(
                 content=self._get_file_from_s3(),
                 file_name=os.path.basename(self.key),
-                metadata=self._get_metadata_from_s3(),
+                metadata=metadata,
                 message_id=message_id,
                 dest_mailbox=dest_mailbox,
                 src_mailbox=mailbox.mailbox,
-                workflow_id=self.input["workflow_id"],
+                workflow_id=workflow_id,
                 will_compress=self.will_compress,
             )
 

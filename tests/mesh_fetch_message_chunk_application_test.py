@@ -12,6 +12,7 @@ from mesh_client_aws_serverless.mesh_fetch_message_chunk_application import (
     MeshFetchMessageChunkApplication,
 )
 
+from .mesh_common_test import find_log_entries
 from .mesh_testing_common import (
     MeshTestCase,
     MeshTestingCommon,
@@ -111,6 +112,17 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         # Check we got the logs we expect
         assert self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
+
+        log_entry = next(find_log_entries(self.log_helper, "MESHFETCH0001c"))
+        s3_bucket = log_entry["s3_bucket"]
+        s3_key = log_entry["s3_key"]
+
+        s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+        assert s3_object
+        assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
+        assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
+        assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"
+        assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
         assert self.log_helper.was_value_logged("MESHFETCH0002a", "Log_Level", "INFO")
         assert not self.log_helper.was_value_logged(
             "MESHFETCH0003", "Log_Level", "INFO"
@@ -281,6 +293,18 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         assert self.log_helper.was_value_logged("MESHFETCH0002", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0004", "Log_Level", "INFO")
+
+        log_entry = next(find_log_entries(self.log_helper, "MESHFETCH0001c"))
+        s3_bucket = log_entry["s3_bucket"]
+        s3_key = log_entry["s3_key"]
+
+        s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+        assert s3_object
+        assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
+        assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
+        assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"
+        assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
+
         # self.assertTrue(
         #     self.log_helper.was_value_logged("MESHFETCH0005a", "Log_Level", "INFO")
         # )
@@ -417,6 +441,18 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         # Check we got the logs we expect
         assert self.log_helper.was_value_logged("MESHFETCH0001", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0001c", "Log_Level", "INFO")
+
+        log_entry = next(find_log_entries(self.log_helper, "MESHFETCH0001c"))
+        s3_bucket = log_entry["s3_bucket"]
+        s3_key = log_entry["s3_key"]
+
+        s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+        assert s3_object
+        assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
+        assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
+        assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"
+        assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
+
         assert self.log_helper.was_value_logged("MESHFETCH0002", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0002a", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
@@ -492,6 +528,17 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         # )
 
         assert self.log_helper.was_value_logged("MESHFETCH0012", "Log_Level", "INFO")
+
+        log_entry = next(find_log_entries(self.log_helper, "MESHFETCH0001c"))
+        s3_bucket = log_entry["s3_bucket"]
+        s3_key = log_entry["s3_key"]
+
+        s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+        assert s3_object
+        assert s3_object["Metadata"]["mex-messagetype"] == "REPORT"
+        assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
+        assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
+        assert s3_object["Metadata"]["mex-statussuccess"] == "ERROR"
 
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
