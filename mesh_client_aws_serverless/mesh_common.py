@@ -2,6 +2,8 @@
 import json
 import os
 from collections import namedtuple
+from typing import Optional
+from urllib.parse import quote_plus
 
 from mypy_boto3_ssm.type_defs import ParameterTypeDef
 from nhs_aws_helpers import secrets_client, ssm_client, stepfunctions
@@ -21,6 +23,13 @@ class AwsFailedToPerformError(Exception):
     def __init__(self, msg=None):
         super().__init__()
         self.msg = msg
+
+
+def nullsafe_quote(value: Optional[str]) -> str:
+    if not value:
+        return ""
+
+    return quote_plus(value, encoding="utf-8")
 
 
 class MeshCommon:

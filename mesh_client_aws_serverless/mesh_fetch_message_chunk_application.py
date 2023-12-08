@@ -9,10 +9,37 @@ from typing import Optional
 from botocore.exceptions import ClientError
 from nhs_aws_helpers import s3_client
 from requests import Response
+from requests.structures import CaseInsensitiveDict
 from spine_aws_common import LambdaApplication
 
-from mesh_client_aws_serverless.mesh_common import MeshCommon
+from mesh_client_aws_serverless.mesh_common import MeshCommon, nullsafe_quote
 from mesh_client_aws_serverless.mesh_mailbox import MeshMailbox
+
+_METADATA_HEADERS = {
+    "mex-to",
+    "mex-from",
+    "mex-workflowid",
+    "mex-filename",
+    "mex-subject",
+    "mex-localid",
+    "mex-partnerid",
+    "mex-messagetype",
+    "mex-statuscode",
+    "mex-statusdescription",
+    "mex-statussuccess",
+}
+
+
+def metadata_from_headers(headers: CaseInsensitiveDict) -> dict[str, str]:
+    return {
+        mex: nullsafe_quote(headers.get(mex))
+        for mex in _METADATA_HEADERS
+        if mex in headers
+    }
+
+
+def get_content_type(response: Response) -> str:
+    return response.headers.get("Content-Type") or "application/octet-stream"
 
 
 class MeshFetchMessageChunkApplication(LambdaApplication):
@@ -132,7 +159,12 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
             "MESHFETCH0011", None, {"message_id": self.message_id}
         )
         chunk_data = self.http_response.raw.read(decode_content=True)
-        self._upload_to_s3(chunk_data, s3_key=self.s3_key)
+        self._upload_to_s3(
+            chunk_data,
+            s3_key=self.s3_key,
+            content_type=get_content_type(self.http_response),
+            metadata=metadata_from_headers(self.http_response.headers),
+        )
         mailbox.acknowledge_message(self.message_id)
         self._update_response(complete=True)
         self.log_object.write_log(
@@ -151,7 +183,12 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
         )
         buffer = json.dumps(dict(self.http_response.headers)).encode("utf-8")
         self.http_headers_bytes_read = len(buffer)
-        self._upload_to_s3(buffer, s3_key=self.s3_key)
+        self._upload_to_s3(
+            buffer,
+            s3_key=self.s3_key,
+            content_type="application/json",
+            metadata=metadata_from_headers(self.http_response.headers),
+        )
         mailbox.acknowledge_message(self.message_id)
         self._update_response(complete=True)
         self.log_object.write_log(
@@ -283,11 +320,21 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
         )
         return etag
 
-    def _upload_to_s3(self, buffer, s3_key):
+    def _upload_to_s3(
+        self,
+        buffer,
+        s3_key,
+        content_type: Optional[str] = None,
+        metadata: Optional[dict[str, str]] = None,
+    ):
+        metadata = metadata or {}
+        content_type = content_type or "application/octet-stream"
         self.s3_client.put_object(
             Bucket=self.s3_bucket,
             Key=s3_key,
             Body=buffer,
+            ContentType=content_type,
+            Metadata=metadata,
         )
         self.log_object.write_log(
             "MESHFETCH0002a",
@@ -315,6 +362,8 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
             multipart_upload = self.s3_client.create_multipart_upload(
                 Bucket=self.s3_bucket,
                 Key=self.s3_key,
+                Metadata=metadata_from_headers(self.http_response.headers),
+                ContentType=get_content_type(self.http_response),
             )
             self.aws_upload_id = multipart_upload["UploadId"]
             self.log_object.write_log(
