@@ -3,42 +3,33 @@ variable "name_prefix" {
   description = "Name to prefix on to the resources"
 }
 
+variable "region" {
+  type    = string
+  default = "eu-west-2"
+}
+
 variable "config" {
   description = "Shared Mesh configuration"
 
   type = object({
-    environment                = string
-    verify_ssl                 = bool
-    use_secrets_manager        = bool
-    vpc_id                     = string
-    subnet_ids                 = list(string)
-    vpc_enabled                = bool
-    aws_s3_endpoint_sg_id      = list(string)
-    aws_ssm_endpoint_sg_id     = list(string)
-    aws_sfn_endpoint_sg_id     = list(string)
-    aws_logs_endpoints_sg_id   = list(string)
-    aws_kms_endpoints_sg_id    = list(string)
-    aws_lambda_endpoints_sg_id = list(string)
+    environment         = string
+    verify_ssl          = bool
+    use_secrets_manager = bool
+    vpc_id              = string
+    subnet_ids          = list(string)
   })
 
   default = {
-    environment                = "integration"
-    verify_ssl                 = true
-    use_secrets_manager        = false
-    vpc_id                     = ""
-    vpc_enabled                = false
-    subnet_ids                 = []
-    aws_s3_endpoint_sg_id      = []
-    aws_ssm_endpoint_sg_id     = []
-    aws_sfn_endpoint_sg_id     = []
-    aws_logs_endpoints_sg_id   = []
-    aws_kms_endpoints_sg_id    = []
-    aws_lambda_endpoints_sg_id = []
+    environment         = "production"
+    verify_ssl          = true
+    use_secrets_manager = false
+    vpc_id              = ""
+    subnet_ids          = []
   }
 
   validation {
-    condition     = var.config.environment == "integration" || var.config.environment == "production"
-    error_message = "The environment value must be either \"integration\" or \"production\"."
+    condition     = var.config.environment == "integration" || var.config.environment == "production" || var.config.environment == "local"
+    error_message = "The environment value must be \"local\", \"integration\" or \"production\"."
   }
 }
 
@@ -116,4 +107,17 @@ variable "cloudtrail_enabled" {
 variable "get_message_max_concurrency" {
   type    = number
   default = 1
+}
+
+
+variable "get_messages_schedule" {
+  # https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-rule-schedule.html
+  type    = string
+  default = "rate(1 minute)"
+}
+
+variable "handshake_schedule" {
+  # https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-rule-schedule.html
+  type    = string
+  default = "rate(1 hour)"
 }

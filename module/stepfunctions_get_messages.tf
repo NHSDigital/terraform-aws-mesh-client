@@ -141,6 +141,11 @@ resource "aws_cloudwatch_log_group" "get_messages" {
   name              = "/aws/states/${local.get_messages_name}"
   retention_in_days = var.cloudwatch_retention_in_days
   kms_key_id        = aws_kms_key.mesh.arn
+  lifecycle {
+    ignore_changes = [
+      log_group_class,  # localstack not currently returning this
+    ]
+  }
 }
 
 resource "aws_iam_role" "get_messages" {

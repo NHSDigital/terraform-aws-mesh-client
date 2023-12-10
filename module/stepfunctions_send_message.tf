@@ -102,6 +102,11 @@ resource "aws_cloudwatch_log_group" "send_message" {
   name              = "/aws/states/${local.send_message_name}"
   retention_in_days = var.cloudwatch_retention_in_days
   kms_key_id        = aws_kms_key.mesh.arn
+  lifecycle {
+    ignore_changes = [
+      log_group_class,  # localstack not currently returning this
+    ]
+  }
 }
 
 resource "aws_iam_role" "send_message" {

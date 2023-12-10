@@ -2,19 +2,17 @@
 name = "mesh-client-aws-serverless"
 version = "0.1.0"
 description = "NHS MESH Client built using AWS serverless technologies only"
-authors = ["Rani Sen <rani.sen@nhs.net>"]
+authors = ["spine core"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/NHSDigital/terraform-aws-mesh-client"
-
-packages = [{include = "mesh_client_aws_serverless"}]
-
-
-
+packages = [
+    { include = "shared", from = "./src" },
+]
 
 [tool.poetry.dependencies]
-python = "^3.9"
-importlib-metadata = "6.6.0"
+python = "^3.11"
+importlib-metadata = "6.8.0"
 urllib3 = "^1.26.0"
 spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.5.5"
@@ -72,13 +70,13 @@ exclude = [
 ]
 unfixable = ["SIM112"]
 line-length = 120
-target-version = "py39"
+target-version = "py311"
 
 [tool.ruff.per-file-ignores]
 
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 show_error_codes = true
@@ -107,7 +105,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 python_classes = "NoTestClasses"
-python_files = "*_test.py test_*.py"
+python_files = "*_test.py test_*.py _tests.py"
 norecursedirs = ".git .venv .eggs build dist .tox"
 testpaths = [
     "tests",
@@ -119,6 +117,7 @@ omit = [
     ".venv/*",
     ".tox/*",
     "tests/*",
+    "terraform/dist/*",
     "terraform/mesh_aws_client/*",
     "terraform/mesh_aws_client_dependencies/*"
 ]

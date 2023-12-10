@@ -21,3 +21,9 @@ resource "aws_vpc_endpoint" "s3" {
   service_name = "com.amazonaws.${var.region}.s3"
   vpc_id       = aws_vpc.local.id
 }
+
+
+resource "aws_security_group" "dummy" {
+  name   = "dummy"
+  vpc_id = aws_vpc.local.id
+}

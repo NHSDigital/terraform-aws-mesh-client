@@ -3,41 +3,53 @@ locals {
 }
 
 resource "aws_security_group" "send_message_chunk" {
-  count       = var.config.vpc_id == "" ? 0 : 1
+  count       = local.vpc_enabled ? 1 : 0
   name        = local.send_message_chunk_name
   description = local.send_message_chunk_name
   vpc_id      = var.config.vpc_id
 
-  egress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = var.config.environment == "production" ? local.mesh_ips.production : local.mesh_ips.integration
-  }
+}
 
-  egress {
-    from_port = 443
-    to_port   = 443
-    protocol  = "tcp"
-    security_groups = concat(
-      var.config.aws_s3_endpoint_sg_id,
-      var.config.aws_ssm_endpoint_sg_id,
-      var.config.aws_logs_endpoints_sg_id,
-      var.config.aws_kms_endpoints_sg_id,
-      var.config.aws_lambda_endpoints_sg_id
-    )
-    prefix_list_ids = [data.aws_vpc_endpoint.s3.prefix_list_id]
-  }
+resource "aws_security_group_rule" "send_message_chunk_egress_cidr" {
+  for_each          = local.egress_cidrs
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [each.key]
+}
+
+resource "aws_security_group_rule" "send_message_chunk_egress_sgs" {
+  for_each          = local.egress_sg_ids
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = each.key
+}
+
+resource "aws_security_group_rule" "send_message_chunk_egress_prefix_list" {
+  for_each          = local.egress_prefix_list_ids
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port       = 443
+  to_port         = 443
+  protocol        = "tcp"
+  prefix_list_ids = [each.key]
 }
 
 #tfsec:ignore:aws-lambda-enable-tracing
 resource "aws_lambda_function" "send_message_chunk" {
   function_name    = local.send_message_chunk_name
-  filename         = data.archive_file.mesh_aws_client.output_path
-  handler          = "mesh_aws_client.mesh_send_message_chunk_application.lambda_handler"
+  filename         = data.archive_file.app.output_path
+  handler          = "mesh_send_message_chunk_application.lambda_handler"
   runtime          = local.python_runtime
   timeout          = 15 * 60 // 15 minutes
-  source_code_hash = data.archive_file.mesh_aws_client.output_base64sha256
+  source_code_hash = data.archive_file.app.output_base64sha256
   role             = aws_iam_role.send_message_chunk.arn
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
 
@@ -49,7 +61,7 @@ resource "aws_lambda_function" "send_message_chunk" {
   }
 
   dynamic "vpc_config" {
-    for_each = var.config.vpc_enabled == true ? [var.config.vpc_enabled] : []
+    for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
       subnet_ids         = var.config.subnet_ids
       security_group_ids = [aws_security_group.send_message_chunk[0].id]
@@ -67,6 +79,11 @@ resource "aws_cloudwatch_log_group" "send_message_chunk" {
   name              = "/aws/lambda/${local.send_message_chunk_name}"
   retention_in_days = var.cloudwatch_retention_in_days
   kms_key_id        = aws_kms_key.mesh.arn
+  lifecycle {
+    ignore_changes = [
+      log_group_class,  # localstack not currently returning this
+    ]
+  }
 }
 
 resource "aws_iam_role" "send_message_chunk" {

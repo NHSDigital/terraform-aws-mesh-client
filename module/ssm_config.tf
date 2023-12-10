@@ -1,55 +1,49 @@
-resource "aws_ssm_parameter" "ca_cert" {
-  name  = "/${local.name}/mesh/MESH_CA_CERT"
-  type  = "SecureString"
-  value = "To Replace"
 
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
+data "aws_ssm_parameter" "ssm" {
+  name = "/${local.name}/mesh/MESH_CA_CERT"
 }
-resource "aws_ssm_parameter" "client_cert" {
-  name  = "/${local.name}/mesh/MESH_CLIENT_CERT"
-  type  = "SecureString"
-  value = "To Replace"
 
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
+moved {
+  from = aws_ssm_parameter.ca_cert
+  to   = data.aws_ssm_parameter.ssm
 }
-resource "aws_ssm_parameter" "client_key" {
-  count = var.config.use_secrets_manager == false ? 1 : 0
+
+data "aws_ssm_parameter" "client_cert" {
+  name = "/${local.name}/mesh/MESH_CLIENT_CERT"
+}
+
+moved {
+  from = aws_ssm_parameter.client_cert
+  to   = data.aws_ssm_parameter.client_cert
+}
+
+data "aws_ssm_parameter" "client_key" {
+  count = var.config.use_secrets_manager ? 0 : 1
   name  = "/${local.name}/mesh/MESH_CLIENT_KEY"
-  type  = "SecureString"
-  value = "To Replace"
-
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
 }
 
-resource "aws_ssm_parameter" "shared_key" {
-  count = var.config.use_secrets_manager == false ? 1 : 0
+moved {
+  from = aws_ssm_parameter.client_key
+  to   = data.aws_ssm_parameter.client_key
+}
+
+data "aws_ssm_parameter" "shared_key" {
+  count = var.config.use_secrets_manager ? 0 : 1
   name  = "/${local.name}/mesh/MESH_SHARED_KEY"
-  type  = "SecureString"
-  value = "To Replace"
-
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
 }
 
-resource "aws_ssm_parameter" "url" {
-  name  = "/${local.name}/mesh/MESH_URL"
-  type  = "String"
-  value = local.mesh_url[var.config.environment]
+moved {
+  from = aws_ssm_parameter.shared_key
+  to   = data.aws_ssm_parameter.shared_key
+}
+
+data "aws_ssm_parameter" "url" {
+  name = "/${local.name}/mesh/MESH_URL"
+}
+
+moved {
+  from = aws_ssm_parameter.url
+  to   = data.aws_ssm_parameter.url
 }
 
 resource "aws_ssm_parameter" "verify_ssl" {

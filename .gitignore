@@ -1,4 +1,4 @@
-dist/
+
 *.pyc
 *.egg-info
 .venv
@@ -11,17 +11,13 @@ __pycache__
 .idea/
 htmlcov/
 coverage-all.txt
-*.zip
-requirements.txt
-**/requirements.txt
 .lock-hash
 
 # ignore packaging and lambda deps
-module/mesh_aws_client/*
 module/mesh_aws_client_dependencies/*
 module/mesh_client_aws_serverless/*
 module/mesh_client_aws_serverless_dependencies/*
-
+module/dist/
 
 
 # certs/keys/pems
