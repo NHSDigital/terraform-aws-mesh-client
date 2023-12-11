@@ -1,7 +1,7 @@
 resource "aws_cloudwatch_event_rule" "get_messages_handshake" {
   name                = "${local.name}-get-messages-handshake"
   description         = "${local.name}-get-messages-handshake"
-  schedule_expression = "cron(0 1 * * ? *)"
+  schedule_expression = var.handshake_schedule
 }
 
 resource "aws_cloudwatch_event_target" "get_messages_handshake" {

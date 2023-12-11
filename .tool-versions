@@ -1,4 +1,4 @@
-python 3.9.12
+python 3.11.7
 poetry 1.5.1
 terraform 1.4.5
 tfsec 1.28.1

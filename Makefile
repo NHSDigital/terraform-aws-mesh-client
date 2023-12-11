@@ -40,12 +40,12 @@ install-ci:
 local-terraform:
 	make -C stacks/localstack
 
-up-ci:
+up-ci: requirements certs
 	docker compose up -d --remove-orphans
 	scripts/wait-for-container.sh localstack
 	make local-terraform
 
-up: requirements up-ci
+up: up-ci
 
 down:
 	poetry run docker compose down --remove-orphans || true
@@ -54,7 +54,7 @@ down:
 build:
 	poetry run python -m build
 
-pytest:
+pytest: certs
 	poetry run pytest
 
 test: pytest
@@ -80,7 +80,7 @@ shellcheck:
 	docker run --rm -i -v ${PWD}:/mnt:ro koalaman/shellcheck -f gcc -e SC1090,SC1091 `find . \( -path "*/.venv/*" -prune -o -path "*/build/*" -prune -o -path "*/.tox/*" -prune -o -path "*/java_client/*" -prune  \) -o -type f -name '*.sh' -print` || test $$? -eq 1
 
 ruff: black
-	poetry run ruff --fix --show-fixes .
+	poetry run ruff . --fix --show-fixes
 
 ruff-check:
 	poetry run ruff .
@@ -99,8 +99,9 @@ black:
 coverage-cleanup:
 	rm -f .coverage* || true
 
-coverage-ci-test:
-	poetry run coverage run -m pytest --color=yes -v --junit-xml=./reports/junit/tests.xml
+coverage-ci-test: certs
+	poetry run coverage run -m pytest tests/integration --color=yes -v --junit-xml=./reports/junit/tests-integration.xml
+	poetry run coverage run -a -m pytest tests/mocked --color=yes -v --junit-xml=./reports/junit/tests-mocked.xml
 
 coverage-report:
 	@poetry run coverage report; \
@@ -109,7 +110,8 @@ coverage-report:
 coverage: coverage-cleanup coverage-test coverage-report
 
 coverage-test:
-	poetry run coverage run -m pytest
+	poetry run coverage run -m pytest tests/integration
+	poetry run coverage run -a -m pytest tests/mocked
 
 coverage-ci: coverage-cleanup coverage-ci-test coverage-report
 
@@ -155,3 +157,14 @@ delete-hooks:
 	cp scripts/hooks/commit-msg.sh .git/hooks/commit-msg
 
 refresh-hooks: delete-hooks .git/hooks/pre-commit .git/hooks/commit-msg
+
+certs:
+	scripts/self-signed-ca/create-all.sh localhost
+
+certs-new:
+	rm -r resources/mesh_certs/local || true
+	rm -f .docker.env || true
+	scripts/self-signed-ca/create-all.sh localhost mesh_api --overwrite
+
+scripts/self-signed-ca/.certs.env:
+	make certs

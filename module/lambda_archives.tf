@@ -1,37 +1,22 @@
-resource "null_resource" "mesh_aws_client" {
-  triggers = {
-    # hack so this always triggers
-    mesh_aws_client_dependencies = timestamp()
-  }
-  provisioner "local-exec" {
-    command = "/bin/bash ${path.module}/scripts/mesh_aws_client.sh"
-  }
-}
 
-data "archive_file" "mesh_aws_client" {
-  type        = "zip"
-  source_dir  = "${path.module}/mesh_client_aws_serverless"
-  output_path = "${path.module}/mesh_client_aws_serverless.zip"
-
-  depends_on = [
-    null_resource.mesh_aws_client
-  ]
+locals {
+  python_dir = "${local.abs_path}/../src"
 }
 
 resource "null_resource" "mesh_aws_client_dependencies" {
   triggers = {
-    # hack so this always triggers
-    mesh_aws_client_dependencies = timestamp()
+    requirements = filesha256("${local.python_dir}/requirements.txt")
+    build_script = filesha256("${path.module}/scripts/pack_deps.sh")
   }
   provisioner "local-exec" {
-    command = "/bin/bash ${path.module}/scripts/mesh_aws_client_dependencies.sh"
+    command = "/bin/bash ${path.module}/scripts/pack_deps.sh ${local.abs_path}"
   }
 }
 
-data "archive_file" "mesh_aws_client_dependencies" {
+data "archive_file" "deps" {
   type        = "zip"
-  source_dir  = "${path.module}/mesh_aws_client_dependencies"
-  output_path = "${path.module}/mesh_aws_client_dependencies.zip"
+  source_dir  = "${local.abs_path}/dist/deps"
+  output_path = "${local.abs_path}/dist/deps.zip"
 
   depends_on = [
     null_resource.mesh_aws_client_dependencies
@@ -39,8 +24,34 @@ data "archive_file" "mesh_aws_client_dependencies" {
 }
 
 resource "aws_lambda_layer_version" "mesh_aws_client_dependencies" {
-  filename            = data.archive_file.mesh_aws_client_dependencies.output_path
+  filename            = data.archive_file.deps.output_path
   layer_name          = "mesh_aws_client_dependencies"
-  source_code_hash    = data.archive_file.mesh_aws_client_dependencies.output_base64sha256
+  source_code_hash    = data.archive_file.deps.output_base64sha256
   compatible_runtimes = [local.python_runtime]
+}
+
+
+resource "null_resource" "mesh_aws_client" {
+  triggers = {
+    source_dir   = sha256(join("", [for f in fileset(local.python_dir, "*") : filesha256("${local.python_dir}/${f}")]))
+    build_script = filesha256("${local.abs_path}/scripts/pack_app.sh")
+    exists       = fileexists("${local.abs_path}/dist/app/*.py")
+  }
+  provisioner "local-exec" {
+    command = "/bin/bash ${local.abs_path}/scripts/pack_app.sh ${local.abs_path} ${var.config.environment}"
+  }
+  depends_on = [
+    null_resource.mesh_aws_client_dependencies
+  ]
+}
+
+data "archive_file" "app" {
+  type        = "zip"
+  source_dir  = "${local.abs_path}/dist/app"
+  output_path = "${local.abs_path}/dist/app.zip"
+
+  depends_on = [
+    null_resource.mesh_aws_client,
+    null_resource.mesh_aws_client_dependencies
+  ]
 }
