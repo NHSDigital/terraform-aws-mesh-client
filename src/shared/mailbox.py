@@ -189,11 +189,11 @@ class MeshMailbox:
             self.client.handshake()
         except HTTPError as ex:
             self.log_object.write_log(
-                "MESHMBOX0004", None, {"http_status": ex.response.status_code}
+                "MESHMBOX0004", None, {"mailbox": self.mailbox, "http_status": ex.response.status_code}
             )
             raise HandshakeFailure from ex
 
-        self.log_object.write_log("MESHMBOX0004", None, {"http_status": 200})
+        self.log_object.write_log("MESHMBOX0004", None, {"mailbox": self.mailbox, "http_status": 200})
 
         return 200
 
@@ -267,7 +267,7 @@ class MeshMailbox:
         number_of_chunks = int(chunk_range.split(":")[1])
         number_of_chunks = chunk_num == number_of_chunks
         self.log_object.write_log(
-            "MESHSEND0001b",
+            "MESHFETCH0001b",
             None,
             {
                 "message_id": message_id,

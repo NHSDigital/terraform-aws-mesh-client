@@ -105,7 +105,6 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
                 self.message_id, chunk_num=self.current_chunk
             )
             self.number_of_chunks = self._get_number_of_chunks()
-            self.http_response.raise_for_status()
             self.chunked = (
                 self.http_response.status_code == HTTPStatus.PARTIAL_CONTENT.value
             )
@@ -227,8 +226,7 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
         return chunk_num == self.number_of_chunks
 
     def _get_number_of_chunks(self) -> int:
-        chunk_range = self.http_response.headers.get("Mex-Chunk-Range", "1:1")
-        number_of_chunks = int(chunk_range.split(":")[1])
+        number_of_chunks = int(self.http_response.headers.get("Mex-Total-Chunks", "0"))
         return number_of_chunks
 
     def _upload_part_to_s3(self, buffer):
@@ -430,6 +428,8 @@ class MeshFetchMessageChunkApplication(LambdaApplication):
                 "aws_part_etags": self.aws_part_etags,
                 "internal_id": self.internal_id,
                 "file_name": self._get_filename(),
+                "s3_bucket": self.s3_bucket,
+                "s3_key": self.s3_key,
             }
         )
 

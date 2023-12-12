@@ -6,10 +6,12 @@ import math
 import os
 import re
 from collections.abc import Callable, Iterable
+from dataclasses import asdict, dataclass
 from json import JSONDecodeError
 from time import sleep, time
 from typing import cast
 
+import requests
 from botocore.exceptions import ClientError
 from mypy_boto3_lambda.type_defs import InvocationResponseTypeDef
 from mypy_boto3_logs.type_defs import LogStreamTypeDef, OutputLogEventTypeDef
@@ -319,3 +321,36 @@ def wait_till_not_running(
             raise TimeoutError(f"timeout waiting for {state_machine_arn}", executions)
 
         sleep(0.2)
+
+
+def reset_sandbox_mailbox(mailbox_id: str):
+    mailbox_id = (mailbox_id or "").strip().upper()
+    assert mailbox_id
+    res = requests.delete(
+        f"{os.environ['SANDBOX_URL']}/messageexchange/admin/reset/{mailbox_id}",
+        verify=False,
+    )
+    res.raise_for_status()
+
+
+@dataclass
+class CreateReportRequest:
+    mailbox_id: str  # recipient
+    code: str  # error_code
+    description: str  # error desc
+    workflow_id: str
+    subject: str | None = None
+    local_id: str | None = None
+    status: str = "undeliverable"  # report status (error/undeliverable)
+    file_name: str | None = None
+    linked_message_id: str | None = None
+
+
+def put_sandbox_report(request: CreateReportRequest):
+    res = requests.post(
+        f"{os.environ['SANDBOX_URL']}/messageexchange/admin/report",
+        json=asdict(request),
+        verify=False,
+    )
+    res.raise_for_status()
+    return res.json()

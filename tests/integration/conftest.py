@@ -13,6 +13,8 @@ from nhs_aws_helpers.fixtures import *  # noqa: F403
 def _global_setup():
     os.environ.setdefault("LOCAL_MODE", "True")
     os.environ.setdefault("AWS_ENDPOINT_URL", "http://localhost:4569")
+    os.environ.setdefault("MESH_CLIENT_SHARED_KEY", "TestKey")
+    os.environ.setdefault("SANDBOX_URL", "https://localhost:8700")
 
 
 @pytest.fixture(scope="session")
@@ -26,5 +28,5 @@ def sfn() -> SFNClient:
 
 
 @pytest.fixture()
-def local_mesh(s3: S3ServiceResource) -> Bucket:
+def local_mesh_bucket(s3: S3ServiceResource) -> Bucket:
     return s3.Bucket("local-mesh")
