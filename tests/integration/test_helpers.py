@@ -311,6 +311,7 @@ def wait_till_not_running(
         list_result = sfn.list_executions(
             stateMachineArn=state_machine_arn, statusFilter="RUNNING"
         )
+        # remove when merged: https://github.com/localstack/localstack/pull/9833
         executions = [
             ex for ex in list_result["executions"] if ex["status"] == "RUNNING"
         ]

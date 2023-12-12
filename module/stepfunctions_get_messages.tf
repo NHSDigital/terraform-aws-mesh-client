@@ -143,7 +143,7 @@ resource "aws_cloudwatch_log_group" "get_messages" {
   kms_key_id        = aws_kms_key.mesh.arn
   lifecycle {
     ignore_changes = [
-      log_group_class,  # localstack not currently returning this
+      log_group_class, # localstack not currently returning this
     ]
   }
 }

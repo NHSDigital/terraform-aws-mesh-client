@@ -40,12 +40,15 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
     ):
         """Test the lambda with small file, no chunking, happy path"""
         # Mock responses from MESH server
+        content = "123456789012345678901234567890123"
+
         response_mocker.get(
             f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}",
-            text="123456789012345678901234567890123",
+            text=content,
             status_code=HTTPStatus.OK.value,
             headers={
                 "Content-Type": "application/octet-stream",
+                "Content-Length": str(len(content)),
                 "Connection": "keep-alive",
                 "Mex-Messageid": MeshTestingCommon.KNOWN_MESSAGE_ID1,
                 "Mex-From": "MESH-TEST2",
@@ -68,12 +71,6 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         )
         response_mocker.put(
             f"/messageexchange/MESH-TEST1/inbox/{MeshTestingCommon.KNOWN_MESSAGE_ID1}/status/acknowledged",
-            text=json.dumps({"messageId": MeshTestingCommon.KNOWN_MESSAGE_ID1}),
-            headers={
-                "Content-Type": "application/json",
-                "Transfer-Encoding": "chunked",
-                "Connection": "keep-alive",
-            },
         )
 
         mock_create_new_internal_id.return_value = MeshTestingCommon.KNOWN_INTERNAL_ID1
@@ -183,8 +180,10 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             status_code=HTTPStatus.PARTIAL_CONTENT.value,
             headers={
                 "Content-Type": "application/octet-stream",
+                "Content-Length": str(data1_length),
                 "Connection": "keep-alive",
                 "Mex-Chunk-Range": "1:2",
+                "Mex-Total-Chunks": "2",
                 "Mex-Messageid": MeshTestingCommon.KNOWN_MESSAGE_ID1,
                 "Mex-From": "MESH-TEST2",
                 "Mex-To": "MESH-TEST1",
@@ -211,7 +210,9 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             status_code=HTTPStatus.OK.value,
             headers={
                 "Content-Type": "application/octet-stream",
+                "Content-Length": str(data2_length),
                 "Mex-Chunk-Range": "2:2",
+                "Mex-Total-Chunks": "2",
                 "Connection": "keep-alive",
                 "Mex-Messageid": MeshTestingCommon.KNOWN_MESSAGE_ID1,
                 "Mex-From": "MESH-TEST2",
@@ -328,8 +329,10 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             status_code=HTTPStatus.PARTIAL_CONTENT.value,
             headers={
                 "Content-Type": "application/octet-stream",
+                "Content-Length": str(data1_length),
                 "Connection": "keep-alive",
                 "Mex-Chunk-Range": "1:2",
+                "Mex-Total-Chunks": "2",
                 "Mex-Messageid": MeshTestingCommon.KNOWN_MESSAGE_ID1,
                 "Mex-From": "MESH-TEST2",
                 "Mex-To": "MESH-TEST1",
@@ -356,7 +359,9 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
             status_code=HTTPStatus.OK.value,
             headers={
                 "Content-Type": "application/octet-stream",
+                "Content-Length": str(data2_length),
                 "Mex-Chunk-Range": "2:2",
+                "Mex-Total-Chunks": "2",
                 "Connection": "keep-alive",
                 "Mex-Messageid": MeshTestingCommon.KNOWN_MESSAGE_ID1,
                 "Mex-From": "MESH-TEST2",
@@ -441,7 +446,9 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
 
         assert self.log_helper.was_value_logged("MESHFETCH0002", "Log_Level", "INFO")
-        assert self.log_helper.was_value_logged("MESHFETCH0002a", "Log_Level", "INFO")
+        assert not self.log_helper.was_value_logged(
+            "MESHFETCH0002a", "Log_Level", "INFO"
+        )
         assert self.log_helper.was_value_logged("MESHFETCH0003", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0004", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("MESHFETCH0005a", "Log_Level", "INFO")

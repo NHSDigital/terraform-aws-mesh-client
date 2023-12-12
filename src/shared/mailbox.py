@@ -1,8 +1,8 @@
 import contextlib
 import os
-import tempfile
 from collections.abc import Generator
 from io import BytesIO
+from tempfile import NamedTemporaryFile, TemporaryDirectory, _TemporaryFileWrapper
 from typing import Any, NamedTuple
 
 from aws_lambda_powertools.shared.functions import strtobool
@@ -61,12 +61,12 @@ class MeshMailbox:
     def __init__(self, log_object: Logger, mailbox: str, environment: str):
         self.mailbox = mailbox
         self.environment = environment
-        self.temp_dir_object: tempfile.TemporaryDirectory | None = None
+        self.temp_dir_object: TemporaryDirectory | None = None
         self.params: dict[str, Any] = {}
         self.log_object = log_object
-        self.client_cert_file: tempfile._TemporaryFileWrapper | None = None
-        self.client_key_file: tempfile._TemporaryFileWrapper | None = None
-        self.ca_cert_file: tempfile._TemporaryFileWrapper | None = None
+        self.client_cert_file: _TemporaryFileWrapper | None = None
+        self.client_key_file: _TemporaryFileWrapper | None = None
+        self.ca_cert_file: _TemporaryFileWrapper | None = None
 
         self.maybe_verify_ssl = True
         self._client: MeshClient | None = None
@@ -158,23 +158,23 @@ class MeshMailbox:
         """Write the certificates to a local file"""
         self.log_object.write_log("MESHMBOX0002", None, None)
 
-        self.temp_dir_object = tempfile.TemporaryDirectory()
+        self.temp_dir_object = TemporaryDirectory()
         temp_dir = self.temp_dir_object.name
 
         # store as temporary files for the mesh client / requests library
-        self.client_cert_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
+        self.client_cert_file = NamedTemporaryFile(dir=temp_dir, delete=False)
         client_cert = self.params[MeshMailbox.MESH_CLIENT_CERT]
         self.client_cert_file.write(client_cert.encode("utf-8"))
         self.client_cert_file.seek(0)
 
-        self.client_key_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
+        self.client_key_file = NamedTemporaryFile(dir=temp_dir, delete=False)
         client_key = self.params[MeshMailbox.MESH_CLIENT_KEY]
         self.client_key_file.write(client_key.encode("utf-8"))
         self.client_key_file.seek(0)
 
         self.ca_cert_file = None
         if self.maybe_verify_ssl:
-            self.ca_cert_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
+            self.ca_cert_file = NamedTemporaryFile(dir=temp_dir, delete=False)
             assert self.ca_cert_file
             ca_cert = self.params[MeshMailbox.MESH_CA_CERT]
             self.ca_cert_file.write(ca_cert.encode("utf-8"))
@@ -189,11 +189,15 @@ class MeshMailbox:
             self.client.handshake()
         except HTTPError as ex:
             self.log_object.write_log(
-                "MESHMBOX0004", None, {"mailbox": self.mailbox, "http_status": ex.response.status_code}
+                "MESHMBOX0004",
+                None,
+                {"mailbox": self.mailbox, "http_status": ex.response.status_code},
             )
             raise HandshakeFailure from ex
 
-        self.log_object.write_log("MESHMBOX0004", None, {"mailbox": self.mailbox, "http_status": 200})
+        self.log_object.write_log(
+            "MESHMBOX0004", None, {"mailbox": self.mailbox, "http_status": 200}
+        )
 
         return 200
 
@@ -263,20 +267,7 @@ class MeshMailbox:
         )
 
         response.raw.decode_content = True
-        chunk_range = response.headers.get("Mex-Chunk-Range", "1:1")
-        number_of_chunks = int(chunk_range.split(":")[1])
-        number_of_chunks = chunk_num == number_of_chunks
-        self.log_object.write_log(
-            "MESHFETCH0001b",
-            None,
-            {
-                "message_id": message_id,
-                "chunk_num": chunk_num,
-                "max_chunk": number_of_chunks,
-            },
-        )
-        # for 3 out of 5 fetch tests Mex-Chunk-Range does not exist is this ok?
-        # log chunk of chunk_max for message_id
+
         return response
 
     def list_messages(self) -> list[str]:

@@ -62,6 +62,7 @@ class MeshCommon:
             for execution in exs_response["executions"]
             if execution["status"]
             == "RUNNING"  # localstack status-filter doesn't currently work
+            # remove when merged: https://github.com/localstack/localstack/pull/9833
         ]
 
         exec_count = 0
