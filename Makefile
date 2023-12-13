@@ -40,6 +40,9 @@ install-ci:
 local-terraform:
 	make -C stacks/localstack
 
+docker-build:
+	docker compose build --pull
+
 up-ci: requirements certs
 	docker compose up -d --remove-orphans
 	scripts/wait-for-container.sh localstack
@@ -168,3 +171,11 @@ certs-new:
 
 scripts/self-signed-ca/.certs.env:
 	make certs
+
+
+pack-deps:
+	module/pack-deps.sh ./module
+
+
+pack-app: guard-env
+	module/pack-app.sh ./module $(env)

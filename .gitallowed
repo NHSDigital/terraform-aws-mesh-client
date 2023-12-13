@@ -9,3 +9,8 @@ mesh_sandbox/store/data/mailboxes.jsonl.*password.*
 src/shared/mailbox.py:[0-9]+:\s*password=self.params\[MeshMailbox.MAILBOX_PASSWORD\]
 tests/mesh_testing_common.py:[0-9]+:\s*-----BEGIN CERTIFICATE-----
 tests/mesh_testing_common.py:[0-9]+:\s*-----(BEGIN|END) PRIVATE KEY-----
+
+
+tests/integration/fetch_message_chunk_test.py:[0-9]+:\s*password="password",
+tests/integration/get_messages_test.py:[0-9]+: \s*url=_SANDBOX_URL, mailbox=mailboxes\[[0-9]+\], password="password", verify=False
+

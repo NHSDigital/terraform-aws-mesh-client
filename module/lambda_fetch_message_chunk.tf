@@ -51,7 +51,9 @@ resource "aws_lambda_function" "fetch_message_chunk" {
   source_code_hash = data.archive_file.app.output_base64sha256
   role             = aws_iam_role.fetch_message_chunk.arn
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
-
+  ephemeral_storage {
+    size = 10240
+  }
   environment {
     variables = {
       Environment         = local.name
@@ -77,7 +79,7 @@ resource "aws_cloudwatch_log_group" "fetch_message_chunk" {
   kms_key_id        = aws_kms_key.mesh.arn
   lifecycle {
     ignore_changes = [
-      log_group_class,  # localstack not currently returning this
+      log_group_class, # localstack not currently returning this
     ]
   }
 }

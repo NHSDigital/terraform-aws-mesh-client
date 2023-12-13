@@ -6,10 +6,10 @@ locals {
 resource "null_resource" "mesh_aws_client_dependencies" {
   triggers = {
     requirements = filesha256("${local.python_dir}/requirements.txt")
-    build_script = filesha256("${path.module}/scripts/pack_deps.sh")
+    build_script = filesha256("${path.module}/pack-deps.sh")
   }
   provisioner "local-exec" {
-    command = "/bin/bash ${path.module}/scripts/pack_deps.sh ${local.abs_path}"
+    command = "/bin/bash ${path.module}/pack-deps.sh ${local.abs_path}"
   }
 }
 
@@ -34,11 +34,11 @@ resource "aws_lambda_layer_version" "mesh_aws_client_dependencies" {
 resource "null_resource" "mesh_aws_client" {
   triggers = {
     source_dir   = sha256(join("", [for f in fileset(local.python_dir, "*") : filesha256("${local.python_dir}/${f}")]))
-    build_script = filesha256("${local.abs_path}/scripts/pack_app.sh")
+    build_script = filesha256("${local.abs_path}/pack-app.sh")
     exists       = fileexists("${local.abs_path}/dist/app/*.py")
   }
   provisioner "local-exec" {
-    command = "/bin/bash ${local.abs_path}/scripts/pack_app.sh ${local.abs_path} ${var.config.environment}"
+    command = "/bin/bash ${local.abs_path}/pack-app.sh ${local.abs_path} ${var.config.environment}"
   }
   depends_on = [
     null_resource.mesh_aws_client_dependencies

@@ -39,14 +39,14 @@ module "main" {
         }
       ]
     },
-    #    {
-    #      id                = "X26ABC2"
-    #      outbound_mappings = []
-    #    },
-    #    {
-    #      id                = "X26ABC3"
-    #      outbound_mappings = []
-    #    },
+    {
+      id                = "X26ABC2"
+      outbound_mappings = []
+    },
+    {
+      id                = "X26ABC3"
+      outbound_mappings = []
+    },
   ]
 
   get_messages_schedule = "rate(365 days)" # this set this very rarely to allow tests to control invocation

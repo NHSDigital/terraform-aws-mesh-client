@@ -53,8 +53,8 @@ resource "aws_ssm_parameter" "mailbox_inbound_bucket" {
 }
 
 resource "aws_ssm_parameter" "mailbox_inbound_folder" {
-  name = "/${var.name}/mesh/mailboxes/${var.mailbox_id}/INBOUND_FOLDER"
-  type = "String"
+  name  = "/${var.name}/mesh/mailboxes/${var.mailbox_id}/INBOUND_FOLDER"
+  type  = "String"
   value = local.inbound_folder
 }
 

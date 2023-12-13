@@ -1,0 +1,9 @@
+*.pyc
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+requirements.txt
+rsync-exclude.txt
+poetry-cmd.sh
+.lock-hash
+bin/

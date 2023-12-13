@@ -121,3 +121,8 @@ variable "handshake_schedule" {
   type    = string
   default = "rate(1 hour)"
 }
+
+variable "fetch_message_ephemeral_storage_size" {
+  type    = number
+  default = 10240
+}
