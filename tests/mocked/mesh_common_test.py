@@ -6,7 +6,7 @@ from unittest import TestCase, mock
 
 import boto3
 from moto import mock_secretsmanager, mock_ssm
-from shared.common import MeshCommon
+from shared.common import get_params
 from spine_aws_common.log.log_helper import LogHelper
 
 
@@ -47,6 +47,7 @@ class TestMeshCommon(TestCase):
             "AWS_LAMBDA_FUNCTION_MEMORY_SIZE": "128",
             "AWS_LAMBDA_FUNCTION_VERSION": "1",
             "ENV": "meshtest",
+            "CRUMB_SIZE": "10",
             "CHUNK_SIZE": "10",
         },
     )
@@ -68,7 +69,6 @@ class TestMeshCommon(TestCase):
         Test get_params will get both ssm variables and secrets
         when use_secrets_manager is true
         """
-        os.environ["use_secrets_manager"] = "true"
         assert self.secrets_manager
         assert self.ssm_client
         self.secrets_manager.create_secret(
@@ -87,61 +87,13 @@ class TestMeshCommon(TestCase):
             SecretString="FoobarKey2",
         )
         self.ssm_client.put_parameter(
-            Name=f"/{self.environment}/mesh/MESH_URL1",
-            Description=f"/{self.environment}/mesh/MESH_URL1",
+            Name=f"/{self.environment}/mesh/MESH_CLIENT_KEY",
+            Description=f"/{self.environment}/mesh/MESH_CLIENT_KEY",
             Overwrite=True,
             Type="String",
-            Value="DummyUrl1",
+            Value="AnotherDummyLey",
         )
-        self.ssm_client.put_parameter(
-            Name=f"/{self.environment}/mesh/MESH_URL2",
-            Description=f"/{self.environment}/mesh/MESH_URL2",
-            Overwrite=True,
-            Type="String",
-            Value="DummyUrl2",
-        )
-        self.ssm_client.put_parameter(
-            Name=f"/{self.environment}/foobar/FOOBAR_URL",
-            Description=f"/{self.environment}/foobar/FOOBAR_URL",
-            Overwrite=True,
-            Type="String",
-            Value="FoobarUrl1",
-        )
-        param_dict = MeshCommon.get_params(f"/{self.environment}/mesh/")
-        expected_params = {
-            "MESH_URL1": "DummyUrl1",
-            "MESH_URL2": "DummyUrl2",
-            "MESH_CLIENT_KEY": "DummyKey1",
-            "MESH_CLIENT_KEY2": "DummyKey2",
-        }
-        assert expected_params == param_dict
-        os.environ["use_secrets_manager"] = ""
 
-    @mock_ssm
-    @mock_secretsmanager
-    def test_get_params_just_ssm(self):
-        """
-        Test get_params will only get ssm variables when
-        use_secrets_manager is false
-        """
-        os.environ["use_secrets_manager"] = "false"
-        assert self.secrets_manager
-        assert self.ssm_client
-        self.secrets_manager.create_secret(
-            Name=f"/{self.environment}/mesh/MESH_CLIENT_KEY",
-            Description=f"/{self.environment}/mesh/MESH_CLIENT_KEY",
-            SecretString="DummyKey1",
-        )
-        self.secrets_manager.create_secret(
-            Name=f"/{self.environment}/mesh/MESH_CLIENT_KEY2",
-            Description=f"/{self.environment}/mesh/MESH_CLIENT_KEY2",
-            SecretString="DummyKey2",
-        )
-        self.secrets_manager.create_secret(
-            Name=f"/{self.environment}/foobar/FOOBAR_KEY1",
-            Description=f"/{self.environment}/foobar/FOOBAR_KEY1",
-            SecretString="FoobarKey2",
-        )
         self.ssm_client.put_parameter(
             Name=f"/{self.environment}/mesh/MESH_URL1",
             Description=f"/{self.environment}/mesh/MESH_URL1",
@@ -163,6 +115,23 @@ class TestMeshCommon(TestCase):
             Type="String",
             Value="FoobarUrl1",
         )
-        param_dict = MeshCommon.get_params(f"/{self.environment}/mesh/")
-        expected_params = {"MESH_URL1": "DummyUrl1", "MESH_URL2": "DummyUrl2"}
+        param_dict = get_params(
+            {
+                f"/{self.environment}/mesh/MESH_URL1",
+                f"/{self.environment}/mesh/MESH_URL2",
+                f"/{self.environment}/mesh/MESH_CLIENT_KEY",
+            },
+            {
+                f"/{self.environment}/mesh/MESH_CLIENT_KEY",
+                f"/{self.environment}/mesh/MESH_CLIENT_KEY2",
+            },
+            ssm=self.ssm_client,
+            secrets=self.secrets_manager,
+        )
+        expected_params = {
+            f"/{self.environment}/mesh/MESH_URL1": "DummyUrl1",
+            f"/{self.environment}/mesh/MESH_URL2": "DummyUrl2",
+            f"/{self.environment}/mesh/MESH_CLIENT_KEY": "DummyKey1",
+            f"/{self.environment}/mesh/MESH_CLIENT_KEY2": "DummyKey2",
+        }
         assert expected_params == param_dict

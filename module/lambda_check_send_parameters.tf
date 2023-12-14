@@ -6,7 +6,7 @@ resource "aws_security_group" "check_send_parameters" {
   count       = local.vpc_enabled ? 1 : 0
   name        = local.check_send_parameters_name
   description = local.check_send_parameters_name
-  vpc_id      = var.config.vpc_id
+  vpc_id      = var.vpc_id
 }
 
 resource "aws_security_group_rule" "check_send_parameters_egress_cidr" {
@@ -18,7 +18,6 @@ resource "aws_security_group_rule" "check_send_parameters_egress_cidr" {
   protocol          = "tcp"
   cidr_blocks       = [each.key]
 }
-
 
 resource "aws_security_group_rule" "check_send_parameters_egress_sgs" {
   for_each          = local.egress_sg_ids
@@ -54,17 +53,13 @@ resource "aws_lambda_function" "check_send_parameters" {
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
 
   environment {
-    variables = {
-      Environment                     = local.name
-      SEND_MESSAGE_STEP_FUNCTION_NAME = local.send_message_name
-      use_secrets_manager             = var.config.use_secrets_manager
-    }
+    variables = local.common_env_vars
   }
 
   dynamic "vpc_config" {
     for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
-      subnet_ids         = var.config.subnet_ids
+      subnet_ids         = var.subnet_ids
       security_group_ids = [aws_security_group.check_send_parameters[0].id]
     }
   }
@@ -188,18 +183,29 @@ data "aws_iam_policy_document" "check_send_parameters" {
     ]
   }
 
-  statement {
-    sid    = "EC2Interfaces"
-    effect = "Allow"
+  dynamic "statement" {
+    for_each = local.vpc_enabled ? [true] : []
+    content {
 
-    actions = [
-      "ec2:CreateNetworkInterface",
-      "ec2:DescribeNetworkInterfaces",
-      "ec2:DeleteNetworkInterface",
-    ]
+      sid    = "EC2Interfaces"
+      effect = "Allow"
 
-    resources = ["*"]
+      actions = [
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterface",
+        "ec2:AssignPrivateIpAddresses",
+        "ec2:UnassignPrivateIpAddresses"
+      ]
+
+      resources = ["*"]
+    }
   }
+}
+
+resource "aws_iam_role_policy_attachment" "check_send_lambda_insights" {
+  role       = aws_iam_role.check_send_parameters.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
 }
 
 resource "aws_iam_role_policy_attachment" "check_send_parameters_check_sfn" {

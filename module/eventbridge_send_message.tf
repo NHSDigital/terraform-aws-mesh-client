@@ -5,9 +5,6 @@ resource "aws_cloudwatch_event_rule" "send_message_event" {
     source = [
       "aws.s3"
     ]
-    detail-type = [
-      "AWS API Call via CloudTrail"
-    ]
     detail = {
       eventSource = [
         "s3.amazonaws.com"
@@ -28,6 +25,19 @@ resource "aws_cloudwatch_event_rule" "send_message_event" {
       }
     }
   })
+
+  depends_on = [
+    data.aws_ssm_parameter.ca_cert,
+    data.aws_ssm_parameter.client_cert,
+    data.aws_ssm_parameter.client_key,
+    data.aws_ssm_parameter.shared_key,
+    data.aws_ssm_parameter.url,
+    data.aws_ssm_parameter.verify_ssl,
+    data.aws_ssm_parameter.mailbox_password,
+    data.aws_secretsmanager_secret.client_key,
+    data.aws_secretsmanager_secret.shared_key,
+    data.aws_secretsmanager_secret.mailbox_password,
+  ]
 }
 
 resource "aws_cloudwatch_event_target" "send_message_event" {

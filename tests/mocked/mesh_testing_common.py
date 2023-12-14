@@ -52,8 +52,18 @@ class MeshTestingCommon:
         "AWS_LAMBDA_FUNCTION_NAME": "lambda_test",
         "AWS_LAMBDA_FUNCTION_MEMORY_SIZE": "128",
         "AWS_LAMBDA_FUNCTION_VERSION": "1",
-        "Environment": "meshtest",
+        "ENVIRONMENT": "meshtest",
+        "CRUMB_SIZE": "10",
         "CHUNK_SIZE": "10",
+        "MESH_URL": "https://localhost:8700",
+        "MESH_BUCKET": "meshtest-mesh",
+        "SEND_MESSAGE_STEP_FUNCTION_ARN": "arn:aws:states:eu-west-2:123456789012:stateMachine:meshtest-send-message",
+        "GET_MESSAGES_STEP_FUNCTION_ARN": "arn:aws:states:eu-west-2:123456789012:stateMachine:meshtest-get-messages",
+        "CA_CERT_CONFIG_KEY": "/meshtest/mesh/MESH_CA_CERT",
+        "CLIENT_CERT_CONFIG_KEY": "/meshtest/mesh/MESH_CLIENT_CERT",
+        "CLIENT_KEY_CONFIG_KEY": "/meshtest/mesh/MESH_CLIENT_KEY",
+        "SHARED_KEY_CONFIG_KEY": "/meshtest/mesh/MESH_SHARED_KEY",
+        "MAILBOXES_BASE_CONFIG_KEY": "/meshtest/mesh/mailboxes",
     }
 
     @classmethod

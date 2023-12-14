@@ -41,3 +41,11 @@ resource "aws_ssm_parameter" "passwords" {
   type  = "SecureString"
   value = "password"
 }
+
+# todo: remove in 3.0
+resource "aws_ssm_parameter" "verify_ssl" {
+
+  name  = "/${local.config_prefix}/mesh/MESH_VERIFY_SSL"
+  type  = "String"
+  value = "false"
+}

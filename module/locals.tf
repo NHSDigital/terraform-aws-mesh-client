@@ -9,6 +9,39 @@ locals {
     production  = "https://mesh-sync.spineservices.nhs.uk"
   }
 
+  common_env_vars = {
+    Environment         = local.name              # remove in 3.0 ( in flight lambdas )
+    use_secrets_manager = var.use_secrets_manager # remove in 3.0 ( in flight lambdas )
+
+    ENVIRONMENT                 = local.name # not the mesh_env .. ssm/secrets prefix
+    USE_SECRETS_MANAGER         = var.use_secrets_manager
+    VERIFY_SSL                  = var.verify_ssl
+    VERIFY_CHECKS_COMMON_NAME   = var.verify_checks_common_name
+
+    MESH_URL                    = local.mesh_url[var.mesh_env]
+    MESH_BUCKET                 = aws_s3_bucket.mesh.bucket
+
+    CHUNK_SIZE         = var.chunk_size
+    CRUMB_SIZE         = var.crumb_size == null ? var.chunk_size : var.crumb_size
+    NEVER_COMPRESS     = var.never_compress
+    COMPRESS_THRESHOLD = var.compress_threshold
+
+    CA_CERT_CONFIG_KEY        = data.aws_ssm_parameter.ca_cert.name
+    CLIENT_CERT_CONFIG_KEY    = data.aws_ssm_parameter.client_cert.name
+    CLIENT_KEY_CONFIG_KEY     = data.aws_ssm_parameter.client_key.0.name
+    SHARED_KEY_CONFIG_KEY     = data.aws_ssm_parameter.shared_key.0.name
+    MAILBOXES_BASE_CONFIG_KEY = "/${local.name}/mesh/mailboxes"
+
+    SEND_MESSAGE_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:stateMachine:${local.send_message_name}"
+    GET_MESSAGES_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:stateMachine:${local.get_messages_name}"
+
+
+    USE_SENDER_FILENAME         = var.use_sender_filename
+    USE_LEGACY_INBOUND_LOCATION = var.use_legacy_inbound_location
+    USE_S3_KEY_FOR_MEX_FILENAME = var.use_s3_key_for_mex_filename
+
+  }
+
   mesh_ips = {
     integration = [
       "3.11.177.31/32", "35.177.15.89/32", "3.11.199.83/32",       # Blue
@@ -21,9 +54,27 @@ locals {
     ]
   }
 
-  vpc_enabled = var.config.vpc_id == "" ? false : true
+  vpc_enabled = var.vpc_id == "" ? false : true
 
-  egress_cidrs = toset(local.vpc_enabled ? (var.config.environment == "production" ? local.mesh_ips.production : local.mesh_ips.integration) : [])
+  secrets_kms_key_ids = (
+    var.use_secrets_manager ? compact(toset(concat(
+      data.aws_secretsmanager_secret.shared_key.*.kms_key_id,
+      data.aws_secretsmanager_secret.client_key.*.kms_key_id,
+      data.aws_secretsmanager_secret.mailbox_password.*.kms_key_id
+    ))) : toset([])
+  )
+
+  secrets_kms_key_arns = [for key_id in local.secrets_kms_key_ids : "arn:aws:kms:${var.region}:${data.aws_caller_identity.current.account_id}:key/${key_id}"]
+
+  secrets_arns = (
+    var.use_secrets_manager ? compact(concat(
+      data.aws_secretsmanager_secret.shared_key.*.arn,
+      data.aws_secretsmanager_secret.client_key.*.arn,
+      data.aws_secretsmanager_secret.mailbox_password.*.arn
+    )) : toset([])
+  )
+
+  egress_cidrs = toset(local.vpc_enabled ? (var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration) : [])
   egress_sg_ids = toset(local.vpc_enabled ?
     concat(
       length(data.aws_vpc_endpoint.ssm) == 0 ? [] : data.aws_vpc_endpoint.ssm.0.security_group_ids,
@@ -31,6 +82,7 @@ locals {
       length(data.aws_vpc_endpoint.kms) == 0 ? [] : data.aws_vpc_endpoint.kms.0.security_group_ids,
       length(data.aws_vpc_endpoint.lambda) == 0 ? [] : data.aws_vpc_endpoint.lambda.0.security_group_ids,
       length(data.aws_vpc_endpoint.logs) == 0 ? [] : data.aws_vpc_endpoint.logs.0.security_group_ids,
+      length(data.aws_vpc_endpoint.secrets) == 0 ? [] : data.aws_vpc_endpoint.secrets.0.security_group_ids,
     ) : []
   )
 
@@ -39,8 +91,6 @@ locals {
       length(data.aws_vpc_endpoint.s3) == 0 ? [] : [data.aws_vpc_endpoint.s3.0.prefix_list_id]
     ) : []
   )
-
-
 
   python_runtime = "python3.11"
   lambda_timeout = 300

@@ -16,6 +16,19 @@ resource "aws_cloudwatch_event_target" "get_messages" {
   input = jsonencode({
     mailbox = each.value
   })
+
+  depends_on = [
+    data.aws_ssm_parameter.ca_cert,
+    data.aws_ssm_parameter.client_cert,
+    data.aws_ssm_parameter.client_key,
+    data.aws_ssm_parameter.shared_key,
+    data.aws_ssm_parameter.url,
+    data.aws_ssm_parameter.verify_ssl,
+    data.aws_ssm_parameter.mailbox_password,
+    data.aws_secretsmanager_secret.client_key,
+    data.aws_secretsmanager_secret.shared_key,
+    data.aws_secretsmanager_secret.mailbox_password,
+  ]
 }
 
 resource "aws_iam_role" "get_messages_event" {

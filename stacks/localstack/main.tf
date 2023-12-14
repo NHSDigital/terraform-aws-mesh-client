@@ -14,30 +14,21 @@ module "main" {
     aws_ssm_parameter.client_cert,
     aws_ssm_parameter.client_key,
     aws_ssm_parameter.passwords,
+    aws_ssm_parameter.verify_ssl,
     aws_secretsmanager_secret.mailbox_password
   ]
 
   # not supported in opensource cloudtrail
   cloudtrail_enabled = false
 
-  config = {
-    environment         = "local"
-    subnet_ids          = [aws_subnet.private.id]
-    verify_ssl          = false
-    vpc_id              = ""
-    use_secrets_manager = false
-  }
-
+  mesh_env   = "local"
+  subnet_ids = [aws_subnet.private.id]
+  verify_ssl = false
 
   mailboxes = [
     {
-      id = "X26ABC1"
-      outbound_mappings = [
-        {
-          dest_mailbox = "X26ABC2"
-          workflow_id  = "WF1"
-        }
-      ]
+      id                = "X26ABC1"
+      outbound_mappings = []
     },
     {
       id                = "X26ABC2"
@@ -49,8 +40,12 @@ module "main" {
     },
   ]
 
-  get_messages_schedule = "rate(365 days)" # this set this very rarely to allow tests to control invocation
-  handshake_schedule    = "rate(365 days)" # this set this very rarely to allow tests to control invocation
+  get_messages_schedule = "rate(31 days)" # this set this very rarely to allow tests to control invocation
+  handshake_schedule    = "rate(31 days)" # this set this very rarely to allow tests to control invocation
+
+  chunk_size         = 10 * 1024 * 1024
+  crumb_size         = (1 * 1024 * 1024) - 7 # setting this to an odd setting for testing .. (generally leave this alone)
+  compress_threshold = 5 * 1024 * 1024
 
 }
 

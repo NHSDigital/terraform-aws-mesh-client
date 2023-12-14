@@ -1,68 +1,27 @@
 import json
 import random
-from collections.abc import Generator
 from urllib.parse import quote_plus
 from uuid import uuid4
 
-import pytest
 from mesh_client import MeshClient
 from mypy_boto3_s3.service_resource import Bucket
 from nhs_aws_helpers import lambdas
 
+from integration.constants import FETCH_FUNCTION, FETCH_LOG_GROUP, LOCAL_MAILBOXES, MB
 from integration.test_helpers import (
     CloudwatchLogsCapture,
     CreateReportRequest,
     put_sandbox_report,
-    reset_sandbox_mailbox,
     sync_json_lambda_invocation_successful,
 )
 
-_MB = 1024 * 1024
-
-_MAX_CHUNK_SIZE = 10 * _MB
-
-mailboxes = ["X26ABC1", "X26ABC2", "X26ABC3"]
-
-
-_FUNCTION_NAME = "local-mesh-fetch-message-chunk"
-_LOG_GROUP = f"/aws/lambda/{_FUNCTION_NAME}"
-_SANDBOX_URL = "https://localhost:8700"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _clean_mailboxes():
-    for mailbox_id in mailboxes:
-        reset_sandbox_mailbox(mailbox_id)
-
-
-@pytest.fixture(name="mesh_client_one")
-def get_mesh_client_one() -> Generator[MeshClient, None, None]:
-    with MeshClient(
-        url=_SANDBOX_URL,
-        mailbox=mailboxes[0],
-        password="password",
-        verify=False,
-        max_chunk_size=10 * _MB,
-    ) as client:
-        yield client
-
-
-@pytest.fixture(name="mesh_client_two")
-def get_mesh_client_two() -> Generator[MeshClient, None, None]:
-    with MeshClient(
-        url=_SANDBOX_URL,
-        mailbox=mailboxes[1],
-        password="password",
-        verify=False,
-        max_chunk_size=10 * _MB,
-    ) as client:
-        yield client
+_MAX_CHUNK_SIZE = 10 * MB
 
 
 def test_fetch_message_single_unchunked_message(
     mesh_client_one: MeshClient, local_mesh_bucket: Bucket
 ):
-    recipient = mailboxes[2]
+    recipient = LOCAL_MAILBOXES[2]
     message = f"test: {uuid4().hex}".encode()
     subject = f"subject {uuid4().hex}"
     workflow_id = "WORKFLOW_1"
@@ -74,9 +33,9 @@ def test_fetch_message_single_unchunked_message(
         workflow_id=workflow_id,
     )
 
-    with CloudwatchLogsCapture(log_group=_LOG_GROUP) as cw:
+    with CloudwatchLogsCapture(log_group=FETCH_LOG_GROUP) as cw:
         response = lambdas().invoke(
-            FunctionName=_FUNCTION_NAME,
+            FunctionName=FETCH_FUNCTION,
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps(
@@ -84,7 +43,9 @@ def test_fetch_message_single_unchunked_message(
             ).encode("utf-8"),
         )
 
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") in ("LAMBDA0003", "LAMBDA9999")
+        )
         logs = cw.find_logs(parse_logs=True)
 
     response_payload, _ = sync_json_lambda_invocation_successful(response)
@@ -101,6 +62,7 @@ def test_fetch_message_single_unchunked_message(
 
     s3_obj = local_mesh_bucket.Object(body["s3_key"]).get()
     assert s3_obj["Body"].read() == message
+    assert s3_obj["Metadata"]["mex-messageid"] == sent_message_id
     assert s3_obj["Metadata"]["mex-from"] == mesh_client_one._mailbox
     assert s3_obj["Metadata"]["mex-to"] == recipient
     assert s3_obj["Metadata"]["mex-messagetype"] == "DATA"
@@ -116,7 +78,7 @@ def test_fetch_message_single_unchunked_message(
 def test_fetch_message_report_message(
     mesh_client_one: MeshClient, local_mesh_bucket: Bucket
 ):
-    recipient = mailboxes[2]
+    recipient = LOCAL_MAILBOXES[2]
     subject = f"subject {uuid4().hex}"
     workflow_id = "WORKFLOW_1"
     local_id = uuid4().hex
@@ -136,9 +98,9 @@ def test_fetch_message_report_message(
     assert res
     sent_message_id = res["message_id"]
 
-    with CloudwatchLogsCapture(log_group=_LOG_GROUP) as cw:
+    with CloudwatchLogsCapture(log_group=FETCH_LOG_GROUP) as cw:
         response = lambdas().invoke(
-            FunctionName=_FUNCTION_NAME,
+            FunctionName=FETCH_FUNCTION,
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps(
@@ -146,7 +108,9 @@ def test_fetch_message_report_message(
             ).encode("utf-8"),
         )
 
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") in ("LAMBDA0003", "LAMBDA9999")
+        )
         logs = cw.find_logs(parse_logs=True)
 
     response_payload, _ = sync_json_lambda_invocation_successful(response)
@@ -156,7 +120,7 @@ def test_fetch_message_report_message(
     assert body
     assert body["complete"]
     assert body["message_id"] == sent_message_id
-    assert body["file_name"] == f"{sent_message_id}.dat"
+    assert body["file_name"] == f"{sent_message_id}.ctl"
     assert body["chunk_num"] == 1
     assert body["dest_mailbox"] == recipient
     assert body["s3_bucket"] == local_mesh_bucket.name
@@ -173,6 +137,7 @@ def test_fetch_message_report_message(
     assert headers["mex-subject"] == subject
     assert headers["mex-workflowid"] == workflow_id
 
+    assert s3_obj["Metadata"]["mex-messageid"] == sent_message_id
     assert s3_obj["Metadata"]["mex-to"] == recipient
     assert s3_obj["Metadata"]["mex-messagetype"] == "REPORT"
     assert s3_obj["Metadata"]["mex-workflowid"] == workflow_id
@@ -190,9 +155,9 @@ def test_fetch_message_report_message(
 def test_fetch_message_single_chunked_message_completely_reads(
     mesh_client_one: MeshClient, local_mesh_bucket: Bucket, mesh_client_two: MeshClient
 ):
-    recipient = mailboxes[1]
+    recipient = LOCAL_MAILBOXES[1]
 
-    message = random.randbytes((15 * _MB) - 1610)
+    message = random.randbytes((15 * MB) - 1610)
 
     subject = f"subject {uuid4().hex}"
     workflow_id = "WORKFLOW_1"
@@ -204,9 +169,9 @@ def test_fetch_message_single_chunked_message_completely_reads(
         workflow_id=workflow_id,
     )
 
-    with CloudwatchLogsCapture(log_group=_LOG_GROUP) as cw:
+    with CloudwatchLogsCapture(log_group=FETCH_LOG_GROUP) as cw:
         response = lambdas().invoke(
-            FunctionName=_FUNCTION_NAME,
+            FunctionName=FETCH_FUNCTION,
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps(
@@ -214,7 +179,9 @@ def test_fetch_message_single_chunked_message_completely_reads(
             ).encode("utf-8"),
         )
 
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") in ("LAMBDA0003", "LAMBDA9999")
+        )
         logs = cw.find_logs(parse_logs=True)
 
     payload, _ = sync_json_lambda_invocation_successful(response)
@@ -236,15 +203,17 @@ def test_fetch_message_single_chunked_message_completely_reads(
         log.get("Log_Level") == "INFO" for log in logs if log and "Log_Level" in log
     ), logs
 
-    with CloudwatchLogsCapture(log_group=_LOG_GROUP) as cw:
+    with CloudwatchLogsCapture(log_group=FETCH_LOG_GROUP) as cw:
         response = lambdas().invoke(
-            FunctionName=_FUNCTION_NAME,
+            FunctionName=FETCH_FUNCTION,
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps({"body": body}).encode("utf-8"),
         )
 
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") in ("LAMBDA0003", "LAMBDA9999")
+        )
         logs = cw.find_logs(parse_logs=True)
 
     payload, _ = sync_json_lambda_invocation_successful(response)
@@ -263,6 +232,7 @@ def test_fetch_message_single_chunked_message_completely_reads(
 
     s3_obj = local_mesh_bucket.Object(body["s3_key"]).get()
     assert s3_obj["Body"].read() == message
+    assert s3_obj["Metadata"]["mex-messageid"] == sent_message_id
     assert s3_obj["Metadata"]["mex-from"] == mesh_client_one._mailbox
     assert s3_obj["Metadata"]["mex-to"] == recipient
     assert s3_obj["Metadata"]["mex-messagetype"] == "DATA"
