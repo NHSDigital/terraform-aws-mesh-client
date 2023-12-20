@@ -77,12 +77,12 @@ locals {
   egress_cidrs = toset(local.vpc_enabled ? (var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration) : [])
   egress_sg_ids = toset(local.vpc_enabled ?
     concat(
-      length(data.aws_vpc_endpoint.ssm) == 0 ? [] : data.aws_vpc_endpoint.ssm.0.security_group_ids,
-      length(data.aws_vpc_endpoint.sfn) == 0 ? [] : data.aws_vpc_endpoint.sfn.0.security_group_ids,
-      length(data.aws_vpc_endpoint.kms) == 0 ? [] : data.aws_vpc_endpoint.kms.0.security_group_ids,
-      length(data.aws_vpc_endpoint.lambda) == 0 ? [] : data.aws_vpc_endpoint.lambda.0.security_group_ids,
-      length(data.aws_vpc_endpoint.logs) == 0 ? [] : data.aws_vpc_endpoint.logs.0.security_group_ids,
-      length(data.aws_vpc_endpoint.secrets) == 0 ? [] : data.aws_vpc_endpoint.secrets.0.security_group_ids,
+      length(data.aws_vpc_endpoint.ssm) == 0 ? [] : tolist(data.aws_vpc_endpoint.ssm.0.security_group_ids),
+      length(data.aws_vpc_endpoint.sfn) == 0 ? [] : tolist(data.aws_vpc_endpoint.sfn.0.security_group_ids),
+      length(data.aws_vpc_endpoint.kms) == 0 ? [] : tolist(data.aws_vpc_endpoint.kms.0.security_group_ids),
+      length(data.aws_vpc_endpoint.lambda) == 0 ? [] : tolist(data.aws_vpc_endpoint.lambda.0.security_group_ids),
+      length(data.aws_vpc_endpoint.logs) == 0 ? [] : tolist(data.aws_vpc_endpoint.logs.0.security_group_ids),
+      length(data.aws_vpc_endpoint.secrets) == 0 ? [] : tolist(data.aws_vpc_endpoint.secrets.0.security_group_ids),
     ) : []
   )
 
