@@ -22,7 +22,7 @@ data "aws_vpc_endpoint" "lambda" {
 data "aws_vpc_endpoint" "sfn" {
   count        = local.vpc_enabled ? 1 : 0
   vpc_id       = var.config.vpc_id
-  service_name = "com.amazonaws.${var.region}.sync-states"
+  service_name = "com.amazonaws.${var.region}.states"
 }
 
 data "aws_vpc_endpoint" "logs" {
