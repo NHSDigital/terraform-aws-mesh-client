@@ -1,6 +1,9 @@
 """ Testing MeshPollMailbox application """
+import json
+import sys
 from http import HTTPStatus
 from unittest import mock
+from uuid import uuid4
 
 import boto3
 from mesh_check_send_parameters_application import (
@@ -27,7 +30,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         """Override setup to use correct application object"""
         super().setUp()
         self.app = MeshCheckSendParametersApplication()
-        self.environment = self.app.system_config["Environment"]
+        self.environment = self.app.system_config["ENVIRONMENT"]
 
     def setup_mock_aws_environment(self, s3_client, ssm_client):
         """Setup standard environment for tests"""
@@ -51,14 +54,14 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         "_get_internal_id",
         MeshTestingCommon.get_known_internal_id1,
     )
-    def test_mesh_check_send_parameters_happy_path(self):
+    def test_mesh_check_send_parameters_happy_path_chunked(self):
         """Test the lambda as a whole, happy path for small file"""
-
+        assert self.app
         s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
         ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
         self.setup_mock_aws_environment(s3_client, ssm_client)
         sfn_client = boto3.client("stepfunctions", config=MeshTestingCommon.aws_config)
-        response = MeshTestingCommon.setup_step_function(
+        MeshTestingCommon.setup_step_function(
             sfn_client,
             self.environment,
             f"{self.environment}-send-message",
@@ -78,11 +81,28 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
                 "chunk_number": 1,
                 "total_chunks": 4,
                 "chunk_size": 10,
-                "complete": False,
                 "message_id": None,
                 "current_byte_position": 0,
-                "compress_ratio": 1,
-                "will_compress": False,
+                "send_params": {
+                    "checksum": None,
+                    "chunked": True,
+                    "compress": True,
+                    "compressed": None,
+                    "content_encoding": None,
+                    "content_type": "binary/octet-stream",
+                    "encrypted": None,
+                    "file_size": 33,
+                    "filename": None,
+                    "local_id": None,
+                    "partner_id": None,
+                    "recipient": "MESH-TEST1",
+                    "s3_bucket": "meshtest-mesh",
+                    "s3_key": "MESH-TEST2/outbound/testfile.json",
+                    "sender": "MESH-TEST2",
+                    "subject": None,
+                    "total_chunks": 4,
+                    "workflow_id": "TESTWORKFLOW",
+                },
             },
         }
         assert self.app
@@ -94,7 +114,80 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
             # need to fail happy pass on any exception
             self.fail(f"Invocation crashed with Exception {e!s}")
 
-        assert mock_response == response
+        assert response == mock_response
+        assert self.log_helper.was_value_logged("LAMBDA0001", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("LAMBDA0002", "Log_Level", "INFO")
+        assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
+
+    @mock.patch.object(
+        MeshCheckSendParametersApplication,
+        "_get_internal_id",
+        MeshTestingCommon.get_known_internal_id1,
+    )
+    def test_mesh_check_send_parameters_happy_path_unchunked(self):
+        """Test the lambda as a whole, happy path for small file"""
+        assert self.app
+        self.app.config.crumb_size = sys.maxsize
+        self.app.config.chunk_size = sys.maxsize
+
+        s3_client = boto3.client("s3", config=MeshTestingCommon.aws_config)
+        ssm_client = boto3.client("ssm", config=MeshTestingCommon.aws_config)
+        self.setup_mock_aws_environment(s3_client, ssm_client)
+        sfn_client = boto3.client("stepfunctions", config=MeshTestingCommon.aws_config)
+        MeshTestingCommon.setup_step_function(
+            sfn_client,
+            self.environment,
+            f"{self.environment}-send-message",
+        )
+
+        mock_response = {
+            "statusCode": HTTPStatus.OK.value,
+            "headers": {"Content-Type": "application/json"},
+            "body": {
+                "internal_id": MeshTestingCommon.KNOWN_INTERNAL_ID1,
+                "src_mailbox": "MESH-TEST2",
+                "dest_mailbox": "MESH-TEST1",
+                "workflow_id": "TESTWORKFLOW",
+                "bucket": f"{self.environment}-mesh",
+                "key": "MESH-TEST2/outbound/testfile.json",
+                "chunked": False,
+                "chunk_number": 1,
+                "total_chunks": 1,
+                "chunk_size": sys.maxsize,
+                "message_id": None,
+                "current_byte_position": 0,
+                "send_params": {
+                    "checksum": None,
+                    "chunked": False,
+                    "compress": True,
+                    "compressed": None,
+                    "content_encoding": None,
+                    "content_type": "binary/octet-stream",
+                    "encrypted": None,
+                    "file_size": 33,
+                    "filename": None,
+                    "local_id": None,
+                    "partner_id": None,
+                    "recipient": "MESH-TEST1",
+                    "s3_bucket": "meshtest-mesh",
+                    "s3_key": "MESH-TEST2/outbound/testfile.json",
+                    "sender": "MESH-TEST2",
+                    "subject": None,
+                    "total_chunks": 1,
+                    "workflow_id": "TESTWORKFLOW",
+                },
+            },
+        }
+        assert self.app
+        try:
+            response = self.app.main(
+                event=sample_trigger_event(), context=MeshTestingCommon.CONTEXT
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            # need to fail happy pass on any exception
+            self.fail(f"Invocation crashed with Exception {e!s}")
+
+        assert response == mock_response
         assert self.log_helper.was_value_logged("LAMBDA0001", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("LAMBDA0002", "Log_Level", "INFO")
         assert self.log_helper.was_value_logged("LAMBDA0003", "Log_Level", "INFO")
@@ -131,7 +224,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         # 'start' fake state machine
         response = sfn_client.start_execution(
             stateMachineArn=step_func_arn,
-            input='{"mailbox": "MESH-TEST2"}',
+            input=json.dumps(sample_trigger_event()),
         )
         step_func_exec_arn = response.get("executionArn", None)
         assert step_func_exec_arn is not None
@@ -166,7 +259,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         # 'start' state machine 2 with my mailbox
         response = sfn_client.start_execution(
             stateMachineArn=step_func2_arn,
-            input='{"mailbox": "MESH-TEST2"}',
+            input=json.dumps(sample_trigger_event()),
         )
         step_func_exec_arn = response.get("executionArn", None)
         assert step_func_exec_arn is not None
@@ -192,7 +285,9 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         # 'start' state machine with different mailbox
         response = sfn_client.start_execution(
             stateMachineArn=step_func_arn,
-            input='{"mailbox": "SOMETHING-ELSE"}',
+            input=json.dumps(
+                sample_trigger_event(f"MESH-TEST2/outbound/{uuid4().hex}.json")
+            ),
         )
         step_func_exec_arn = response.get("executionArn", None)
         assert step_func_exec_arn is not None
@@ -218,7 +313,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         # 'start' another instance with same mailbox as mine
         response = sfn_client.start_execution(
             stateMachineArn=step_func_arn,
-            input='{"mailbox": "MESH-TEST2"}',
+            input=json.dumps(sample_trigger_event()),
         )
         step_func_exec_arn = response.get("executionArn", None)
         assert step_func_exec_arn is not None
@@ -235,7 +330,7 @@ class TestMeshCheckSendParametersApplication(MeshTestCase):
         assert self.log_helper.was_value_logged("MESHSEND0004a", "Log_Level", "INFO")
 
 
-def sample_trigger_event():
+def sample_trigger_event(key: str = "MESH-TEST2/outbound/testfile.json"):
     """Return Example S3 eventbridge event"""
     return_value = {
         "version": "0",
@@ -260,7 +355,7 @@ def sample_trigger_event():
                 "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # pylint: disable=line-too-long
                 "Host": "meshtest-mesh.s3.eu-west-2.amazonaws.com",
                 "X-Amz-Expires": "300",
-                "key": "MESH-TEST2/outbound/testfile.json",
+                "key": key,
                 "x-amz-storage-class": "STANDARD",
             },
             "responseElements": {
@@ -273,7 +368,7 @@ def sample_trigger_event():
             "resources": [
                 {
                     "type": "AWS::S3::Object",
-                    "ARN": "arn:aws:s3:::meshtest-mesh/MESH-TEST2/outbound/testfile.json",  # pylint: disable=line-too-long
+                    "ARN": f"arn:aws:s3:::{key}",  # pylint: disable=line-too-long
                 },
                 {
                     "accountId": "123456789012",

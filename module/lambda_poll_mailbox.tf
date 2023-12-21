@@ -6,7 +6,7 @@ resource "aws_security_group" "poll_mailbox" {
   count       = local.vpc_enabled ? 1 : 0
   name        = local.poll_mailbox_name
   description = local.poll_mailbox_name
-  vpc_id      = var.config.vpc_id
+  vpc_id      = var.vpc_id
 }
 
 resource "aws_security_group_rule" "poll_mailbox_egress_cidr" {
@@ -52,18 +52,15 @@ resource "aws_lambda_function" "poll_mailbox" {
   role             = aws_iam_role.poll_mailbox.arn
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
 
+
   environment {
-    variables = {
-      Environment                     = local.name
-      GET_MESSAGES_STEP_FUNCTION_NAME = local.get_messages_name
-      use_secrets_manager             = var.config.use_secrets_manager
-    }
+    variables = local.common_env_vars
   }
 
   dynamic "vpc_config" {
     for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
-      subnet_ids         = var.config.subnet_ids
+      subnet_ids         = var.subnet_ids
       security_group_ids = [aws_security_group.poll_mailbox[0].id]
     }
   }
@@ -168,24 +165,53 @@ data "aws_iam_policy_document" "poll_mailbox" {
       "kms:Decrypt"
     ]
 
-    resources = [
-      aws_kms_alias.mesh.target_key_arn
-    ]
+    resources = concat(
+      [aws_kms_alias.mesh.target_key_arn],
+      var.use_secrets_manager ? local.secrets_kms_key_arns : []
+    )
   }
 
-  statement {
-    sid    = "EC2Interfaces"
-    effect = "Allow"
+  dynamic "statement" {
+    for_each = var.use_secrets_manager ? [true] : []
+    content {
+      sid    = "KMSDecrypt"
+      effect = "Allow"
 
-    actions = [
-      "ec2:CreateNetworkInterface",
-      "ec2:DescribeNetworkInterfaces",
-      "ec2:DeleteNetworkInterface",
-    ]
+      actions = [
+        "kms:Decrypt"
+      ]
 
-    resources = ["*"]
+      resources = local.secrets_kms_key_arns
+
+    }
   }
+
+  dynamic "statement" {
+    for_each = local.vpc_enabled ? [true] : []
+    content {
+
+      sid    = "EC2Interfaces"
+      effect = "Allow"
+
+      actions = [
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterface",
+        "ec2:AssignPrivateIpAddresses",
+        "ec2:UnassignPrivateIpAddresses"
+      ]
+
+      resources = ["*"]
+    }
+  }
+
 }
+
+resource "aws_iam_role_policy_attachment" "poll_mailbox_lambda_insights" {
+  role       = aws_iam_role.poll_mailbox.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
+}
+
 
 resource "aws_iam_role_policy_attachment" "poll_mailbox_check_sfn" {
   role       = aws_iam_role.poll_mailbox.name

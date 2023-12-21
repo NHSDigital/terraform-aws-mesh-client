@@ -1,11 +1,11 @@
 
-data "aws_ssm_parameter" "ssm" {
+data "aws_ssm_parameter" "ca_cert" {
   name = "/${local.name}/mesh/MESH_CA_CERT"
 }
 
 moved {
   from = aws_ssm_parameter.ca_cert
-  to   = data.aws_ssm_parameter.ssm
+  to   = data.aws_ssm_parameter.ca_cert
 }
 
 data "aws_ssm_parameter" "client_cert" {
@@ -18,7 +18,7 @@ moved {
 }
 
 data "aws_ssm_parameter" "client_key" {
-  count = var.config.use_secrets_manager ? 0 : 1
+  count = var.use_secrets_manager ? 0 : 1
   name  = "/${local.name}/mesh/MESH_CLIENT_KEY"
 }
 
@@ -28,7 +28,7 @@ moved {
 }
 
 data "aws_ssm_parameter" "shared_key" {
-  count = var.config.use_secrets_manager ? 0 : 1
+  count = var.use_secrets_manager ? 0 : 1
   name  = "/${local.name}/mesh/MESH_SHARED_KEY"
 }
 
@@ -46,9 +46,17 @@ moved {
   to   = data.aws_ssm_parameter.url
 }
 
-resource "aws_ssm_parameter" "verify_ssl" {
+data "aws_ssm_parameter" "verify_ssl" { # remove in 3.0.0
   name = "/${local.name}/mesh/MESH_VERIFY_SSL"
-  type = "String"
-  # This is effectively converting the bool type from Terraform to Python
-  value = var.config.verify_ssl ? "True" : "False"
+}
+
+moved {
+  from = aws_ssm_parameter.verify_ssl
+  to   = data.aws_ssm_parameter.verify_ssl
+}
+
+
+data "aws_ssm_parameter" "mailbox_password" {
+  for_each = var.use_secrets_manager ? toset([]) : var.mailbox_ids
+  name     = "/${local.name}/mesh/mailboxes/${each.key}/MAILBOX_PASSWORD"
 }

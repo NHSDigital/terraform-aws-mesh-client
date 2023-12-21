@@ -6,6 +6,7 @@ import math
 import os
 import re
 from collections.abc import Callable, Iterable
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from json import JSONDecodeError
 from time import sleep, time
@@ -15,6 +16,8 @@ import requests
 from botocore.exceptions import ClientError
 from mypy_boto3_lambda.type_defs import InvocationResponseTypeDef
 from mypy_boto3_logs.type_defs import LogStreamTypeDef, OutputLogEventTypeDef
+from mypy_boto3_s3.service_resource import Object
+from mypy_boto3_ssm import SSMClient
 from mypy_boto3_stepfunctions import SFNClient
 from mypy_boto3_stepfunctions.type_defs import DescribeExecutionOutputTypeDef
 from nhs_aws_helpers import cloudwatchlogs_client, stepfunctions
@@ -355,3 +358,73 @@ def put_sandbox_report(request: CreateReportRequest):
     )
     res.raise_for_status()
     return res.json()
+
+
+@contextmanager
+def temp_mapping_for_s3_object(
+    s3_object: Object,
+    sender: str,
+    recipient: str,
+    workflow_id: str,
+    ssm: SSMClient,
+    env: str = "local-mesh",
+):
+    bucket = s3_object.bucket_name
+    folder = os.path.dirname(s3_object.key)
+
+    base_path = f"/{env}/mesh/mapping/{bucket}/{folder}".rstrip("/")
+
+    ssm.put_parameter(
+        Name=f"{base_path}/src_mailbox", Value=sender, Type="String", Overwrite=True
+    )
+    ssm.put_parameter(
+        Name=f"{base_path}/dest_mailbox", Value=recipient, Type="String", Overwrite=True
+    )
+    ssm.put_parameter(
+        Name=f"{base_path}/workflow_id",
+        Value=workflow_id,
+        Type="String",
+        Overwrite=True,
+    )
+
+    yield
+
+    ssm.delete_parameters(
+        Names=[
+            f"{base_path}/src_mailbox",
+            f"{base_path}/dest_mailbox",
+            f"{base_path}/workflow_id",
+        ]
+    )
+
+
+@contextmanager
+def temp_env_vars(**kwargs):
+    """
+    Temporarily set the process environment variables.
+    >>> with temp_env_vars(PLUGINS_DIR=u'test/plugins'):
+    ...   "PLUGINS_DIR" in os.environ
+    True
+    >>> "PLUGINS_DIR" in os.environ
+    """
+    old_environ = dict(os.environ)
+    kwargs = {k: str(v) for k, v in kwargs.items()}
+    os.environ.update(**kwargs)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(old_environ)
+
+
+def wait_for(condition: Callable[[], bool], timeout: float = 10):
+    expires = time() + timeout
+
+    while True:
+        res = condition()
+        if res:
+            return
+        if time() > expires:
+            raise TimeoutError("timeout waiting")
+        sleep(0.1)
+        continue

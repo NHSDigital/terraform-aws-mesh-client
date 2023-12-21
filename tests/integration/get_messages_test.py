@@ -1,57 +1,29 @@
 import json
-from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
 from mesh_client import MeshClient
+from mypy_boto3_lambda import LambdaClient
 from mypy_boto3_stepfunctions import SFNClient
-from nhs_aws_helpers import lambdas
 
+from .constants import (
+    GET_MESSAGES_SFN_ARN,
+    LOCAL_MAILBOXES,
+    POLL_FUNCTION,
+    POLL_LOG_GROUP,
+)
 from .test_helpers import (
     CloudwatchLogsCapture,
-    reset_sandbox_mailbox,
     sync_json_lambda_invocation_successful,
     wait_for_execution_outcome,
     wait_till_not_running,
 )
 
-mailboxes = ["X26ABC1", "X26ABC2", "X26ABC3"]
 
-
-_GET_MESSAGES_SFN_ARN = (
-    "arn:aws:states:eu-west-2:000000000000:stateMachine:local-mesh-get-messages"
-)
-_FUNCTION_NAME = "local-mesh-poll-mailbox"
-_LOG_GROUP = f"/aws/lambda/{_FUNCTION_NAME}"
-_SANDBOX_URL = "https://localhost:8700"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _clean_mailboxes():
-    for mailbox_id in mailboxes:
-        reset_sandbox_mailbox(mailbox_id)
-
-
-@pytest.fixture(name="mesh_client_one")
-def get_mesh_client_one() -> Generator[MeshClient, None, None]:
-    with MeshClient(
-        url=_SANDBOX_URL, mailbox=mailboxes[0], password="password", verify=False
-    ) as client:
-        yield client
-
-
-@pytest.fixture(name="mesh_client_two")
-def get_mesh_client_two() -> Generator[MeshClient, None, None]:
-    with MeshClient(
-        url=_SANDBOX_URL, mailbox=mailboxes[1], password="password", verify=False
-    ) as client:
-        yield client
-
-
-@pytest.mark.parametrize("mailbox_id", mailboxes)
-def test_invoke_get_messages_directly(mailbox_id: str):
-    response = lambdas().invoke(
-        FunctionName=_FUNCTION_NAME,
+@pytest.mark.parametrize("mailbox_id", LOCAL_MAILBOXES)
+def test_invoke_get_messages_directly(mailbox_id: str, lambdas: LambdaClient):
+    response = lambdas.invoke(
+        FunctionName=POLL_FUNCTION,
         InvocationType="RequestResponse",
         LogType="Tail",
         Payload=json.dumps({"mailbox": mailbox_id}).encode("utf-8"),
@@ -67,13 +39,13 @@ def test_invoke_get_messages_directly(mailbox_id: str):
     assert all(log.get("Log_Level") == "INFO" for log in logs)
 
 
-@pytest.mark.parametrize("mailbox_id", mailboxes)
+@pytest.mark.parametrize("mailbox_id", LOCAL_MAILBOXES)
 def test_trigger_step_function_no_handshake(mailbox_id: str, sfn: SFNClient):
-    wait_till_not_running(state_machine_arn=_GET_MESSAGES_SFN_ARN, sfn=sfn)
+    wait_till_not_running(state_machine_arn=GET_MESSAGES_SFN_ARN, sfn=sfn)
 
-    with CloudwatchLogsCapture(log_group=_LOG_GROUP) as cw:
+    with CloudwatchLogsCapture(log_group=POLL_LOG_GROUP) as cw:
         execution = sfn.start_execution(
-            stateMachineArn=_GET_MESSAGES_SFN_ARN,
+            stateMachineArn=GET_MESSAGES_SFN_ARN,
             name=uuid4().hex,
             input=json.dumps({"mailbox": mailbox_id}),
         )
@@ -86,20 +58,22 @@ def test_trigger_step_function_no_handshake(mailbox_id: str, sfn: SFNClient):
         assert output
         assert output.get("statusCode") == 204
 
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") in ("LAMBDA0003", "LAMBDA9999")
+        )
         logs = cw.find_logs(parse_logs=True)
         assert logs
         assert all(log.get("Log_Level") == "INFO" for log in logs if log)
         assert not any(log.get("logReference") == "MESHMBOX0004" for log in logs if log)
 
 
-@pytest.mark.parametrize("mailbox_id", mailboxes)
+@pytest.mark.parametrize("mailbox_id", LOCAL_MAILBOXES)
 def test_trigger_step_function_handshake(mailbox_id: str, sfn: SFNClient):
-    wait_till_not_running(state_machine_arn=_GET_MESSAGES_SFN_ARN, sfn=sfn)
+    wait_till_not_running(state_machine_arn=GET_MESSAGES_SFN_ARN, sfn=sfn)
 
-    with CloudwatchLogsCapture(log_group=_LOG_GROUP) as cw:
+    with CloudwatchLogsCapture(log_group=POLL_LOG_GROUP) as cw:
         execution = sfn.start_execution(
-            stateMachineArn=_GET_MESSAGES_SFN_ARN,
+            stateMachineArn=GET_MESSAGES_SFN_ARN,
             name=uuid4().hex,
             input=json.dumps({"mailbox": mailbox_id, "handshake": "true"}),
         )
@@ -112,15 +86,19 @@ def test_trigger_step_function_handshake(mailbox_id: str, sfn: SFNClient):
         assert output
         assert output.get("statusCode") == 204
 
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") in ("LAMBDA0003", "LAMBDA9999")
+        )
         logs = cw.find_logs(parse_logs=True)
         assert logs
         assert all(log.get("Log_Level") == "INFO" for log in logs if log)
         assert any(log.get("logReference") == "MESHMBOX0004" for log in logs if log)
 
 
-def test_invoke_get_when_message_exists(mesh_client_one: MeshClient):
-    recipient = mailboxes[1]
+def test_invoke_get_when_message_exists(
+    mesh_client_one: MeshClient, lambdas: LambdaClient
+):
+    recipient = LOCAL_MAILBOXES[1]
     payload = f"test: {uuid4().hex}"
     subject = uuid4().hex
     workflow_id = "WORKFLOW_1"
@@ -132,15 +110,17 @@ def test_invoke_get_when_message_exists(mesh_client_one: MeshClient):
         workflow_id=workflow_id,
     )
 
-    with CloudwatchLogsCapture(log_group=_LOG_GROUP) as cw:
-        response = lambdas().invoke(
-            FunctionName=_FUNCTION_NAME,
+    with CloudwatchLogsCapture(log_group=POLL_LOG_GROUP) as cw:
+        response = lambdas.invoke(
+            FunctionName=POLL_FUNCTION,
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps({"mailbox": recipient}).encode("utf-8"),
         )
 
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") in ("LAMBDA0003", "LAMBDA9999")
+        )
         logs = cw.find_logs(parse_logs=True)
 
     response_payload, _ = sync_json_lambda_invocation_successful(response)

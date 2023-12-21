@@ -14,3 +14,9 @@ tests/mesh_testing_common.py:[0-9]+:\s*-----(BEGIN|END) PRIVATE KEY-----
 tests/integration/fetch_message_chunk_test.py:[0-9]+:\s*password="password",
 tests/integration/get_messages_test.py:[0-9]+: \s*url=_SANDBOX_URL, mailbox=mailboxes\[[0-9]+\], password="password", verify=False
 
+src/shared/application.py:[0-9]+:\s*password = self.mailbox_params\[self.mailbox_id\]\["params"\].get\(MAILBOX_PASSWORD\)
+src/shared/application.py:[0-9]+:\s*password=password
+tests/integration/send_message_test.py:[0-9]+:\s*"accountId": "000000000000"
+tests/integration/send_message_test.py:[0-9]+:\s*url=_SANDBOX_URL, mailbox=mailboxes\[0\], password="password", verify=False
+tests/integration/send_message_test.py:[0-9]+:\s*url=_SANDBOX_URL, mailbox=mailboxes\[1\], password="password", verify=False
+tests/integration/conftest.py:[0-9]+:\s*password="password"

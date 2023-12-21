@@ -31,7 +31,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
         """Override setup to use correct application object"""
         super().setUp()
         self.app = MeshFetchMessageChunkApplication()
-        self.environment = self.app.system_config["Environment"]
+        self.environment = self.app.system_config["ENVIRONMENT"]
 
     @mock.patch.object(MeshFetchMessageChunkApplication, "_create_new_internal_id")
     @requests_mock.Mocker()
@@ -92,7 +92,7 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
 
         # print(response)
 
-        assert mock_input["body"].get("internal_id") == response["body"].get(
+        assert response["body"].get("internal_id") == mock_input["body"].get(
             "internal_id"
         )
         assert (
@@ -116,6 +116,10 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
 
         s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
         assert s3_object
+        assert (
+            s3_object["Metadata"]["mex-messageid"]
+            == MeshTestingCommon.KNOWN_MESSAGE_ID1
+        )
         assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
         assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
         assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"
@@ -294,6 +298,10 @@ class TestMeshFetchMessageChunkApplication(MeshTestCase):
 
         s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
         assert s3_object
+        assert (
+            s3_object["Metadata"]["mex-messageid"]
+            == MeshTestingCommon.KNOWN_MESSAGE_ID1
+        )
         assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
         assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
         assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"

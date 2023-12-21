@@ -6,7 +6,7 @@ resource "aws_security_group" "send_message_chunk" {
   count       = local.vpc_enabled ? 1 : 0
   name        = local.send_message_chunk_name
   description = local.send_message_chunk_name
-  vpc_id      = var.config.vpc_id
+  vpc_id      = var.vpc_id
 
 }
 
@@ -54,16 +54,13 @@ resource "aws_lambda_function" "send_message_chunk" {
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
 
   environment {
-    variables = {
-      Environment         = local.name
-      use_secrets_manager = var.config.use_secrets_manager
-    }
+    variables = local.common_env_vars
   }
 
   dynamic "vpc_config" {
     for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
-      subnet_ids         = var.config.subnet_ids
+      subnet_ids         = var.subnet_ids
       security_group_ids = [aws_security_group.send_message_chunk[0].id]
     }
   }
@@ -109,6 +106,11 @@ data "aws_iam_policy_document" "send_message_chunk_assume" {
 resource "aws_iam_role_policy_attachment" "send_message_chunk" {
   role       = aws_iam_role.send_message_chunk.name
   policy_arn = aws_iam_policy.send_message_chunk.arn
+}
+
+resource "aws_iam_role_policy_attachment" "send_message_chunk_lambda_insights" {
+  role       = aws_iam_role.send_message_chunk.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
 }
 
 resource "aws_iam_policy" "send_message_chunk" {
@@ -169,9 +171,10 @@ data "aws_iam_policy_document" "send_message_chunk" {
       "kms:Decrypt"
     ]
 
-    resources = [
-      aws_kms_alias.mesh.target_key_arn
-    ]
+    resources = concat(
+      [aws_kms_alias.mesh.target_key_arn],
+      var.use_secrets_manager ? local.secrets_kms_key_arns : []
+    )
   }
 
   statement {
@@ -188,16 +191,37 @@ data "aws_iam_policy_document" "send_message_chunk" {
     ]
   }
 
-  statement {
-    sid    = "EC2Interfaces"
-    effect = "Allow"
-
-    actions = [
-      "ec2:CreateNetworkInterface",
-      "ec2:DescribeNetworkInterfaces",
-      "ec2:DeleteNetworkInterface",
-    ]
-
-    resources = ["*"]
+  dynamic "statement" {
+    for_each = var.use_secrets_manager ? [true] : []
+    content {
+      sid    = "Secrets"
+      effect = "allow"
+      actions = [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:ListSecretVersionIds",
+      ]
+      resources = local.secrets_arns
+    }
   }
+
+  dynamic "statement" {
+    for_each = local.vpc_enabled ? [true] : []
+    content {
+
+      sid    = "EC2Interfaces"
+      effect = "Allow"
+
+      actions = [
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterface",
+        "ec2:AssignPrivateIpAddresses",
+        "ec2:UnassignPrivateIpAddresses"
+      ]
+
+      resources = ["*"]
+    }
+  }
+
 }

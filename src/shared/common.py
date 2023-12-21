@@ -1,9 +1,11 @@
 import json
 import os
-from collections import namedtuple
+from collections.abc import Callable
 from urllib.parse import quote_plus
 
-from mypy_boto3_ssm.type_defs import ParameterTypeDef
+from mypy_boto3_secretsmanager import SecretsManagerClient
+from mypy_boto3_ssm import SSMClient
+from mypy_boto3_stepfunctions import SFNClient
 from nhs_aws_helpers import secrets_client, ssm_client, stepfunctions
 
 
@@ -30,122 +32,105 @@ def nullsafe_quote(value: str | None) -> str:
     return quote_plus(value, encoding="utf-8")
 
 
-class MeshCommon:
-    """Common"""
+def singleton_check(
+    step_function_arn: str,
+    predicate: Callable[[dict], bool],
+    sfn: SFNClient | None = None,
+):
+    """Find out whether there is another step function running for the same condition"""
+    sfn = sfn or stepfunctions()
 
-    MIB = 1024 * 1024
-    DEFAULT_CHUNK_SIZE = 20 * MIB
-
-    @staticmethod
-    def singleton_check(mailbox, my_step_function_name):
-        """Find out whether there is another step function running for my mailbox"""
-        sfn_client = stepfunctions()
-        sm_response = sfn_client.list_state_machines()
-        # Get my step function arn
-        my_step_function_arn = None
-        for step_function in sm_response.get("stateMachines", []):
-            if step_function.get("name", "") == my_step_function_name:
-                my_step_function_arn = step_function.get("stateMachineArn", None)
-
-        # TODO add this check to tests
-        if not my_step_function_arn:
-            raise SingletonCheckFailure(
-                f"No executing step function arn for step_function={my_step_function_name}"
-            )
-
-        exs_response = sfn_client.list_executions(
-            stateMachineArn=my_step_function_arn,
-            statusFilter="RUNNING",
+    if not step_function_arn or not step_function_arn.startswith("arn:aws:states:"):
+        raise SingletonCheckFailure(
+            f"No step function  for step_function_arn={step_function_arn}"
         )
-        currently_running_step_funcs = [
+
+    running_execution_arns: list[str] = []
+
+    args = {"stateMachineArn": step_function_arn, "statusFilter": "RUNNING"}
+    while True:
+        response = sfn.list_executions(**args)  # type: ignore[arg-type]
+        running_execution_arns.extend(
             execution["executionArn"]
-            for execution in exs_response["executions"]
+            for execution in response["executions"]
             if execution["status"]
             == "RUNNING"  # localstack status-filter doesn't currently work
             # remove when merged: https://github.com/localstack/localstack/pull/9833
-        ]
-
-        exec_count = 0
-        for execution_arn in currently_running_step_funcs:
-            ex_response = sfn_client.describe_execution(executionArn=execution_arn)
-            step_function_input = json.loads(ex_response.get("input", "{}"))
-            input_mailbox = step_function_input.get("mailbox", None)
-            if input_mailbox == mailbox:
-                exec_count = exec_count + 1
-            if exec_count > 1:
-                raise SingletonCheckFailure("Process already running for this mailbox")
-
-        return True
-
-    @staticmethod
-    def convert_params_to_dict(params):
-        """Convert paramater dict to key:value dict"""
-        new_dict = {}
-        for entry in params:
-            name = entry.get("Name", None)
-            if name:
-                var_name = os.path.basename(name)
-                new_dict[var_name] = entry.get("Value", None)
-        return new_dict
-
-    @staticmethod
-    def return_failure(log_object, status, logpoint, mailbox, message=""):
-        """Return a failure response with retry"""
-        log_object.write_log(logpoint, None, {"mailbox": mailbox, "error": message})
-        return {
-            "statusCode": status,
-            "headers": {
-                "Content-Type": "application/json",
-                "Retry-After": 18000,
-            },
-            "body": {
-                "internal_id": log_object.internal_id,
-                "error": message,
-            },
-        }
-
-    @staticmethod
-    def get_params(path, recursive=False, decryption=True):
-        """
-        Get parameters from SSM and secrets manager
-        """
-        ssm = ssm_client()
-        params_result = ssm.get_parameters_by_path(
-            Path=path,
-            Recursive=recursive,
-            WithDecryption=decryption,
         )
-        params: list[ParameterTypeDef] = params_result.get("Parameters", [])
-        new_params_dict = {}
-        for entry in params:
-            name = entry.get("Name", None)
-            if name:
-                var_name = os.path.basename(name)
-                new_params_dict[var_name] = entry.get("Value", None)
-        if os.environ.get("use_secrets_manager") == "true":
-            secrets = secrets_client()
-            all_secrets_dict = secrets.list_secrets()
-            all_secrets_list = all_secrets_dict["SecretList"]
-            for secret in all_secrets_list:
-                name = secret["Name"]
-                if name.startswith(path):
-                    secret_value = secrets.get_secret_value(SecretId=name)[
-                        "SecretString"
-                    ]
-                    var_name = os.path.basename(name)
-                    new_params_dict[var_name] = secret_value
-        return new_params_dict
+        next_token = response.get("nextToken")
+        if not next_token:
+            break
+        args["nextToken"] = next_token
+
+    exec_count = 0
+    for execution_arn in running_execution_arns:
+        ex_response = sfn.describe_execution(executionArn=execution_arn)
+        step_function_input = json.loads(ex_response.get("input", "{}"))
+
+        if predicate(step_function_input):
+            exec_count = exec_count + 1
+
+        if exec_count > 1:
+            raise SingletonCheckFailure("Process already running for this mailbox")
+
+    return True
 
 
-# Named tuple for holding Mesh Message info
-MeshMessage = namedtuple(
-    "MeshMessage",
-    [
-        "filename",
-        "body",
-        "src_mailbox",
-        "dest_mailbox",
-        "workflow_id",
-        "message_id",
-    ],
-)
+def convert_params_to_dict(params):
+    """Convert ssm parameter dict to key:value dict"""
+    new_dict = {}
+    for entry in params:
+        name = entry.get("Name", None)
+        if name:
+            var_name = os.path.basename(name)
+            new_dict[var_name] = entry.get("Value", None)
+    return new_dict
+
+
+def return_failure(log_object, status, logpoint, mailbox, message=""):
+    """Return a failure response with retry"""
+    log_object.write_log(logpoint, None, {"mailbox": mailbox, "error": message})
+    return {
+        "statusCode": status,
+        "headers": {
+            "Content-Type": "application/json",
+            "Retry-After": 18000,
+        },
+        "body": {
+            "internal_id": log_object.internal_id,
+            "error": message,
+        },
+    }
+
+
+def get_params(
+    parameter_names: set[str],
+    secret_ids: set[str],
+    decryption=True,
+    ssm: SSMClient | None = None,
+    secrets: SecretsManagerClient | None = None,
+) -> dict[str, str]:
+    """
+    Get parameters from SSM and secrets manager
+    """
+    ssm = ssm or ssm_client()
+    secrets = secrets or secrets_client()
+    result = {}
+    if parameter_names:
+        params_result = ssm.get_parameters(
+            Names=list(parameter_names), WithDecryption=decryption
+        )
+        for param in params_result.get("Parameters", []):
+            result[param["Name"]] = param["Value"]
+
+    if not secret_ids:
+        return result
+
+    if not decryption:
+        raise ValueError("secret_ids requested but not with decryption")
+
+    for secret_id in secret_ids:
+        res = secrets.get_secret_value(SecretId=secret_id)
+        result[secret_id] = res["SecretString"]
+
+    return result

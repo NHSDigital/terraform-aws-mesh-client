@@ -38,7 +38,7 @@ resource "null_resource" "mesh_aws_client" {
     exists       = fileexists("${local.abs_path}/dist/app/*.py")
   }
   provisioner "local-exec" {
-    command = "/bin/bash ${local.abs_path}/pack-app.sh ${local.abs_path} ${var.config.environment}"
+    command = "/bin/bash ${local.abs_path}/pack-app.sh ${local.abs_path} ${var.mesh_env}"
   }
   depends_on = [
     null_resource.mesh_aws_client_dependencies

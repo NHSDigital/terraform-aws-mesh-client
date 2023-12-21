@@ -25,7 +25,7 @@ resource "aws_cloudtrail" "s3logs" {
 
 resource "aws_cloudwatch_log_group" "mesh_cloudtrail" {
   name              = "/aws/cloudtrail/mesh-s3-logs"
-  retention_in_days = var.mesh_cloudwatch_log_retention_in_days
+  retention_in_days = var.cloudtrail_cloudwatch_log_retention_in_days
   kms_key_id        = aws_kms_key.mesh.arn
   lifecycle {
     ignore_changes = [

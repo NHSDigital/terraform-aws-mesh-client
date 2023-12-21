@@ -11,7 +11,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "mesh" {
     status = var.mesh_s3_object_expiry_enabled ? "Enabled" : "Disabled"
 
     abort_incomplete_multipart_upload {
-      days_after_initiation = 10
+      days_after_initiation = 3
     }
 
     expiration {
