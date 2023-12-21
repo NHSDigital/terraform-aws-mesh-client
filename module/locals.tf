@@ -13,13 +13,13 @@ locals {
     Environment         = local.name              # remove in 3.0 ( in flight lambdas )
     use_secrets_manager = var.use_secrets_manager # remove in 3.0 ( in flight lambdas )
 
-    ENVIRONMENT                 = local.name # not the mesh_env .. ssm/secrets prefix
-    USE_SECRETS_MANAGER         = var.use_secrets_manager
-    VERIFY_SSL                  = var.verify_ssl
-    VERIFY_CHECKS_COMMON_NAME   = var.verify_checks_common_name
+    ENVIRONMENT               = local.name # not the mesh_env .. ssm/secrets prefix
+    USE_SECRETS_MANAGER       = var.use_secrets_manager
+    VERIFY_SSL                = var.verify_ssl
+    VERIFY_CHECKS_COMMON_NAME = var.verify_checks_common_name
 
-    MESH_URL                    = local.mesh_url[var.mesh_env]
-    MESH_BUCKET                 = aws_s3_bucket.mesh.bucket
+    MESH_URL    = local.mesh_url[var.mesh_env]
+    MESH_BUCKET = aws_s3_bucket.mesh.bucket
 
     CHUNK_SIZE         = var.chunk_size
     CRUMB_SIZE         = var.crumb_size == null ? var.chunk_size : var.crumb_size
