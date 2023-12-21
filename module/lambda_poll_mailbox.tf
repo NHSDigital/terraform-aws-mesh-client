@@ -2,44 +2,6 @@ locals {
   poll_mailbox_name = "${local.name}-poll-mailbox"
 }
 
-resource "aws_security_group" "poll_mailbox" {
-  count       = local.vpc_enabled ? 1 : 0
-  name        = local.poll_mailbox_name
-  description = local.poll_mailbox_name
-  vpc_id      = var.vpc_id
-}
-
-resource "aws_security_group_rule" "poll_mailbox_egress_cidr" {
-  for_each          = local.egress_cidrs
-  type              = "egress"
-  security_group_id = aws_security_group.poll_mailbox.0.id
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = [each.key]
-}
-
-resource "aws_security_group_rule" "poll_mailbox_egress_sgs" {
-  for_each          = local.egress_sg_ids
-  type              = "egress"
-  security_group_id = aws_security_group.poll_mailbox.0.id
-
-  from_port                = 443
-  to_port                  = 443
-  protocol                 = "tcp"
-  source_security_group_id = each.key
-}
-
-resource "aws_security_group_rule" "poll_mailbox_egress_prefix_list" {
-  for_each          = local.egress_prefix_list_ids
-  type              = "egress"
-  security_group_id = aws_security_group.poll_mailbox.0.id
-
-  from_port       = 443
-  to_port         = 443
-  protocol        = "tcp"
-  prefix_list_ids = [each.key]
-}
 
 #tfsec:ignore:aws-lambda-enable-tracing
 resource "aws_lambda_function" "poll_mailbox" {
@@ -61,7 +23,7 @@ resource "aws_lambda_function" "poll_mailbox" {
     for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
       subnet_ids         = var.subnet_ids
-      security_group_ids = [aws_security_group.poll_mailbox[0].id]
+      security_group_ids = [aws_security_group.lambdas[0].id]
     }
   }
 

@@ -7,7 +7,7 @@ resource "null_resource" "mesh_aws_client_dependencies" {
   triggers = {
     requirements = filesha256("${local.python_dir}/requirements.txt")
     build_script = filesha256("${path.module}/pack-deps.sh")
-    exists       = fileexists("${path.module}/module/dist/deps/python/mesh_client/__init__.py") ? "0" : timestamp()
+    exists       = fileexists("${path.module}/dist/deps/python/mesh_client/__init__.py") ? "0" : timestamp()
 
   }
   provisioner "local-exec" {
@@ -37,7 +37,7 @@ resource "null_resource" "mesh_aws_client" {
   triggers = {
     source_dir   = sha256(join("", [for f in fileset(local.python_dir, "*") : filesha256("${local.python_dir}/${f}")]))
     build_script = filesha256("${local.abs_path}/pack-app.sh")
-    exists       = fileexists("${path.module}/module/dist/app/py.typed") ? "0" : timestamp()
+    exists       = fileexists("${path.module}/dist/app/py.typed") ? "0" : timestamp()
   }
   provisioner "local-exec" {
     command = "/bin/bash ${local.abs_path}/pack-app.sh ${local.abs_path} ${var.mesh_env}"

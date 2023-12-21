@@ -2,46 +2,6 @@ locals {
   send_message_chunk_name = "${local.name}-send-message-chunk"
 }
 
-resource "aws_security_group" "send_message_chunk" {
-  count       = local.vpc_enabled ? 1 : 0
-  name        = local.send_message_chunk_name
-  description = local.send_message_chunk_name
-  vpc_id      = var.vpc_id
-
-}
-
-resource "aws_security_group_rule" "send_message_chunk_egress_cidr" {
-  for_each          = local.egress_cidrs
-  type              = "egress"
-  security_group_id = aws_security_group.send_message_chunk.0.id
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = [each.key]
-}
-
-resource "aws_security_group_rule" "send_message_chunk_egress_sgs" {
-  for_each          = local.egress_sg_ids
-  type              = "egress"
-  security_group_id = aws_security_group.send_message_chunk.0.id
-
-  from_port                = 443
-  to_port                  = 443
-  protocol                 = "tcp"
-  source_security_group_id = each.key
-}
-
-resource "aws_security_group_rule" "send_message_chunk_egress_prefix_list" {
-  for_each          = local.egress_prefix_list_ids
-  type              = "egress"
-  security_group_id = aws_security_group.send_message_chunk.0.id
-
-  from_port       = 443
-  to_port         = 443
-  protocol        = "tcp"
-  prefix_list_ids = [each.key]
-}
-
 #tfsec:ignore:aws-lambda-enable-tracing
 resource "aws_lambda_function" "send_message_chunk" {
   function_name    = local.send_message_chunk_name
@@ -61,7 +21,7 @@ resource "aws_lambda_function" "send_message_chunk" {
     for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
       subnet_ids         = var.subnet_ids
-      security_group_ids = [aws_security_group.send_message_chunk[0].id]
+      security_group_ids = [aws_security_group.lambdas[0].id]
     }
   }
 

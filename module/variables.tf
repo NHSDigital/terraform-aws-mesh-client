@@ -200,3 +200,38 @@ variable "fetch_message_ephemeral_storage_size" {
   default     = 1024
   description = "this is in MiB so 1024 is 1GiB, retrieved chunks are buffered to disk in the receiving lambda function, if you are are receiving high volumes of smaller messages, you may want to lower this"
 }
+
+variable "aws_s3_endpoint_prefix_list_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_ssm_endpoint_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_sfn_endpoint_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_logs_endpoints_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_kms_endpoints_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_lambda_endpoints_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_secrets_endpoints_sg_id" {
+  type    = string
+  default = ""
+}
