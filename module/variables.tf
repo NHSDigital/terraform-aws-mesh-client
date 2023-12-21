@@ -72,7 +72,7 @@ variable "crumb_size" {
   description = "advanced, defines the s3 read/write buffer size ( should be lte chunk_size )"
 
   validation {
-    condition     = var.crumb_size == null || 0 < var.crumb_size
+    condition     = 0 < coalesce(var.crumb_size, 1)
     error_message = "must be null or between zero and chunk_size"
   }
 }
