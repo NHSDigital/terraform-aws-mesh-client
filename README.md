@@ -34,6 +34,15 @@ module "mesh" {
   get_message_max_concurrency = 10 
 
   compress_threshold = 1 * 1024 * 1024
+
+  # vpc endpoints are required if deploying the module into a VPC
+  aws_s3_endpoint_prefix_list_id = aws_vpc_endpoint.s3.prefix_list_id
+  aws_ssm_endpoint_sg_id         = tolist(aws_vpc_endpoint.ssm.security_group_ids)[0]
+  aws_sfn_endpoint_sg_id         = tolist(aws_vpc_endpoint.sfn.security_group_ids)[0]
+  aws_logs_endpoints_sg_id       = tolist(aws_vpc_endpoint.logs.security_group_ids)[0]
+  aws_kms_endpoints_sg_id        = tolist(aws_vpc_endpoint.kms.security_group_ids)[0]
+  aws_lambda_endpoints_sg_id     = tolist(aws_vpc_endpoint.lambda.security_group_ids)[0]
+  aws_secrets_endpoints_sg_id    = tolist(aws_vpc_endpoint.secrets.security_group_ids)[0]
   
   # region = "eu-west-2"
   # verify_checks_common_name = false 

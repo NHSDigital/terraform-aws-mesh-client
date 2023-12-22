@@ -22,7 +22,7 @@ data "aws_iam_policy_document" "mesh" {
     principals {
       type = "AWS"
       identifiers = [
-        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        "arn:aws:iam::${var.account_id}:root"
       ]
     }
   }
@@ -44,14 +44,14 @@ data "aws_iam_policy_document" "mesh" {
       test     = "ArnLike"
       variable = "kms:EncryptionContext:aws:logs:arn"
       values = [
-        "arn:aws:logs::${data.aws_caller_identity.current.account_id}:*",
-        "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:*"
+        "arn:aws:logs::${var.account_id}:*",
+        "arn:aws:logs:${var.region}:${var.account_id}:*"
       ]
     }
 
     principals {
       type        = "Service"
-      identifiers = ["logs.${data.aws_region.current.name}.amazonaws.com"]
+      identifiers = ["logs.${var.region}.amazonaws.com"]
     }
   }
 
@@ -62,7 +62,7 @@ data "aws_iam_policy_document" "mesh" {
     condition {
       test = "StringLike"
       values = [
-        "arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/*",
+        "arn:aws:cloudtrail:*:${var.account_id}:trail/*",
       ]
       variable = "kms:EncryptionContext:aws:cloudtrail:arn"
     }

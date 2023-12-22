@@ -2,44 +2,6 @@ locals {
   check_send_parameters_name = "${local.name}-check-send-parameters"
 }
 
-resource "aws_security_group" "check_send_parameters" {
-  count       = local.vpc_enabled ? 1 : 0
-  name        = local.check_send_parameters_name
-  description = local.check_send_parameters_name
-  vpc_id      = var.vpc_id
-}
-
-resource "aws_security_group_rule" "check_send_parameters_egress_cidr" {
-  for_each          = local.egress_cidrs
-  type              = "egress"
-  security_group_id = aws_security_group.check_send_parameters.0.id
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = [each.key]
-}
-
-resource "aws_security_group_rule" "check_send_parameters_egress_sgs" {
-  for_each          = local.egress_sg_ids
-  type              = "egress"
-  security_group_id = aws_security_group.check_send_parameters.0.id
-
-  from_port                = 443
-  to_port                  = 443
-  protocol                 = "tcp"
-  source_security_group_id = each.key
-}
-
-resource "aws_security_group_rule" "check_send_parameters_egress_prefix_list" {
-  for_each          = local.egress_prefix_list_ids
-  type              = "egress"
-  security_group_id = aws_security_group.check_send_parameters.0.id
-
-  from_port       = 443
-  to_port         = 443
-  protocol        = "tcp"
-  prefix_list_ids = [each.key]
-}
 
 #tfsec:ignore:aws-lambda-enable-tracing
 resource "aws_lambda_function" "check_send_parameters" {
@@ -146,12 +108,14 @@ data "aws_iam_policy_document" "check_send_parameters" {
     effect = "Allow"
 
     actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
       "ssm:GetParametersByPath"
     ]
 
     resources = [
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}/*",
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}"
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}/*",
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}"
     ]
   }
 
@@ -231,7 +195,7 @@ data "aws_iam_policy_document" "check_send_parameters_check_sfn" {
     ]
 
     resources = [
-      "arn:aws:states:eu-west-2:${data.aws_caller_identity.current.account_id}:stateMachine:*",
+      "arn:aws:states:eu-west-2:${var.account_id}:stateMachine:*",
       aws_sfn_state_machine.get_messages.arn,
       aws_sfn_state_machine.send_message.arn
     ]

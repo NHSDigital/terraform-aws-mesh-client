@@ -15,6 +15,8 @@ use asdf to ensure required tools are installed ... configured tools are in  [.t
 cd ~/work/mesh-client
 asdf plugin add python
 asdf plugin add poetry
+asdf plugin add terraform
+asdf plugin add tfsec
 asdf install
 ```
 

@@ -13,13 +13,13 @@ locals {
     Environment         = local.name              # remove in 3.0 ( in flight lambdas )
     use_secrets_manager = var.use_secrets_manager # remove in 3.0 ( in flight lambdas )
 
-    ENVIRONMENT                 = local.name # not the mesh_env .. ssm/secrets prefix
-    USE_SECRETS_MANAGER         = var.use_secrets_manager
-    VERIFY_SSL                  = var.verify_ssl
-    VERIFY_CHECKS_COMMON_NAME   = var.verify_checks_common_name
+    ENVIRONMENT               = local.name # not the mesh_env .. ssm/secrets prefix
+    USE_SECRETS_MANAGER       = var.use_secrets_manager
+    VERIFY_SSL                = var.verify_ssl
+    VERIFY_CHECKS_COMMON_NAME = var.verify_checks_common_name
 
-    MESH_URL                    = local.mesh_url[var.mesh_env]
-    MESH_BUCKET                 = aws_s3_bucket.mesh.bucket
+    MESH_URL    = local.mesh_url[var.mesh_env]
+    MESH_BUCKET = aws_s3_bucket.mesh.bucket
 
     CHUNK_SIZE         = var.chunk_size
     CRUMB_SIZE         = var.crumb_size == null ? var.chunk_size : var.crumb_size
@@ -32,8 +32,8 @@ locals {
     SHARED_KEY_CONFIG_KEY     = data.aws_ssm_parameter.shared_key.0.name
     MAILBOXES_BASE_CONFIG_KEY = "/${local.name}/mesh/mailboxes"
 
-    SEND_MESSAGE_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:stateMachine:${local.send_message_name}"
-    GET_MESSAGES_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:stateMachine:${local.get_messages_name}"
+    SEND_MESSAGE_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:${local.send_message_name}"
+    GET_MESSAGES_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:${local.get_messages_name}"
 
 
     USE_SENDER_FILENAME         = var.use_sender_filename
@@ -64,7 +64,7 @@ locals {
     ))) : toset([])
   )
 
-  secrets_kms_key_arns = [for key_id in local.secrets_kms_key_ids : "arn:aws:kms:${var.region}:${data.aws_caller_identity.current.account_id}:key/${key_id}"]
+  secrets_kms_key_arns = [for key_id in local.secrets_kms_key_ids : "arn:aws:kms:${var.region}:${var.account_id}:key/${key_id}"]
 
   secrets_arns = (
     var.use_secrets_manager ? compact(concat(
@@ -72,24 +72,6 @@ locals {
       data.aws_secretsmanager_secret.client_key.*.arn,
       data.aws_secretsmanager_secret.mailbox_password.*.arn
     )) : toset([])
-  )
-
-  egress_cidrs = toset(local.vpc_enabled ? (var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration) : [])
-  egress_sg_ids = toset(local.vpc_enabled ?
-    concat(
-      length(data.aws_vpc_endpoint.ssm) == 0 ? [] : data.aws_vpc_endpoint.ssm.0.security_group_ids,
-      length(data.aws_vpc_endpoint.sfn) == 0 ? [] : data.aws_vpc_endpoint.sfn.0.security_group_ids,
-      length(data.aws_vpc_endpoint.kms) == 0 ? [] : data.aws_vpc_endpoint.kms.0.security_group_ids,
-      length(data.aws_vpc_endpoint.lambda) == 0 ? [] : data.aws_vpc_endpoint.lambda.0.security_group_ids,
-      length(data.aws_vpc_endpoint.logs) == 0 ? [] : data.aws_vpc_endpoint.logs.0.security_group_ids,
-      length(data.aws_vpc_endpoint.secrets) == 0 ? [] : data.aws_vpc_endpoint.secrets.0.security_group_ids,
-    ) : []
-  )
-
-  egress_prefix_list_ids = toset(local.vpc_enabled ?
-    concat(
-      length(data.aws_vpc_endpoint.s3) == 0 ? [] : [data.aws_vpc_endpoint.s3.0.prefix_list_id]
-    ) : []
   )
 
   python_runtime = "python3.11"

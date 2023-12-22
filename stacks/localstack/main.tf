@@ -1,3 +1,6 @@
+
+
+
 module "main" {
   source = "../../module"
 
@@ -5,9 +8,17 @@ module "main" {
 
   name_prefix = "local"
 
+  account_id = "000000000000"
+
+  #  vpc_id = "something"
 
   depends_on = [
     aws_vpc_endpoint.s3,
+    aws_vpc_endpoint.logs,
+    aws_vpc_endpoint.kms,
+    aws_vpc_endpoint.lambda,
+    aws_vpc_endpoint.sfn,
+    aws_vpc_endpoint.ssm,
     aws_ssm_parameter.mesh_url,
     aws_ssm_parameter.shared_key,
     aws_ssm_parameter.ca_cert,
@@ -46,6 +57,14 @@ module "main" {
   chunk_size         = 10 * 1024 * 1024
   crumb_size         = (1 * 1024 * 1024) - 7 # setting this to an odd setting for testing .. (generally leave this alone)
   compress_threshold = 5 * 1024 * 1024
+
+  aws_s3_endpoint_prefix_list_id = aws_vpc_endpoint.s3.prefix_list_id
+  aws_ssm_endpoint_sg_id         = tolist(aws_vpc_endpoint.ssm.security_group_ids)[0]
+  aws_sfn_endpoint_sg_id         = tolist(aws_vpc_endpoint.sfn.security_group_ids)[0]
+  aws_logs_endpoints_sg_id       = tolist(aws_vpc_endpoint.logs.security_group_ids)[0]
+  aws_kms_endpoints_sg_id        = tolist(aws_vpc_endpoint.kms.security_group_ids)[0]
+  aws_lambda_endpoints_sg_id     = tolist(aws_vpc_endpoint.lambda.security_group_ids)[0]
+  aws_secrets_endpoints_sg_id    = tolist(aws_vpc_endpoint.secrets.security_group_ids)[0]
 
 }
 

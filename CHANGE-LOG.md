@@ -5,7 +5,7 @@ These are not all encompassing, but we will try and capture noteable differences
 
 ----
 # 2.0
-### v2.0 Major release
+### v2.0 Major Release
 * Send parameters from [S3 object metadata](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html)
   * MESH `mex-*` headers will be honoured and passed the [MESH Client](https://github.com/NHSDigital/mesh-client), where appropriate  
   * metadata will be inspected first for a `mex-from` (sender mailbox id), metadata parameter, if present this and other metadata will be used, if `mex-from` is not found, we will fall-back to using the outbound mappings as the source for `mex-from`, `mex-to` and `mex-workflowid`
@@ -32,6 +32,7 @@ These are not all encompassing, but we will try and capture noteable differences
 * Major overhaul of the module variables, removed the `var.config` in favour of individual variables, support for more configuration, see [README.md](README.md) or [variables.tf](module/variables.tf) for full details.
 * terraform module `account_admin_role` variable removed, management of required permissions should be maintained outside the module using `module.mesh.mesh_kms_key_arn` and `module.mesh.mesh_s3_bucket_name` outputs
 * `mex-filename` was previously set from the `os.path.basename(s3_object.key)` this is a dangerous default, as the s3 filename could contain sensitive information, if you wish to set the `mex-filename` for the recipient, use the `mex-filename` in s3 object metadata.
+* SG rules migrated to individual resources, [scripts/create-v2-sg-rule-imports.sh](scripts/create-v2-sg-rule-imports.sh) created to aid migration.  run `create-v2-sg-rule-imports.sh {name_prefix} production|integration` to generate some terraform import statements.
 
 
 # 1.0

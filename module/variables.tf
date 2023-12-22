@@ -3,6 +3,11 @@ variable "name_prefix" {
   description = "Name to prefix on to the resources"
 }
 
+variable "account_id" {
+  type        = string
+  description = "aws account id"
+}
+
 variable "region" {
   type    = string
   default = "eu-west-2"
@@ -72,7 +77,7 @@ variable "crumb_size" {
   description = "advanced, defines the s3 read/write buffer size ( should be lte chunk_size )"
 
   validation {
-    condition     = var.crumb_size == null || 0 < var.crumb_size
+    condition     = 0 < coalesce(var.crumb_size, 1)
     error_message = "must be null or between zero and chunk_size"
   }
 }
@@ -199,4 +204,39 @@ variable "fetch_message_ephemeral_storage_size" {
   type        = number
   default     = 1024
   description = "this is in MiB so 1024 is 1GiB, retrieved chunks are buffered to disk in the receiving lambda function, if you are are receiving high volumes of smaller messages, you may want to lower this"
+}
+
+variable "aws_s3_endpoint_prefix_list_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_ssm_endpoint_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_sfn_endpoint_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_logs_endpoints_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_kms_endpoints_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_lambda_endpoints_sg_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_secrets_endpoints_sg_id" {
+  type    = string
+  default = ""
 }
