@@ -6,6 +6,10 @@ resource "aws_security_group" "check_send_parameters" {
   vpc_id      = var.vpc_id
 }
 
+locals {
+  mesh_cidrs = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
+}
+
 resource "aws_security_group_rule" "check_send_mesh" {
   count             = local.vpc_enabled ? 1 : 0
   security_group_id = aws_security_group.check_send_parameters.0.id
@@ -13,7 +17,7 @@ resource "aws_security_group_rule" "check_send_mesh" {
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  cidr_blocks       = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
+  cidr_blocks       = local.mesh_cidrs
   description       = "to mesh"
 }
 
@@ -109,10 +113,7 @@ resource "aws_security_group" "fetch_message_chunk" {
   vpc_id      = var.vpc_id
 }
 
-locals {
-  mesh_cidrs        = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
-  mesh_cidrs_import = join("_", local.mesh_cidrs)
-}
+
 
 resource "aws_security_group_rule" "fetch_message_mesh" {
   count             = local.vpc_enabled ? 1 : 0
@@ -226,7 +227,7 @@ resource "aws_security_group_rule" "poll_mailbox_mesh" {
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  cidr_blocks       = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
+  cidr_blocks       = local.mesh_cidrs
   description       = "to mesh"
 }
 
@@ -330,7 +331,7 @@ resource "aws_security_group_rule" "send_message_mesh" {
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  cidr_blocks       = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
+  cidr_blocks       = local.mesh_cidrs
   description       = "to mesh"
 }
 
