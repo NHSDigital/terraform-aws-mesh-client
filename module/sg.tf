@@ -1,14 +1,14 @@
 
-resource "aws_security_group" "lambdas" {
+resource "aws_security_group" "check_send_parameters" {
   count       = local.vpc_enabled ? 1 : 0
-  name        = "${local.name}-lambdas"
-  description = "sg for all mesh lambda functions"
+  name        = local.check_send_parameters_name
+  description = local.check_send_parameters_name
   vpc_id      = var.vpc_id
 }
 
-resource "aws_security_group_rule" "mesh" {
+resource "aws_security_group_rule" "check_send_mesh" {
   count             = local.vpc_enabled ? 1 : 0
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
   type              = "egress"
   from_port         = 443
   to_port           = 443
@@ -17,10 +17,10 @@ resource "aws_security_group_rule" "mesh" {
   description       = "to mesh"
 }
 
-resource "aws_security_group_rule" "s3" {
+resource "aws_security_group_rule" "check_send_s3" {
   count             = local.vpc_enabled ? 1 : 0
   type              = "egress"
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
 
   from_port       = 443
   to_port         = 443
@@ -29,10 +29,10 @@ resource "aws_security_group_rule" "s3" {
   description     = "to s3"
 }
 
-resource "aws_security_group_rule" "ssm" {
+resource "aws_security_group_rule" "check_send_ssm" {
   count             = local.vpc_enabled ? 1 : 0
   type              = "egress"
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
 
   from_port                = 443
   to_port                  = 443
@@ -41,10 +41,10 @@ resource "aws_security_group_rule" "ssm" {
   description              = "to ssm"
 }
 
-resource "aws_security_group_rule" "sfn" {
+resource "aws_security_group_rule" "check_send_sfn" {
   count             = local.vpc_enabled ? 1 : 0
   type              = "egress"
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
 
   from_port                = 443
   to_port                  = 443
@@ -53,10 +53,10 @@ resource "aws_security_group_rule" "sfn" {
   description              = "to sfn"
 }
 
-resource "aws_security_group_rule" "logs" {
+resource "aws_security_group_rule" "check_send_logs" {
   count             = local.vpc_enabled ? 1 : 0
   type              = "egress"
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
 
   from_port                = 443
   to_port                  = 443
@@ -65,10 +65,10 @@ resource "aws_security_group_rule" "logs" {
   description              = "to logs"
 }
 
-resource "aws_security_group_rule" "kms" {
+resource "aws_security_group_rule" "check_send_kms" {
   count             = local.vpc_enabled ? 1 : 0
   type              = "egress"
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
 
   from_port                = 443
   to_port                  = 443
@@ -77,10 +77,10 @@ resource "aws_security_group_rule" "kms" {
   description              = "to kms"
 }
 
-resource "aws_security_group_rule" "lambda" {
+resource "aws_security_group_rule" "check_send_lambda" {
   count             = local.vpc_enabled ? 1 : 0
   type              = "egress"
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
 
   from_port                = 443
   to_port                  = 443
@@ -89,10 +89,327 @@ resource "aws_security_group_rule" "lambda" {
   description              = "to lambda"
 }
 
-resource "aws_security_group_rule" "secrets" {
+resource "aws_security_group_rule" "check_send_secrets" {
   count             = local.vpc_enabled && var.use_secrets_manager ? 1 : 0
   type              = "egress"
-  security_group_id = aws_security_group.lambdas.0.id
+  security_group_id = aws_security_group.check_send_parameters.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_secrets_endpoints_sg_id
+  description              = "to secrets"
+}
+
+
+resource "aws_security_group" "fetch_message_chunk" {
+  count       = local.vpc_enabled ? 1 : 0
+  name        = local.fetch_message_chunk_name
+  description = local.fetch_message_chunk_name
+  vpc_id      = var.vpc_id
+}
+
+locals {
+  mesh_cidrs        = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
+  mesh_cidrs_import = join("_", local.mesh_cidrs)
+}
+
+resource "aws_security_group_rule" "fetch_message_mesh" {
+  count             = local.vpc_enabled ? 1 : 0
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+  type              = "egress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = local.mesh_cidrs
+  description       = "to mesh"
+}
+
+resource "aws_security_group_rule" "fetch_message_s3" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+
+  from_port       = 443
+  to_port         = 443
+  protocol        = "tcp"
+  prefix_list_ids = [var.aws_s3_endpoint_prefix_list_id]
+  description     = "to s3"
+}
+
+resource "aws_security_group_rule" "fetch_message_ssm" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_ssm_endpoint_sg_id
+  description              = "to ssm"
+}
+
+resource "aws_security_group_rule" "fetch_message_sfn" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_sfn_endpoint_sg_id
+  description              = "to sfn"
+}
+
+resource "aws_security_group_rule" "fetch_message_logs" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_logs_endpoints_sg_id
+  description              = "to logs"
+}
+
+resource "aws_security_group_rule" "fetch_message_kms" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_kms_endpoints_sg_id
+  description              = "to kms"
+}
+
+resource "aws_security_group_rule" "fetch_message_lambda" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_lambda_endpoints_sg_id
+  description              = "to lambda"
+}
+
+resource "aws_security_group_rule" "fetch_message_secrets" {
+  count             = local.vpc_enabled && var.use_secrets_manager ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.fetch_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_secrets_endpoints_sg_id
+  description              = "to secrets"
+}
+
+
+
+resource "aws_security_group" "poll_mailbox" {
+  count       = local.vpc_enabled ? 1 : 0
+  name        = local.poll_mailbox_name
+  description = local.poll_mailbox_name
+  vpc_id      = var.vpc_id
+}
+
+
+resource "aws_security_group_rule" "poll_mailbox_mesh" {
+  count             = local.vpc_enabled ? 1 : 0
+  security_group_id = aws_security_group.poll_mailbox.0.id
+  type              = "egress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
+  description       = "to mesh"
+}
+
+resource "aws_security_group_rule" "poll_mailbox_s3" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.poll_mailbox.0.id
+
+  from_port       = 443
+  to_port         = 443
+  protocol        = "tcp"
+  prefix_list_ids = [var.aws_s3_endpoint_prefix_list_id]
+  description     = "to s3"
+}
+
+resource "aws_security_group_rule" "poll_mailbox_ssm" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.poll_mailbox.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_ssm_endpoint_sg_id
+  description              = "to ssm"
+}
+
+resource "aws_security_group_rule" "poll_mailbox_sfn" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.poll_mailbox.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_sfn_endpoint_sg_id
+  description              = "to sfn"
+}
+
+resource "aws_security_group_rule" "poll_mailbox_logs" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.poll_mailbox.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_logs_endpoints_sg_id
+  description              = "to logs"
+}
+
+resource "aws_security_group_rule" "poll_mailbox_kms" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.poll_mailbox.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_kms_endpoints_sg_id
+  description              = "to kms"
+}
+
+resource "aws_security_group_rule" "poll_mailbox_lambda" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.poll_mailbox.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_lambda_endpoints_sg_id
+  description              = "to lambda"
+}
+
+resource "aws_security_group_rule" "poll_mailbox_secrets" {
+  count             = local.vpc_enabled && var.use_secrets_manager ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.poll_mailbox.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_secrets_endpoints_sg_id
+  description              = "to secrets"
+}
+
+resource "aws_security_group" "send_message_chunk" {
+  count       = local.vpc_enabled ? 1 : 0
+  name        = local.send_message_chunk_name
+  description = local.send_message_chunk_name
+  vpc_id      = var.vpc_id
+
+}
+
+
+resource "aws_security_group_rule" "send_message_mesh" {
+  count             = local.vpc_enabled ? 1 : 0
+  security_group_id = aws_security_group.send_message_chunk.0.id
+  type              = "egress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = var.mesh_env == "production" ? local.mesh_ips.production : local.mesh_ips.integration
+  description       = "to mesh"
+}
+
+resource "aws_security_group_rule" "send_message_s3" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port       = 443
+  to_port         = 443
+  protocol        = "tcp"
+  prefix_list_ids = [var.aws_s3_endpoint_prefix_list_id]
+  description     = "to s3"
+}
+
+resource "aws_security_group_rule" "send_message_ssm" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_ssm_endpoint_sg_id
+  description              = "to ssm"
+}
+
+resource "aws_security_group_rule" "send_message_sfn" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_sfn_endpoint_sg_id
+  description              = "to sfn"
+}
+
+resource "aws_security_group_rule" "send_message_logs" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_logs_endpoints_sg_id
+  description              = "to logs"
+}
+
+resource "aws_security_group_rule" "send_message_kms" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_kms_endpoints_sg_id
+  description              = "to kms"
+}
+
+resource "aws_security_group_rule" "send_message_lambda" {
+  count             = local.vpc_enabled ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
+
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.aws_lambda_endpoints_sg_id
+  description              = "to lambda"
+}
+
+resource "aws_security_group_rule" "send_message_secrets" {
+  count             = local.vpc_enabled && var.use_secrets_manager ? 1 : 0
+  type              = "egress"
+  security_group_id = aws_security_group.send_message_chunk.0.id
 
   from_port                = 443
   to_port                  = 443

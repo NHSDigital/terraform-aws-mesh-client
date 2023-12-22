@@ -22,7 +22,7 @@ resource "aws_lambda_function" "check_send_parameters" {
     for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
       subnet_ids         = var.subnet_ids
-      security_group_ids = [aws_security_group.lambdas[0].id]
+      security_group_ids = [aws_security_group.check_send_parameters[0].id]
     }
   }
 

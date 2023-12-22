@@ -21,7 +21,7 @@ resource "aws_lambda_function" "send_message_chunk" {
     for_each = local.vpc_enabled ? [local.vpc_enabled] : []
     content {
       subnet_ids         = var.subnet_ids
-      security_group_ids = [aws_security_group.lambdas[0].id]
+      security_group_ids = [aws_security_group.send_message_chunk[0].id]
     }
   }
 
