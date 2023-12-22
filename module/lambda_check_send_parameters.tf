@@ -108,12 +108,14 @@ data "aws_iam_policy_document" "check_send_parameters" {
     effect = "Allow"
 
     actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
       "ssm:GetParametersByPath"
     ]
 
     resources = [
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}/*",
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}"
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}/*",
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}"
     ]
   }
 
@@ -193,7 +195,7 @@ data "aws_iam_policy_document" "check_send_parameters_check_sfn" {
     ]
 
     resources = [
-      "arn:aws:states:eu-west-2:${data.aws_caller_identity.current.account_id}:stateMachine:*",
+      "arn:aws:states:eu-west-2:${var.account_id}:stateMachine:*",
       aws_sfn_state_machine.get_messages.arn,
       aws_sfn_state_machine.send_message.arn
     ]

@@ -3,6 +3,11 @@ variable "name_prefix" {
   description = "Name to prefix on to the resources"
 }
 
+variable "account_id" {
+  type        = string
+  description = "aws account id"
+}
+
 variable "region" {
   type    = string
   default = "eu-west-2"

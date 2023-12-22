@@ -101,7 +101,7 @@ data "aws_iam_policy_document" "poll_mailbox" {
     ]
 
     resources = [
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}/*"
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}/*"
     ]
   }
 
@@ -110,12 +110,14 @@ data "aws_iam_policy_document" "poll_mailbox" {
     effect = "Allow"
 
     actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
       "ssm:GetParametersByPath"
     ]
 
     resources = [
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}/*",
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}"
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}/*",
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}"
     ]
   }
 
@@ -198,7 +200,7 @@ data "aws_iam_policy_document" "poll_mailbox_check_sfn" {
     ]
 
     resources = [
-      "arn:aws:states:eu-west-2:${data.aws_caller_identity.current.account_id}:stateMachine:*",
+      "arn:aws:states:eu-west-2:${var.account_id}:stateMachine:*",
     ]
   }
 

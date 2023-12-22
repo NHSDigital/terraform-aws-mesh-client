@@ -105,7 +105,7 @@ data "aws_iam_policy_document" "send_message_chunk" {
     ]
 
     resources = [
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}/*"
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}/*"
     ]
   }
 
@@ -114,12 +114,14 @@ data "aws_iam_policy_document" "send_message_chunk" {
     effect = "Allow"
 
     actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
       "ssm:GetParametersByPath"
     ]
 
     resources = [
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}/*",
-      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/${local.name}"
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}/*",
+      "arn:aws:ssm:eu-west-2:${var.account_id}:parameter/${local.name}"
     ]
   }
 

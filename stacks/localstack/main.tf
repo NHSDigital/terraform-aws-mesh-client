@@ -8,7 +8,9 @@ module "main" {
 
   name_prefix = "local"
 
-  vpc_id = "something"
+  account_id = "000000000000"
+
+  #  vpc_id = "something"
 
   depends_on = [
     aws_vpc_endpoint.s3,

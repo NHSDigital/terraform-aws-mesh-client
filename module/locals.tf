@@ -32,8 +32,8 @@ locals {
     SHARED_KEY_CONFIG_KEY     = data.aws_ssm_parameter.shared_key.0.name
     MAILBOXES_BASE_CONFIG_KEY = "/${local.name}/mesh/mailboxes"
 
-    SEND_MESSAGE_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:stateMachine:${local.send_message_name}"
-    GET_MESSAGES_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${data.aws_caller_identity.current.account_id}:stateMachine:${local.get_messages_name}"
+    SEND_MESSAGE_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:${local.send_message_name}"
+    GET_MESSAGES_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:${local.get_messages_name}"
 
 
     USE_SENDER_FILENAME         = var.use_sender_filename
@@ -64,7 +64,7 @@ locals {
     ))) : toset([])
   )
 
-  secrets_kms_key_arns = [for key_id in local.secrets_kms_key_ids : "arn:aws:kms:${var.region}:${data.aws_caller_identity.current.account_id}:key/${key_id}"]
+  secrets_kms_key_arns = [for key_id in local.secrets_kms_key_ids : "arn:aws:kms:${var.region}:${var.account_id}:key/${key_id}"]
 
   secrets_arns = (
     var.use_secrets_manager ? compact(concat(
