@@ -4,6 +4,8 @@ set -euxo pipefail
 
 name_prefix="${1-}"
 mesh_env="${2-}"
+vpc_id="${3-}"
+
 
 
 function usage() {
@@ -23,16 +25,21 @@ if [[ "${mesh_env}" != "production" && "${mesh_env}" != "integration" ]]; then
   exit 1
 fi
 
+if [[ -z "${vpc_id}" ]]; then
+  echo "VPC ID not supplied. Please provide a valid VPC ID."
+  exit 1
+fi
+
 sg_check_send="${name_prefix}-mesh-check-send-parameters"
 sg_fetch_chunk="${name_prefix}-mesh-fetch-message-chunk"
 sg_poll_mailbox="${name_prefix}-mesh-poll-mailbox"
 sg_send_chunk="${name_prefix}-mesh-send-message-chunk"
 
 
-sg_check_send_id="$(aws ec2 describe-security-groups --group-names="${sg_check_send}" --query=SecurityGroups[0].GroupId --output text)"
-sg_fetch_chunk_id="$(aws ec2 describe-security-groups --group-names="${sg_fetch_chunk}" --query=SecurityGroups[0].GroupId --output text)"
-sg_poll_mailbox_id="$(aws ec2 describe-security-groups --group-names="${sg_poll_mailbox}" --query=SecurityGroups[0].GroupId --output text)"
-sg_send_chunk_id="$(aws ec2 describe-security-groups --group-names="${sg_send_chunk}" --query=SecurityGroups[0].GroupId --output text)"
+sg_check_send_id="$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpc_id}" "Name=group-name,Values=${sg_check_send}" --query=SecurityGroups[0].GroupId --output text)"
+sg_fetch_chunk_id="$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpc_id}" "Name=group-name,Values=${sg_fetch_chunk}" --query=SecurityGroups[0].GroupId --output text)"
+sg_poll_mailbox_id="$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpc_id}" "Name=group-name,Values=${sg_poll_mailbox}" --query=SecurityGroups[0].GroupId --output text)"
+sg_send_chunk_id="$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpc_id}" "Name=group-name,Values=${sg_send_chunk}" --query=SecurityGroups[0].GroupId --output text)"
 
 echo "
 found sg ids:
@@ -68,12 +75,12 @@ if [[ "${mesh_env}" == "integration" ]]; then
 fi
 
 
-ssm_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.ssm --query=VpcEndpoints[0].Groups[0].GroupId --output text)"
-sfn_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.states --query=VpcEndpoints[0].Groups[0].GroupId --output text)"
-logs_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.logs --query=VpcEndpoints[0].Groups[0].GroupId --output text)"
-kms_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.kms --query=VpcEndpoints[0].Groups[0].GroupId --output text)"
-lambda_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.lambda --query=VpcEndpoints[0].Groups[0].GroupId --output text)"
-secrets_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.secretsmanager --query=VpcEndpoints[0].Groups[0].GroupId --output text)"
+ssm_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.ssm --query=VpcEndpoints[0].Groups[0].GroupId --filters=Name=vpc-id,Values="${vpc_id}" --output text)"
+sfn_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.states --query=VpcEndpoints[0].Groups[0].GroupId --filters=Name=vpc-id,Values="${vpc_id}" --output text)"
+logs_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.logs --query=VpcEndpoints[0].Groups[0].GroupId --filters=Name=vpc-id,Values="${vpc_id}" --output text)"
+kms_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.kms --query=VpcEndpoints[0].Groups[0].GroupId --filters=Name=vpc-id,Values="${vpc_id}" --output text)"
+lambda_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.lambda --query=VpcEndpoints[0].Groups[0].GroupId --filters=Name=vpc-id,Values="${vpc_id}" --output text)"
+secrets_sg_id="$(aws ec2 describe-vpc-endpoints --filters=Name=service-name,Values=com.amazonaws.eu-west-2.secretsmanager --query=VpcEndpoints[0].Groups[0].GroupId --filters=Name=vpc-id,Values="${vpc_id}" --output text)"
 
 
 
