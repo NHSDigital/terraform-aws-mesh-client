@@ -17,7 +17,7 @@ urllib3 = "^1.26.0"
 spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.5.5"
 aws-lambda-powertools = "^2.25.1"
-mesh-client = "^3.1.2"
+mesh-client = "^3.2.1"
 
 [tool.poetry.group.dev.dependencies]
 # ci / testing dependencies
