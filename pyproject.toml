@@ -12,7 +12,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-importlib-metadata = "6.8.0"
+importlib-metadata = "7.0.1"
 urllib3 = "^1.26.0"
 spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.5.5"
