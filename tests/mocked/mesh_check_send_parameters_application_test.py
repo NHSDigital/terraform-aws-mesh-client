@@ -1,4 +1,5 @@
 """ Testing MeshPollMailbox application """
+
 import json
 import sys
 from http import HTTPStatus

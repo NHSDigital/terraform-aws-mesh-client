@@ -1,4 +1,5 @@
 """Tests for MeshMailbox class (mesh_client wrapper)"""
+
 import os
 import re
 from collections.abc import Generator
