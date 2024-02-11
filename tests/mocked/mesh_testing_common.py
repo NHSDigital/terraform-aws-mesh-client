@@ -1,4 +1,5 @@
 """Common methods and classes used for testing mesh client"""
+
 import os
 from typing import ClassVar, Literal
 from unittest import TestCase
