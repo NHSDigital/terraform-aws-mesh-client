@@ -81,6 +81,7 @@ resource "aws_sfn_state_machine" "send_message" {
           {
             BackoffRate = 2
             ErrorEquals = [
+              "HTTPError",
               "Lambda.ServiceException",
               "Lambda.AWSLambdaException",
               "Lambda.SdkClientException",
