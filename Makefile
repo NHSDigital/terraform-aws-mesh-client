@@ -36,6 +36,8 @@ install:
 install-ci:
 	poetry install --without local --sync
 
+update:
+	poetry update
 
 local-terraform:
 	make -C stacks/localstack
