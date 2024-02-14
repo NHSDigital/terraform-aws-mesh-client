@@ -6,6 +6,13 @@ mesh_sandbox/store/data/mailboxes.jsonl.*password.*
 "accountId": "123456789012"
 123456789012:role
 
+.*[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]("|'?)\s*(:|=|!=|==)\s*("|'?)(MAILBOX_PASSWORD|)("|'?)
+.*[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]("|'?)\s*(:|=|!=|==)\s*(""|'')
+.*("|'?)[Ss][Ee][Cc][Rr][Ee][Tt]("|'?)\s*.+(:|=|!=|==)\s*("|'?)(\[\]|secrets_client\(\)|self.secrets,|secrets,|SecretsManagerClient|self._required_common_params\(\)|secrets or secrets_client\(\)|self.secrets_manager,|secrets)("|'?)
+.*("|'?)[Ss][Ee][Cc][Rr][Ee][Tt]("|'?)\s*(:|=|!=|==)\s*(:|=|!=|==)\s*(""|'')
+.*("|'?)[Tt][Oo][Kk][Ee][Nn]("|'?)\s*(:|=|!=|==)\s*("|'?)(response.get\("nextToken"\)|response\["nextToken"\])("|'?)
+.*("|'?)[Tt][Oo][Kk][Ee][Nn]("|'?)\s*(:|=|!=|==)\s*(:|=|!=|==)\s*(""|'')
+
 stacks/localstack/main.tf:[0-9]+:\s*account_id\s*=\s*"000000000000"
 
 src/shared/mailbox.py:[0-9]+:\s*password=self.params\[MeshMailbox.MAILBOX_PASSWORD\]
@@ -22,3 +29,4 @@ tests/integration/send_message_test.py:[0-9]+:\s*"accountId": "000000000000"
 tests/integration/send_message_test.py:[0-9]+:\s*url=_SANDBOX_URL, mailbox=mailboxes\[0\], password="password", verify=False
 tests/integration/send_message_test.py:[0-9]+:\s*url=_SANDBOX_URL, mailbox=mailboxes\[1\], password="password", verify=False
 tests/integration/conftest.py:[0-9]+:\s*password="password"
+poetry.lock:.*asttokens = ">=2.1.0"
