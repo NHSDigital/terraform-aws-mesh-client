@@ -22,4 +22,10 @@ output "mesh_kms_key_arn" {
   value = aws_kms_key.mesh.arn
 }
 
+output "step_function_get_messages_arn" {
+  value = aws_sfn_state_machine.get_messages.arn
+}
 
+output "step_function_send_messages_arn" {
+  value = aws_sfn_state_machine.send_message.arn
+}
