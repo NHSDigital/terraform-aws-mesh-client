@@ -52,7 +52,10 @@ up-ci: requirements certs
 
 up: up-ci
 
-down:
+stop-lambdas:
+	docker stop $$(docker ps --filter name=lambda -q) || true
+
+down: stop-lambdas
 	poetry run docker compose down --remove-orphans || true
 	make -C stacks/localstack clean
 
