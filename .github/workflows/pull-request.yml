@@ -78,6 +78,9 @@ jobs:
           chmod +x ./tfsec
           ./tfsec module --config-file tfsec.yml
 
+      - name: tflint
+        run: make tflint
+
       - name: ruff
         run: make ruff-ci
 

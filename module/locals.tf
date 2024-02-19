@@ -28,8 +28,8 @@ locals {
 
     CA_CERT_CONFIG_KEY        = data.aws_ssm_parameter.ca_cert.name
     CLIENT_CERT_CONFIG_KEY    = data.aws_ssm_parameter.client_cert.name
-    CLIENT_KEY_CONFIG_KEY     = data.aws_ssm_parameter.client_key.0.name
-    SHARED_KEY_CONFIG_KEY     = data.aws_ssm_parameter.shared_key.0.name
+    CLIENT_KEY_CONFIG_KEY     = data.aws_ssm_parameter.client_key[0].name
+    SHARED_KEY_CONFIG_KEY     = data.aws_ssm_parameter.shared_key[0].name
     MAILBOXES_BASE_CONFIG_KEY = "/${local.name}/mesh/mailboxes"
 
     SEND_MESSAGE_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:${local.send_message_name}"
@@ -58,9 +58,9 @@ locals {
 
   secrets_kms_key_ids = (
     var.use_secrets_manager ? compact(toset(concat(
-      data.aws_secretsmanager_secret.shared_key.*.kms_key_id,
-      data.aws_secretsmanager_secret.client_key.*.kms_key_id,
-      data.aws_secretsmanager_secret.mailbox_password.*.kms_key_id
+      data.aws_secretsmanager_secret.shared_key[*].kms_key_id,
+      data.aws_secretsmanager_secret.client_key[*].kms_key_id,
+      data.aws_secretsmanager_secret.mailbox_password[*].kms_key_id
     ))) : toset([])
   )
 
@@ -68,9 +68,9 @@ locals {
 
   secrets_arns = (
     var.use_secrets_manager ? compact(concat(
-      data.aws_secretsmanager_secret.shared_key.*.arn,
-      data.aws_secretsmanager_secret.client_key.*.arn,
-      data.aws_secretsmanager_secret.mailbox_password.*.arn
+      data.aws_secretsmanager_secret.shared_key[*].arn,
+      data.aws_secretsmanager_secret.client_key[*].arn,
+      data.aws_secretsmanager_secret.mailbox_password[*].arn
     )) : toset([])
   )
 

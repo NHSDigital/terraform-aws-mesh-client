@@ -64,9 +64,10 @@ pytest: certs
 
 test: pytest
 
-
-tf-lint:
-	docker run --rm -v $(pwd)/module:/data -t ghcr.io/terraform-linters/tflint --enable-plugin=aws
+tflint:
+	@docker run -v "$(pwd)/module:/data" -v "$(pwd)/tflint.hcl:/tflint.hcl" --entrypoint=/bin/sh \
+		ghcr.io/terraform-linters/tflint \
+		-c "tflint --init --config '/tflint.hcl'; tflint --config '/tflint.hcl' --enable-plugin=aws"
 
 tf-format-check:
 	terraform fmt -check -recursive module
@@ -93,7 +94,7 @@ ruff-check:
 ruff-ci:
 	poetry run ruff . --output-format=github
 
-lint: ruff mypy shellcheck
+lint: ruff mypy shellcheck tflint
 
 black-check:
 	poetry run black . --check
