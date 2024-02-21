@@ -13,7 +13,7 @@ resource "aws_lambda_function" "fetch_message_chunk" {
   role             = aws_iam_role.fetch_message_chunk.arn
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
   ephemeral_storage {
-    size = 10240
+    size = var.fetch_message_ephemeral_storage_size
   }
   environment {
     variables = local.common_env_vars

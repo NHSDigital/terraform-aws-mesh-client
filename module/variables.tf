@@ -163,6 +163,7 @@ variable "get_messages_enabled" {
 }
 
 variable "mesh_s3_object_expiry_in_days" {
+  type        = number
   default     = 60
   description = "days to retain mesh message objects in the s3 bucket, objects will be marked as non-current after x days and permanently deleted x days after that"
 }
@@ -202,7 +203,7 @@ variable "handshake_schedule" {
 
 variable "fetch_message_ephemeral_storage_size" {
   type        = number
-  default     = 1024
+  default     = 10240
   description = "this is in MiB so 1024 is 1GiB, retrieved chunks are buffered to disk in the receiving lambda function, if you are are receiving high volumes of smaller messages, you may want to lower this"
 }
 
