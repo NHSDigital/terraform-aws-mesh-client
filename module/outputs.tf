@@ -50,6 +50,6 @@ output "stepfunction_get_messages_log_group_name" {
   value = aws_cloudwatch_log_group.get_messages.name
 }
 
-output "stepfunction_send_messages_log_group_name" {
-  value = aws_cloudwatch_log_group.send_messages.name
+output "stepfunction_send_message_log_group_name" {
+  value = aws_cloudwatch_log_group.send_message.name
 }
