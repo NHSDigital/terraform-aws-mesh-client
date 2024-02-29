@@ -36,6 +36,8 @@ install:
 install-ci:
 	poetry install --without local --sync
 
+update:
+	poetry update
 
 local-terraform:
 	make -C stacks/localstack
@@ -50,7 +52,10 @@ up-ci: requirements certs
 
 up: up-ci
 
-down:
+stop-lambdas:
+	docker stop $$(docker ps --filter name=lambda -q) || true
+
+down: stop-lambdas
 	poetry run docker compose down --remove-orphans || true
 	make -C stacks/localstack clean
 
@@ -62,9 +67,10 @@ pytest: certs
 
 test: pytest
 
-
-tf-lint:
-	docker run --rm -v $(pwd)/module:/data -t ghcr.io/terraform-linters/tflint --enable-plugin=aws
+tflint:
+	@docker run -v "$(pwd)/module:/data" -v "$(pwd)/tflint.hcl:/tflint.hcl" --entrypoint=/bin/sh \
+		ghcr.io/terraform-linters/tflint \
+		-c "tflint --init --config '/tflint.hcl'; tflint --config '/tflint.hcl' --enable-plugin=aws"
 
 tf-format-check:
 	terraform fmt -check -recursive module
@@ -91,7 +97,7 @@ ruff-check:
 ruff-ci:
 	poetry run ruff . --output-format=github
 
-lint: ruff mypy shellcheck
+lint: ruff mypy shellcheck tflint
 
 black-check:
 	poetry run black . --check
