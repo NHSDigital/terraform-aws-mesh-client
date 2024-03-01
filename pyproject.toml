@@ -34,7 +34,7 @@ petname = "^2.6"
 black = "^24"
 
 [tool.poetry.group.local.dependencies]
-ipython = "^8.12.2"
+ipython = "^8.22.1"
 
 [tool.ruff]
 lint.select = [
