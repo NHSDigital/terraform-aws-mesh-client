@@ -53,3 +53,11 @@ output "lambda_poll_mailbox_log_group_name" {
 output "lambda_send_message_chunk_log_group_name" {
   value = aws_cloudwatch_log_group.send_message_chunk.name
 }
+
+output "ssm_ca_cert_name" {
+  value = data.aws_ssm_parameter.ca_cert.name
+}
+
+output "ssm_client_cert_name" {
+  value = data.aws_ssm_parameter.client_cert.name
+}
