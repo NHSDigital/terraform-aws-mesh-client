@@ -7,6 +7,7 @@ from mypy_boto3_lambda import LambdaClient
 from mypy_boto3_stepfunctions import SFNClient
 
 from .constants import (
+    FETCH_LOG_GROUP,
     GET_MESSAGES_SFN_ARN,
     LOCAL_MAILBOXES,
     POLL_FUNCTION,
@@ -137,3 +138,64 @@ def test_invoke_get_when_message_exists(
     message_id = received["message_id"]
 
     assert message_id == sent_message_id
+
+
+def test_trigger_step_function_get_messages_pagination(
+    mesh_client_one: MeshClient, sfn: SFNClient
+):
+    wait_till_not_running(state_machine_arn=GET_MESSAGES_SFN_ARN, sfn=sfn)
+
+    mailbox_id = mesh_client_one._mailbox
+    workflow_id = "WORKFLOW_1"
+
+    sent_message_ids = [
+        mesh_client_one.send_message(
+            recipient=mailbox_id,
+            data=f"data {i}: {uuid4().hex}".encode(),
+            subject=f"subject {i}: {uuid4().hex}",
+            workflow_id=workflow_id,
+        )
+        for i in range(21)
+    ]
+
+    with CloudwatchLogsCapture(
+        log_group=POLL_LOG_GROUP
+    ) as poll_cw, CloudwatchLogsCapture(log_group=FETCH_LOG_GROUP) as fetch_cw:
+        execution = sfn.start_execution(
+            stateMachineArn=GET_MESSAGES_SFN_ARN,
+            name=uuid4().hex,
+            input=json.dumps({"mailbox": mailbox_id}),
+        )
+
+        output, result = wait_for_execution_outcome(
+            execution_arn=execution["executionArn"],
+            sfn=sfn,
+        )
+
+        assert result["status"] == "SUCCEEDED"
+        assert output
+        assert output.get("statusCode") == 200
+
+        poll_cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") == "LAMBDA0003", min_results=3
+        )
+        fetch_cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") == "LAMBDA0003",
+            min_results=len(sent_message_ids),
+        )
+
+        poll_logs = poll_cw.find_logs(parse_logs=True)
+        fetch_logs = fetch_cw.find_logs(parse_logs=True)
+
+        logs = poll_logs + fetch_logs
+        assert logs
+
+        assert all(log.get("Log_Level") == "INFO" for log in logs if log)
+        downloaded_logs = list(
+            filter(lambda x: x.get("logReference") == "MESHFETCH0011", logs)
+        )
+
+        assert len(sent_message_ids) == len(downloaded_logs)
+        downloaded_message_ids = [log["message_id"] for log in downloaded_logs]
+
+        assert set(sent_message_ids) == set(downloaded_message_ids)

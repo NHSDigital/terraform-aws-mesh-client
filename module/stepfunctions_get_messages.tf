@@ -85,7 +85,7 @@ resource "aws_sfn_state_machine" "get_messages" {
           }
         }
         MaxConcurrency = var.get_message_max_concurrency
-        Next           = "Were there exactly 500 messages?"
+        Next           = "Were there exactly ${var.get_messages_page_limit} messages?"
         ResultPath     = null
         Type           = "Map"
       }
@@ -122,11 +122,11 @@ resource "aws_sfn_state_machine" "get_messages" {
         ]
         Type = "Task"
       }
-      "Were there exactly 500 messages?" = {
+      "Were there exactly ${var.get_messages_page_limit} messages?" = {
         Choices = [
           {
             Next          = "Poll for messages"
-            NumericEquals = 500
+            NumericEquals = var.get_messages_page_limit
             Variable      = "$.body.message_count"
           },
         ]
