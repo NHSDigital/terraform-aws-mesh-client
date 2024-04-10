@@ -51,8 +51,9 @@ module "main" {
     },
   ]
 
-  get_messages_schedule = "rate(31 days)" # this set this very rarely to allow tests to control invocation
-  handshake_schedule    = "rate(31 days)" # this set this very rarely to allow tests to control invocation
+  get_messages_page_limit = 10
+  get_messages_schedule   = "rate(31 days)" # this set this very rarely to allow tests to control invocation
+  handshake_schedule      = "rate(31 days)" # this set this very rarely to allow tests to control invocation
 
   chunk_size         = 10 * 1024 * 1024
   crumb_size         = (1 * 1024 * 1024) - 7 # setting this to an odd setting for testing .. (generally leave this alone)

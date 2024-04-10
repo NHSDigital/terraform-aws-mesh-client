@@ -35,6 +35,7 @@ locals {
     SEND_MESSAGE_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:${local.send_message_name}"
     GET_MESSAGES_STEP_FUNCTION_ARN = "arn:aws:states:${var.region}:${var.account_id}:stateMachine:${local.get_messages_name}"
 
+    GET_MESSAGES_PAGE_LIMIT = var.get_messages_page_limit
 
     USE_SENDER_FILENAME         = var.use_sender_filename
     USE_LEGACY_INBOUND_LOCATION = var.use_legacy_inbound_location

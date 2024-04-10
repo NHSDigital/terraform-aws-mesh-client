@@ -16,7 +16,7 @@ importlib-metadata = "7.0.1"
 urllib3 = "^1.26.0"
 spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.7.2"
-aws-lambda-powertools = "^2.25.1"
+aws-lambda-powertools = "^2.36.0"
 mesh-client = "^3.2.1"
 
 [tool.poetry.group.dev.dependencies]
@@ -34,7 +34,7 @@ petname = "^2.6"
 black = "^24"
 
 [tool.poetry.group.local.dependencies]
-ipython = "^8.12.2"
+ipython = "^8.23.0"
 
 [tool.ruff]
 lint.select = [

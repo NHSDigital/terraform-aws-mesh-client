@@ -105,6 +105,9 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 "message_count": message_count,
                 "message_list": output_list,
             },
+            # Parameters for a follow-up iteration through the messages in this execution
+            "mailbox": self.mailbox_id,
+            "handshake": "false",  # No need to handshake again for this execution
         }
 
     def perform_handshake(self) -> int:
@@ -136,7 +139,9 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
         ]
         """
 
-        message_ids = self.mesh_client.list_messages()
+        message_ids = self.mesh_client.list_messages(
+            max_results=self.config.get_messages_page_limit
+        )
         self.log_object.write_log(
             "MESHMBOX0005",
             None,

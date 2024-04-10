@@ -61,3 +61,6 @@ class EnvConfig:
         self.mailboxes_base_config_key = os.environ.get(
             "MAILBOXES_BASE_CONFIG_KEY", "not-set"
         )
+        self.get_messages_page_limit = int(
+            os.environ.get("GET_MESSAGES_PAGE_LIMIT", "500")
+        )

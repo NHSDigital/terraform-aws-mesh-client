@@ -34,7 +34,7 @@ services:
         condition: on-failure
         max_attempts: 3
     healthcheck:
-      test: curl -sf https://localhost:443/health || exit 1
+      test: curl -sfk https://localhost:443/health || exit 1
       interval: 3s
       timeout: 10s
     environment:
