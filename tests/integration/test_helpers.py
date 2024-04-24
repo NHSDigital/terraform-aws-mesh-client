@@ -127,12 +127,6 @@ def sync_json_lambda_invocation_successful(
     return payload, logs
 
 
-def resource_path(path: str) -> str:
-    path = (path or "").strip().strip("/")
-    base_path = os.path.abspath(f"{os.path.dirname(__file__)}/../..")
-    return f"{base_path}/{path}"
-
-
 class CloudwatchLogsCapture:
     def __init__(
         self,
@@ -256,7 +250,7 @@ class CloudwatchLogsCapture:
                     self.reports,
                 )
 
-            sleep(0.1)
+            sleep(1)
 
     @staticmethod
     def match_events(

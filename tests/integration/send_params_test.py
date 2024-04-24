@@ -10,13 +10,13 @@ from shared.send_parameters import get_send_parameters
 from integration.test_helpers import temp_mapping_for_s3_object
 
 
-def test_get_send_params_from_ssm_mapping(temp_s3_bucket: Bucket, ssm: SSMClient):
+def test_get_send_params_from_ssm_mapping(local_mesh_bucket: Bucket, ssm: SSMClient):
     env = uuid4().hex
     sender = uuid4().hex[:8].upper()
     recipient = uuid4().hex[:8].upper()
     workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
     filename = f"{uuid4().hex}.dat"
-    s3_object = temp_s3_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
+    s3_object = local_mesh_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
     content = b"test"
     s3_object.put(Body=content, ContentType="text/plain")
 
@@ -48,14 +48,14 @@ def test_get_send_params_from_ssm_mapping(temp_s3_bucket: Bucket, ssm: SSMClient
 
 
 def test_get_send_params_from_ssm_mapping_already_gzip_compressed(
-    temp_s3_bucket: Bucket, ssm: SSMClient
+    local_mesh_bucket: Bucket, ssm: SSMClient
 ):
     env = uuid4().hex
     sender = uuid4().hex[:8].upper()
     recipient = uuid4().hex[:8].upper()
     workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
     filename = f"{uuid4().hex}.dat"
-    s3_object = temp_s3_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
+    s3_object = local_mesh_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
     content = gzip.compress(b"test")
     s3_object.put(Body=content, ContentType="text/plain", ContentEncoding="gzip")
     config = EnvConfig()
@@ -86,14 +86,14 @@ def test_get_send_params_from_ssm_mapping_already_gzip_compressed(
 
 
 def test_get_send_params_from_ssm_mapping_already_deflate_compressed(
-    temp_s3_bucket: Bucket, ssm: SSMClient
+    local_mesh_bucket: Bucket, ssm: SSMClient
 ):
     env = uuid4().hex
     sender = uuid4().hex[:8].upper()
     recipient = uuid4().hex[:8].upper()
     workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
     filename = f"{uuid4().hex}.dat"
-    s3_object = temp_s3_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
+    s3_object = local_mesh_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
     content = gzip.compress(b"test")
     s3_object.put(Body=content, ContentType="text/plain", ContentEncoding="deflate")
     config = EnvConfig()
@@ -124,14 +124,14 @@ def test_get_send_params_from_ssm_mapping_already_deflate_compressed(
 
 
 def test_get_send_params_from_s3_metadata_minimal(
-    temp_s3_bucket: Bucket, ssm: SSMClient
+    local_mesh_bucket: Bucket, ssm: SSMClient
 ):
     env = uuid4().hex
     sender = uuid4().hex[:8].upper()
     recipient = uuid4().hex[:8].upper()
     workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
     filename = f"{uuid4().hex}.dat"
-    s3_object = temp_s3_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
+    s3_object = local_mesh_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
     content = b"test"
     s3_object.put(
         Body=content,
@@ -167,13 +167,15 @@ def test_get_send_params_from_s3_metadata_minimal(
     assert params.encrypted is None
 
 
-def test_get_send_params_from_s3_metadata_full(temp_s3_bucket: Bucket, ssm: SSMClient):
+def test_get_send_params_from_s3_metadata_full(
+    local_mesh_bucket: Bucket, ssm: SSMClient
+):
     env = uuid4().hex
     sender = uuid4().hex[:8].upper()
     recipient = uuid4().hex[:8].upper()
     workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
     filename = f"{uuid4().hex}.dat"
-    s3_object = temp_s3_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
+    s3_object = local_mesh_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
     content = b"test"
     override_filename = "ooo/&*..txt"
     checksum = uuid4().hex
@@ -223,14 +225,14 @@ def test_get_send_params_from_s3_metadata_full(temp_s3_bucket: Bucket, ssm: SSMC
 
 
 def test_get_send_params_from_s3_use_s3_key_filename(
-    temp_s3_bucket: Bucket, ssm: SSMClient
+    local_mesh_bucket: Bucket, ssm: SSMClient
 ):
     env = uuid4().hex
     sender = uuid4().hex[:8].upper()
     recipient = uuid4().hex[:8].upper()
     workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
     filename = f"{uuid4().hex}.dat"
-    s3_object = temp_s3_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
+    s3_object = local_mesh_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
     content = b"test"
     local_id = uuid4().hex
     s3_object.put(
@@ -265,14 +267,14 @@ def test_get_send_params_from_s3_use_s3_key_filename(
 
 
 def test_get_send_params_from_s3_use_s3_key_with_override_filename(
-    temp_s3_bucket: Bucket, ssm: SSMClient
+    local_mesh_bucket: Bucket, ssm: SSMClient
 ):
     env = uuid4().hex
     sender = uuid4().hex[:8].upper()
     recipient = uuid4().hex[:8].upper()
     workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
     filename = f"{uuid4().hex}.dat"
-    s3_object = temp_s3_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
+    s3_object = local_mesh_bucket.Object(f"outbound_{sender}_to_{recipient}/{filename}")
     override_filename = "ooo/&*..txt"
     content = b"test"
     local_id = uuid4().hex

@@ -601,7 +601,7 @@ def test_send_receive_legacy_mapping(
             )  # no cloudtrail in localstack
             cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
 
-    wait_for(lambda: len(mesh_client_two.list_messages()) > 0)
+    wait_for(lambda: len(mesh_client_two.list_messages()) > 0, timeout=30)
     messages = mesh_client_two.list_messages()
     assert len(messages) == 1
     message_id = messages[0]

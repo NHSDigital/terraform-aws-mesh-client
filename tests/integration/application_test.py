@@ -74,12 +74,12 @@ def setup_config(
 
 
 def test_mesh_application_config_defaults(
-    ssm: SSMClient, secrets: SecretsManagerClient, temp_s3_bucket: Bucket
+    ssm: SSMClient, secrets: SecretsManagerClient, local_mesh_bucket: Bucket
 ):
     env = uuid4().hex[:8].upper()
     mailbox = uuid4().hex[:8].upper()
     with setup_config(
-        env=env, mesh_bucket=temp_s3_bucket.name, ssm=ssm, secrets=secrets
+        env=env, mesh_bucket=local_mesh_bucket.name, ssm=ssm, secrets=secrets
     ):
         app = MESHLambdaApplication()
         app.ensure_params(mailbox)
@@ -103,13 +103,13 @@ def test_mesh_application_config_defaults(
 
 
 def test_mesh_application_no_verify_ssl(
-    ssm: SSMClient, secrets: SecretsManagerClient, temp_s3_bucket: Bucket
+    ssm: SSMClient, secrets: SecretsManagerClient, local_mesh_bucket: Bucket
 ):
     env = uuid4().hex[:8].upper()
     mailbox = uuid4().hex[:8].upper()
     with setup_config(
         env=env,
-        mesh_bucket=temp_s3_bucket.name,
+        mesh_bucket=local_mesh_bucket.name,
         ssm=ssm,
         secrets=secrets,
         VERIFY_SSL="false",
@@ -150,7 +150,7 @@ def test_mesh_application_ssm_when_both_exist(
     expected_mailbox_params: dict[str, str],
     ssm: SSMClient,
     secrets: SecretsManagerClient,
-    temp_s3_bucket: Bucket,
+    local_mesh_bucket: Bucket,
 ):
     env = uuid4().hex[:8].upper()
     mailbox = uuid4().hex[:8].upper()
@@ -169,7 +169,7 @@ def test_mesh_application_ssm_when_both_exist(
     }
     with setup_config(
         env=env,
-        mesh_bucket=temp_s3_bucket.name,
+        mesh_bucket=local_mesh_bucket.name,
         ssm_params=ssm_params,
         secret_values=secret_values,
         ssm=ssm,
@@ -217,7 +217,7 @@ def test_mesh_application_secrets_when_both_exist(
     expected_mailbox_params: dict[str, str],
     ssm: SSMClient,
     secrets: SecretsManagerClient,
-    temp_s3_bucket: Bucket,
+    local_mesh_bucket: Bucket,
 ):
     env = uuid4().hex[:8].upper()
     mailbox = uuid4().hex[:8].upper()
@@ -236,7 +236,7 @@ def test_mesh_application_secrets_when_both_exist(
     }
     with setup_config(
         env=env,
-        mesh_bucket=temp_s3_bucket.name,
+        mesh_bucket=local_mesh_bucket.name,
         ssm_params=ssm_params,
         secret_values=secret_values,
         ssm=ssm,
@@ -267,7 +267,7 @@ def test_mesh_application_secrets_when_both_exist(
 
 
 def test_mesh_application_ssm_updated_when_expired(
-    ssm: SSMClient, secrets: SecretsManagerClient, temp_s3_bucket: Bucket
+    ssm: SSMClient, secrets: SecretsManagerClient, local_mesh_bucket: Bucket
 ):
     env = uuid4().hex[:8].upper()
     mailbox = uuid4().hex[:8].upper()
@@ -280,7 +280,7 @@ def test_mesh_application_ssm_updated_when_expired(
 
     with setup_config(
         env=env,
-        mesh_bucket=temp_s3_bucket.name,
+        mesh_bucket=local_mesh_bucket.name,
         ssm_params=ssm_params,
         ssm=ssm,
         secrets=secrets,
