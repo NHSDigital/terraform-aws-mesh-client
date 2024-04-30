@@ -1,240 +1,77 @@
 """Common methods and classes used for testing mesh client"""
 
-import os
-from typing import ClassVar, Literal
-from unittest import TestCase
+import json
+from typing import cast
 
-from botocore.config import Config
-from spine_aws_common.log.log_helper import LogHelper
+import requests
+
+SANDBOX_URL = "https://localhost:8700"
+
+LOCAL_MAILBOXES = ["X26ABC1", "X26ABC2"]
+MB = 1024 * 1024
+
 
 FILE_CONTENT = "123456789012345678901234567890123"
+KNOWN_INTERNAL_ID = "20210701225219765177_TESTER"
+KNOWN_INTERNAL_ID1 = "20210701225219765177_TEST01"
+KNOWN_MESSAGE_ID1 = "20210704225941465332_MESG01"
+KNOWN_MESSAGE_ID2 = "20210705133616577537_MESG02"
+KNOWN_MESSAGE_ID3 = "20210705134726725149_MESG03"
+CONTEXT = {"aws_request_id": "TESTREQUEST"}
 
 
-def put_parameter(
-    ssm_client,
-    Name: str,
-    Value: str,
-    Type: Literal["String", "SecureString", "StringList"] = "String",
-    Overwrite: bool = True,
-):
-    """Setup ssm param store for tests"""
-    # Setup mapping
-    ssm_client.put_parameter(Name=Name, Value=Value, Type=Type, Overwrite=Overwrite)
+def was_value_logged(logs: str, log_reference: str, key: str, value: str):
+    """Was a particular key-value pair logged for a log reference"""
+    for log_line in _get_log_lines(logs):
+        if f"logReference={log_reference} " not in log_line:
+            continue
+
+        if f"{key}={value}" in log_line:
+            return True
+
+    return False
 
 
-def resource_path(path: str) -> str:
-    path = (path or "").strip().strip("/")
-    base_path = os.path.abspath(f"{os.path.dirname(__file__)}/../..")
-    return f"{base_path}/{path}"
+def _get_log_lines(logs: str):
+    return [log_line for log_line in logs.split("\n") if log_line]
 
 
-def read_text_file(path: str) -> str:
-    with open(path, encoding="utf-8") as f:
-        return f.read()
-
-
-class MeshTestingCommon:
-    """Mock helpers"""
-
-    CONTEXT: ClassVar[dict[str, str]] = {"aws_request_id": "TESTREQUEST"}
-    KNOWN_INTERNAL_ID = "20210701225219765177_TESTER"
-    KNOWN_INTERNAL_ID1 = "20210701225219765177_TEST01"
-    KNOWN_INTERNAL_ID2 = "20210701225219765177_TEST02"
-    KNOWN_MESSAGE_ID1 = "20210704225941465332_MESG01"
-    KNOWN_MESSAGE_ID2 = "20210705133616577537_MESG02"
-    KNOWN_MESSAGE_ID3 = "20210705134726725149_MESG03"
-    FILE_CONTENT = FILE_CONTENT
-
-    aws_config = Config(region_name="eu-west-2")
-
-    os_environ_values: ClassVar[dict[str, str]] = {
-        "AWS_REGION": "eu-west-2",
-        "AWS_EXECUTION_ENV": "AWS_Lambda_python3.8",
-        "AWS_LAMBDA_FUNCTION_NAME": "lambda_test",
-        "AWS_LAMBDA_FUNCTION_MEMORY_SIZE": "128",
-        "AWS_LAMBDA_FUNCTION_VERSION": "1",
-        "ENVIRONMENT": "meshtest",
-        "CRUMB_SIZE": "10",
-        "CHUNK_SIZE": "10",
-        "MESH_URL": "https://localhost:8700",
-        "MESH_BUCKET": "meshtest-mesh",
-        "SEND_MESSAGE_STEP_FUNCTION_ARN": "arn:aws:states:eu-west-2:123456789012:stateMachine:meshtest-send-message",
-        "GET_MESSAGES_STEP_FUNCTION_ARN": "arn:aws:states:eu-west-2:123456789012:stateMachine:meshtest-get-messages",
-        "CA_CERT_CONFIG_KEY": "/meshtest/mesh/MESH_CA_CERT",
-        "CLIENT_CERT_CONFIG_KEY": "/meshtest/mesh/MESH_CLIENT_CERT",
-        "CLIENT_KEY_CONFIG_KEY": "/meshtest/mesh/MESH_CLIENT_KEY",
-        "SHARED_KEY_CONFIG_KEY": "/meshtest/mesh/MESH_SHARED_KEY",
-        "MAILBOXES_BASE_CONFIG_KEY": "/meshtest/mesh/mailboxes",
+def inject_expired_non_delivery_report(
+    mailbox_id: str,
+    workflow_id: str,
+    subject: str,
+    local_id: str,
+    file_name: str,
+    linked_message_id: str,
+) -> str:
+    mailbox_id = (mailbox_id or "").strip().upper()
+    assert mailbox_id
+    data = {
+        "mailbox_id": mailbox_id,
+        "code": "14",
+        "description": "Message not collected by recipient after 5 days",
+        "workflow_id": workflow_id,
+        "subject": f"NDR: {subject}",
+        "local_id": local_id,
+        "status": "undeliverable",
+        "file_name": file_name,
+        "linked_message_id": linked_message_id,
     }
 
-    @classmethod
-    def get_known_internal_id(cls):
-        """Get a known internal Id for testing and mocking purposes"""
-        return MeshTestingCommon.KNOWN_INTERNAL_ID
-
-    @classmethod
-    def get_known_internal_id1(cls):
-        """Get a known internal Id for testing and mocking purposes"""
-        return MeshTestingCommon.KNOWN_INTERNAL_ID1
-
-    @classmethod
-    def get_known_internal_id2(cls):
-        """Get a known internal Id for testing and mocking purposes"""
-        return MeshTestingCommon.KNOWN_INTERNAL_ID2
-
-    @staticmethod
-    def setup_step_function(sfn_client, environment, step_function_name):
-        """Setup a mock step function with name from environment"""
-        if not environment:
-            environment = "default"
-        step_func_definition = {
-            "Comment": "Test step function",
-            "StartAt": "HelloWorld",
-            "States": {
-                "HelloWorld": {
-                    "Type": "Task",
-                    "Resource": "arn:aws:lambda:eu-west-2:123456789012:function:HW",
-                    "End": True,
-                }
-            },
-        }
-        return sfn_client.create_state_machine(
-            definition=f"{step_func_definition}",
-            loggingConfiguration={
-                "destinations": [{"cloudWatchLogsLogGroup": {"logGroupArn": "xxx"}}],
-                "includeExecutionData": False,
-                "level": "ALL",
-            },
-            name=step_function_name,
-            roleArn="arn:aws:iam::123456789012:role/StepFunctionRole",
-            tags=[{"key": "environment", "value": environment}],
-            tracingConfiguration={"enabled": False},
-            type="STANDARD",
-        )
-
-    @staticmethod
-    def setup_mock_aws_s3_buckets(environment, s3_client):
-        """Setup standard environment for tests"""
-        location = {"LocationConstraint": "eu-west-2"}
-        s3_client.create_bucket(
-            Bucket=f"{environment}-mesh",
-            CreateBucketConfiguration=location,
-        )
-        file_content = FILE_CONTENT
-        s3_client.put_object(
-            Bucket=f"{environment}-mesh",
-            Key="MESH-TEST2/outbound/testfile.json",
-            Body=file_content,
-            Metadata={
-                "Mex-subject": "Custom Subject",
-            },
-        )
-
-    @staticmethod
-    def setup_mock_aws_ssm_parameter_store(environment, ssm_client):
-        """Setup ssm param store for tests"""
-        # Setup mapping
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/src_mailbox",
-            Value="MESH-TEST2",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/dest_mailbox",
-            Value="MESH-TEST1",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/workflow_id",
-            Value="TESTWORKFLOW",
-        )
-        # Setup secrets
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/MESH_URL",
-            Value="https://localhost",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/MESH_SHARED_KEY",
-            Value="TestKey",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mailboxes/MESH-TEST1/MAILBOX_PASSWORD",
-            Value="pwd123456",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mailboxes/MESH-TEST1/INBOUND_BUCKET",
-            Value=f"{environment}-mesh",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mailboxes/MESH-TEST1/INBOUND_FOLDER",
-            Value="inbound-mesh-test1",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mailboxes/MESH-TEST2/MAILBOX_PASSWORD",
-            Value="pwd123456",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mailboxes/MESH-TEST2/INBOUND_BUCKET",
-            Value=f"{environment}-mesh",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/mailboxes/MESH-TEST2/INBOUND_FOLDER",
-            Value="inbound-mesh-test2",
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/MESH_VERIFY_SSL",
-            Value="False",
-        )
-        # these are self signed certs
-        ca_cert = read_text_file(
-            resource_path("scripts/self-signed-ca/bundles/server-sub-ca-bundle.pem")
-        )
-        client_cert = read_text_file(
-            resource_path("scripts/self-signed-ca/certs/client/valid/crt.pem")
-        )
-        client_key = read_text_file(
-            resource_path("scripts/self-signed-ca/certs/client/valid/key.pem")
-        )
-
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/MESH_CA_CERT",
-            Value=ca_cert,
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/MESH_CLIENT_CERT",
-            Value=client_cert,
-        )
-        put_parameter(
-            ssm_client,
-            Name=f"/{environment}/mesh/MESH_CLIENT_KEY",
-            Value=client_key,
-        )
+    res = requests.post(
+        f"{SANDBOX_URL}/messageexchange/admin/report",
+        data=json.dumps(data),
+        verify=False,  # NOSONAR
+    )
+    res.raise_for_status()
+    return cast(str, res.json()["message_id"])
 
 
-class MeshTestCase(TestCase):
-    """Common setup for Mesh test cases"""
-
-    def __init__(self, method_name):
-        super().__init__(methodName=method_name)
-        self.environment = None
-        self.app = None
-
-    def setUp(self):
-        """Common setup for all tests"""
-        self.log_helper = LogHelper()
-        self.log_helper.set_stdout_capture()
-
-    def tearDown(self):
-        self.log_helper.clean_up()
+def reset_sandbox_mailbox(mailbox_id: str):
+    mailbox_id = (mailbox_id or "").strip().upper()
+    assert mailbox_id
+    res = requests.delete(
+        f"{SANDBOX_URL}/messageexchange/admin/reset/{mailbox_id}",
+        verify=False,
+    )
+    res.raise_for_status()

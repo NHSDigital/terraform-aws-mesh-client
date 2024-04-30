@@ -1,155 +1,99 @@
-""" Testing MeshPollMailbox application """
-
 import json
 from http import HTTPStatus
-from unittest import mock
+from uuid import uuid4
 
-import boto3
-import requests_mock
-from mesh_poll_mailbox_application import (
-    MeshPollMailboxApplication,
-)
-from moto import mock_s3, mock_secretsmanager, mock_ssm, mock_stepfunctions
+from mesh_client import MeshClient
+from nhs_aws_helpers import stepfunctions
 
 from .mesh_testing_common import (
-    MeshTestCase,
-    MeshTestingCommon,
+    CONTEXT,
+    was_value_logged,
 )
 
 
-@mock_secretsmanager
-@mock_ssm
-@mock_s3
-@mock_stepfunctions
-class TestMeshPollMailboxApplication(MeshTestCase):
-    """Testing MeshPollMailbox application"""
+def test_mesh_poll_mailbox_happy_path(
+    mesh_client_one: MeshClient,
+    mesh_client_two: MeshClient,
+    environment: str,
+    get_messages_sfn_arn: str,
+    capsys,
+):
+    num_messages = 3
+    message_ids = [
+        mesh_client_two.send_message(
+            recipient=mesh_client_one._mailbox,
+            workflow_id=uuid4().hex,
+            data=f"Hello {i}".encode(),
+        )
+        for i in range(num_messages)
+    ]
 
-    @mock.patch.dict("os.environ", MeshTestingCommon.os_environ_values)
-    def setUp(self):
-        """Override setup to use correct application object"""
-        super().setUp()
-        self.app = MeshPollMailboxApplication()
-        self.environment = self.app.system_config["ENVIRONMENT"]
+    mock_input = {"mailbox": mesh_client_one._mailbox}
 
-    @requests_mock.Mocker()
-    def test_mesh_poll_mailbox_happy_path(self, mock_response):
-        """Test the lambda"""
+    stepfunctions().start_execution(
+        stateMachineArn=get_messages_sfn_arn,
+        input=json.dumps(mock_input),
+    )
+    from mesh_poll_mailbox_application import MeshPollMailboxApplication
 
-        # Mock response from MESH server
-        mock_response.get(
-            "/messageexchange/MESH-TEST1/inbox",
-            text=json.dumps(
-                {
-                    "messages": [
-                        MeshTestingCommon.KNOWN_MESSAGE_ID1,
-                        MeshTestingCommon.KNOWN_MESSAGE_ID2,
-                        MeshTestingCommon.KNOWN_MESSAGE_ID3,
-                    ]
-                }
-            ),
-        )
+    app = MeshPollMailboxApplication()
 
-        mailbox_name = "MESH-TEST1"
-        mock_input = {"mailbox": mailbox_name}
-        s3_client = boto3.client("s3", region_name="eu-west-2")
-        ssm_client = boto3.client("ssm", region_name="eu-west-2")
-        MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
-            self.environment, ssm_client
-        )
-        sfn_client = boto3.client("stepfunctions", region_name="eu-west-2")
-        assert self.app
-        response = MeshTestingCommon.setup_step_function(
-            sfn_client,
-            self.environment,
-            f"{self.environment}-get-messages",
-        )
-        step_func_arn = response.get("stateMachineArn", None)
-        assert step_func_arn is not None
-        sfn_client.start_execution(
-            stateMachineArn=step_func_arn,
-            input=json.dumps(mock_input),
-        )
-        try:
-            response = self.app.main(
-                event=mock_input, context=MeshTestingCommon.CONTEXT
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {e!s}")
+    response = app.main(event=mock_input, context=CONTEXT)
 
-        assert response["statusCode"] == int(HTTPStatus.OK)
-        # check 3 messages received
-        assert response["body"]["message_count"] == 3
-        # check first message format in message_list
-        assert (
-            response["body"]["message_list"][0]["body"]["message_id"]
-            == MeshTestingCommon.KNOWN_MESSAGE_ID1
-        )
-        assert False is response["body"]["message_list"][0]["body"]["complete"]
-        assert (
-            response["body"]["message_list"][0]["body"]["dest_mailbox"] == mailbox_name
-        )
+    assert response["statusCode"] == int(HTTPStatus.OK)
+    # check 3 messages received
+    assert response["body"]["message_count"] == num_messages
 
-        # check the correct logs exist
-        self.assertLogs("LAMBDA0001", level="INFO")
-        self.assertLogs("LAMBDA0002", level="INFO")
-        self.assertLogs("LAMBDA0003", level="INFO")
-        self.assertLogs("MESHPOLL0001", level="INFO")
+    # check first message format in message_list
+    assert {
+        json.dumps(message["headers"]) for message in response["body"]["message_list"]
+    } == {json.dumps({"Content-Type": "application/json"})}
+    assert {
+        message["body"]["complete"] for message in response["body"]["message_list"]
+    } == {False}
+    assert (
+        len(
+            {
+                message["body"]["internal_id"]
+                for message in response["body"]["message_list"]
+            }
+        )
+        == 1
+    )
+    assert {
+        message["body"]["dest_mailbox"] for message in response["body"]["message_list"]
+    } == {mesh_client_one._mailbox}
+    assert [
+        message["body"]["message_id"] for message in response["body"]["message_list"]
+    ] == message_ids
 
-    @requests_mock.Mocker()
-    def test_mesh_poll_mailbox_singleton_check(self, mock_response):
-        """Test the lambda"""
+    logs = capsys.readouterr()
+    assert was_value_logged(logs.out, "LAMBDA0001", "Log_Level", "INFO")
+    assert was_value_logged(logs.out, "LAMBDA0002", "Log_Level", "INFO")
+    assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
+    assert was_value_logged(logs.out, "MESHPOLL0001", "Log_Level", "INFO")
 
-        # Mock response from MESH server
-        mock_response.get(
-            "/messageexchange/MESH-TEST1/inbox",
-            text=json.dumps(
-                {
-                    "messages": [
-                        MeshTestingCommon.KNOWN_MESSAGE_ID1,
-                        MeshTestingCommon.KNOWN_MESSAGE_ID2,
-                        MeshTestingCommon.KNOWN_MESSAGE_ID3,
-                    ]
-                }
-            ),
-        )
 
-        mailbox_name = "MESH-TEST1"
-        mock_input = {"mailbox": mailbox_name}
-        s3_client = boto3.client("s3", region_name="eu-west-2")
-        ssm_client = boto3.client("ssm", region_name="eu-west-2")
-        MeshTestingCommon.setup_mock_aws_s3_buckets(self.environment, s3_client)
-        MeshTestingCommon.setup_mock_aws_ssm_parameter_store(
-            self.environment, ssm_client
-        )
-        sfn_client = boto3.client("stepfunctions", region_name="eu-west-2")
-        assert self.app
-        response = MeshTestingCommon.setup_step_function(
-            sfn_client,
-            self.environment,
-            f"{self.environment}-get-messages",
-        )
-        step_func_arn = response.get("stateMachineArn", None)
-        assert step_func_arn is not None
-        sfn_client.start_execution(
-            stateMachineArn=step_func_arn,
-            input=json.dumps(mock_input),
-        )
-        sfn_client.start_execution(
-            stateMachineArn=step_func_arn,
-            input=json.dumps(mock_input),
-        )
-        sfn_client.start_execution(
-            stateMachineArn=step_func_arn,
-            input=json.dumps(mock_input),
-        )
-        try:
-            response = self.app.main(
-                event=mock_input, context=MeshTestingCommon.CONTEXT
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            # need to fail happy pass on any exception
-            self.fail(f"Invocation crashed with Exception {e!s}")
+def test_mesh_poll_mailbox_singleton_check(
+    environment: str, get_messages_sfn_arn: str, capsys
+):
+    from mesh_poll_mailbox_application import MeshPollMailboxApplication
 
-        assert response["statusCode"] == int(HTTPStatus.TOO_MANY_REQUESTS)
+    app = MeshPollMailboxApplication()
+
+    mock_input = {"mailbox": uuid4().hex}
+
+    stepfunctions().start_execution(
+        stateMachineArn=get_messages_sfn_arn,
+        input=json.dumps(mock_input),
+    )
+    # Have to run a second execution as the app.main() below doesn't actually create one
+    # so the singleton check would just see the one above and think that it is itself.
+    stepfunctions().start_execution(
+        stateMachineArn=get_messages_sfn_arn,
+        input=json.dumps(mock_input),
+    )
+
+    response = app.main(event=mock_input, context=CONTEXT)
+
+    assert response["statusCode"] == int(HTTPStatus.TOO_MANY_REQUESTS)

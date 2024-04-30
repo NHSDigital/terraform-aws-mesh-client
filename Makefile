@@ -89,13 +89,13 @@ shellcheck:
 	docker run --rm -i -v ${PWD}:/mnt:ro koalaman/shellcheck -f gcc -e SC1090,SC1091 `find . \( -path "*/.venv/*" -prune -o -path "*/build/*" -prune -o -path "*/.tox/*" -prune -o -path "*/java_client/*" -prune  \) -o -type f -name '*.sh' -print` || test $$? -eq 1
 
 ruff: black
-	poetry run ruff . --fix --show-fixes
+	poetry run ruff check . --fix --show-fixes
 
 ruff-check:
-	poetry run ruff .
+	poetry run ruff check .
 
 ruff-ci:
-	poetry run ruff . --output-format=github
+	poetry run ruff check . --output-format=github
 
 lint: ruff mypy shellcheck tflint
 
@@ -185,3 +185,9 @@ pack-deps:
 
 pack-app: guard-env
 	module/pack-app.sh ./module $(env)
+
+list-functions:
+	AWS_ENDPOINT_URL=http://localhost:4569 aws lambda list-functions | jq -r .Functions[].FunctionName
+
+s3-ls:
+	AWS_ENDPOINT_URL=http://localhost:4569 aws s3 ls --recursive s3://local-mesh/

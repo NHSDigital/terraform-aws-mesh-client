@@ -1,4 +1,3 @@
-import os
 from collections.abc import Generator
 
 import pytest
@@ -22,19 +21,24 @@ from nhs_aws_helpers import (
 from nhs_aws_helpers.fixtures import *  # noqa: F403
 
 from integration.constants import LOCAL_MAILBOXES, MB, SANDBOX_URL
-from integration.test_helpers import reset_sandbox_mailbox
+from integration.test_helpers import reset_sandbox_mailbox, temp_env_vars
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def _global_setup():
-    os.environ.setdefault("LOCAL_MODE", "True")
-    os.environ.setdefault("AWS_ENDPOINT_URL", "http://localhost:4569")
-    os.environ.setdefault("MESH_CLIENT_SHARED_KEY", "TestKey")
-    os.environ.setdefault("SANDBOX_URL", SANDBOX_URL)
+    with temp_env_vars(
+        LOCAL_MODE="True",
+        AWS_ENDPOINT_URL="http://localhost:4569",
+        AWS_ACCESS_KEY_ID="foo",
+        AWS_SECRET_ACCESS_KEY="bar",
+        MESH_CLIENT_SHARED_KEY="TestKey",
+        SANDBOX_URL=SANDBOX_URL,
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)
-def _clean_mailboxes():
+def _clean_mailboxes(_global_setup):
     for mailbox_id in LOCAL_MAILBOXES:
         reset_sandbox_mailbox(mailbox_id)
 
@@ -44,7 +48,8 @@ def get_mesh_client_one() -> Generator[MeshClient, None, None]:
     with MeshClient(
         url=SANDBOX_URL,
         mailbox=LOCAL_MAILBOXES[0],
-        password="password",
+        password="pwd123456",
+        shared_key=b"TestKey",
         verify=False,
         max_chunk_size=10 * MB,
     ) as client:
@@ -56,39 +61,40 @@ def get_mesh_client_two() -> Generator[MeshClient, None, None]:
     with MeshClient(
         url=SANDBOX_URL,
         mailbox=LOCAL_MAILBOXES[1],
-        password="password",
+        password="pwd123456",
+        shared_key=b"TestKey",
         verify=False,
         max_chunk_size=10 * MB,
     ) as client:
         yield client
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def s3() -> S3ServiceResource:
     return s3_resource()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def sfn() -> SFNClient:
     return stepfunctions()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def ssm() -> SSMClient:
     return ssm_client()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def secrets() -> SecretsManagerClient:
     return secrets_client()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def events() -> EventBridgeClient:
     return events_client()
 
 
-@pytest.fixture(scope="session", name="lambdas")
+@pytest.fixture(scope="module", name="lambdas")
 def get_lambdas() -> LambdaClient:
     return lambdas()
 
