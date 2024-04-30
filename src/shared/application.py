@@ -22,7 +22,7 @@ MAILBOX_PASSWORD = "MAILBOX_PASSWORD"
 INBOUND_BUCKET = "INBOUND_BUCKET"
 INBOUND_FOLDER = "INBOUND_FOLDER"
 
-VERSION = "2.0"
+VERSION = "2.1.4"
 
 
 _OPTIONAL_SEND_ARGS = {v.lower(): k for k, v in optional_header_map().items()}
