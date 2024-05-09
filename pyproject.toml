@@ -13,7 +13,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "~3.11"
 importlib-metadata = "7.0.1"
-urllib3 = "^1.26.0"
+urllib3 = "^2.2.1"
 spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.7.2"
 aws-lambda-powertools = "^2.36.0"
