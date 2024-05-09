@@ -1,7 +1,6 @@
 """ Testing MeshPollMailbox application """
 
 import json
-import os
 import sys
 from datetime import UTC, datetime
 from http import HTTPStatus
@@ -239,7 +238,6 @@ def test_running_as_singleton(
     step_func_exec_arn = sf_response.get("executionArn", None)
     assert step_func_exec_arn is not None
     # do running check - should return 503 and log MESHSEND0003 error message
-    print("AWS_ENDPOINT_URL =", os.environ.get("AWS_ENDPOINT_URL"))
     response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
     expected_return_code = {"statusCode": HTTPStatus.TOO_MANY_REQUESTS.value}
     expected_header = {"Retry-After": 18000}
@@ -253,9 +251,52 @@ def test_running_as_singleton(
     assert was_value_logged(logs.out, "MESHSEND0004a", "Log_Level", "INFO")
 
 
-def sample_trigger_event(bucket: str, key: str = "X26ABC2/outbound/testfile.json"):
-    """Return Example S3 eventbridge event"""
-    return_value = {
+def sample_trigger_event(
+    bucket: str, key: str = "X26ABC2/outbound/testfile.json"
+) -> dict:
+
+    s3_event = {
+        "eventVersion": "1.08",
+        "eventTime": "2021-06-29T14:10:55Z",
+        "eventSource": "s3.amazonaws.com",
+        "eventName": "PutObject",
+        "awsRegion": "eu-west-2",
+        "requestParameters": {
+            "X-Amz-Date": "20210629T141055Z",
+            "bucketName": bucket,
+            "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+            "x-amz-acl": "private",
+            "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # pylint: disable=line-too-long
+            "Host": f"{bucket}.s3.eu-west-2.amazonaws.com",
+            "X-Amz-Expires": "300",
+            "key": key,
+            "x-amz-storage-class": "STANDARD",
+        },
+        "responseElements": {
+            "x-amz-server-side-encryption": "aws:kms",
+            "x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:eu-west-2:092420156801:key/4f295c4c-17fd-4c9d-84e9-266b01de0a5a",  # noqa pylint: disable=line-too-long
+        },
+        "requestID": "1234567890123456",
+        "eventID": "75e91cfc-f2db-4e09-8f80-a206ab4cd15e",
+        "readOnly": False,
+        "resources": [
+            {
+                "type": "AWS::S3::Object",
+                "ARN": f"arn:aws:s3:::{key}",  # pylint: disable=line-too-long
+            },
+            {
+                "accountId": "123456789012",
+                "type": "AWS::S3::Bucket",
+                "ARN": f"arn:aws:s3:::{bucket}",
+            },
+        ],
+        "eventType": "AwsApiCall",
+        "managementEvent": False,
+        "recipientAccountId": "123456789012",
+        "eventCategory": "Data",
+    }
+
+    event_bridge_event = {
         "version": "0",
         "id": "daea9bec-2d16-e943-2079-4d19b6e2ec1d",
         "detail-type": "AWS API Call via CloudTrail",
@@ -264,46 +305,7 @@ def sample_trigger_event(bucket: str, key: str = "X26ABC2/outbound/testfile.json
         "time": "2021-06-29T14:10:55Z",
         "region": "eu-west-2",
         "resources": [],
-        "detail": {
-            "eventVersion": "1.08",
-            "eventTime": "2021-06-29T14:10:55Z",
-            "eventSource": "s3.amazonaws.com",
-            "eventName": "PutObject",
-            "awsRegion": "eu-west-2",
-            "requestParameters": {
-                "X-Amz-Date": "20210629T141055Z",
-                "bucketName": bucket,
-                "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
-                "x-amz-acl": "private",
-                "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # pylint: disable=line-too-long
-                "Host": f"{bucket}.s3.eu-west-2.amazonaws.com",
-                "X-Amz-Expires": "300",
-                "key": key,
-                "x-amz-storage-class": "STANDARD",
-            },
-            "responseElements": {
-                "x-amz-server-side-encryption": "aws:kms",
-                "x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:eu-west-2:092420156801:key/4f295c4c-17fd-4c9d-84e9-266b01de0a5a",  # noqa pylint: disable=line-too-long
-            },
-            "requestID": "1234567890123456",
-            "eventID": "75e91cfc-f2db-4e09-8f80-a206ab4cd15e",
-            "readOnly": False,
-            "resources": [
-                {
-                    "type": "AWS::S3::Object",
-                    "ARN": f"arn:aws:s3:::{key}",  # pylint: disable=line-too-long
-                },
-                {
-                    "accountId": "123456789012",
-                    "type": "AWS::S3::Bucket",
-                    "ARN": f"arn:aws:s3:::{bucket}",
-                },
-            ],
-            "eventType": "AwsApiCall",
-            "managementEvent": False,
-            "recipientAccountId": "123456789012",
-            "eventCategory": "Data",
-        },
+        "detail": s3_event,
     }
-    # pylint: enable=line-too-long
-    return return_value
+
+    return event_bridge_event
