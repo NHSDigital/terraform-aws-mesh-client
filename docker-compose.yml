@@ -1,5 +1,3 @@
-version: '3.9'
-
 
 services:
 
@@ -39,8 +37,11 @@ services:
       timeout: 10s
     environment:
       - SSL=yes
+      - SSL_CRTFILE=/certs/crt.pem
+      - SSL_KEYFILE=/certs/key.pem
       - SHARED_KEY=TestKey
     volumes:
       # mount a different mailboxes.jsonl to pre created mailboxes
       - ./mesh_sandbox/store/data/mailboxes.jsonl:/app/mesh_sandbox/store/data/mailboxes.jsonl:ro
+      - ./scripts/self-signed-ca/certs/server/localhost:/certs
 

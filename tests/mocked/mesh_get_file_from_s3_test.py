@@ -20,7 +20,7 @@ def test_get_file_from_s3_with_parts(environment: str, mesh_s3_bucket: str):
     app.current_byte = 0
 
     app.s3_object = s3_resource().Object(
-        mesh_s3_bucket, "MESH-TEST2/outbound/testfile.json"
+        mesh_s3_bucket, "X26ABC2/outbound/testfile.json"
     )
     app.config.crumb_size = 7
     app.config.chunk_size = app.s3_object.content_length * 2
@@ -43,7 +43,7 @@ def test_get_file_from_s3_without_parts(environment: str, mesh_s3_bucket: str):
     app.current_byte = 0
 
     app.s3_object = s3_resource().Object(
-        mesh_s3_bucket, "MESH-TEST2/outbound/testfile.json"
+        mesh_s3_bucket, "X26ABC2/outbound/testfile.json"
     )
     app.config.crumb_size = app.s3_object.content_length + 1
     app.config.chunk_size = app.s3_object.content_length * 2

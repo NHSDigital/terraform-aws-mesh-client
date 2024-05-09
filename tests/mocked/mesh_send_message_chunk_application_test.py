@@ -5,7 +5,6 @@ from http import HTTPStatus
 import pytest
 from mesh_send_message_chunk_application import MaxByteExceededException
 from nhs_aws_helpers import stepfunctions
-from pytest_httpserver import HTTPServer
 
 from .mesh_check_send_parameters_application_test import sample_trigger_event
 from .mesh_testing_common import (
@@ -22,7 +21,6 @@ DEFAULT_BUFFER_SIZE = 20 * MEBIBYTE
 
 
 def test_mesh_send_file_chunk_app_no_chunks_happy_path(
-    httpserver: HTTPServer,
     environment: str,
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
@@ -34,20 +32,6 @@ def test_mesh_send_file_chunk_app_no_chunks_happy_path(
     app.config.crumb_size = sys.maxsize
     app.config.chunk_size = sys.maxsize
 
-    httpserver.expect_request(
-        "/messageexchange/MESH-TEST2/outbox",
-        method="POST",
-        headers={
-            "mex-subject": "Custom Subject",
-        },
-    ).respond_with_data(
-        json.dumps({"message_id": "20210711164906010267_97CCD9"}),
-        headers={
-            "Content-Type": "application/json",
-            "Content-Length": "44",
-            "Connection": "keep-alive",
-        },
-    )
     mock_lambda_input = _sample_single_chunk_input_event(mesh_s3_bucket)
     expected_lambda_response = _sample_single_chunk_input_event(mesh_s3_bucket)
     expected_lambda_response["body"].update({"complete": True})
@@ -66,7 +50,6 @@ def test_mesh_send_file_chunk_app_no_chunks_happy_path(
 
 
 def test_mesh_send_file_chunk_app_2_chunks_happy_path(
-    httpserver: HTTPServer,
     environment: str,
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
@@ -75,34 +58,10 @@ def test_mesh_send_file_chunk_app_2_chunks_happy_path(
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
 
     app = MeshSendMessageChunkApplication()
+    app.config.crumb_size = 10
+    app.config.chunk_size = 10
+    app.config.compress_threshold = app.config.chunk_size
 
-    custom_request_headers = {
-        "mex-subject": "Custom Subject",
-    }
-    httpserver.expect_request(
-        "/messageexchange/MESH-TEST2/outbox",
-        headers=custom_request_headers,
-        method="POST",
-    ).respond_with_data(
-        json.dumps({"message_id": "20210711164906010267_97CCD9"}),
-        headers={
-            "Content-Type": "application/json",
-            "Content-Length": "33",
-            "Connection": "keep-alive",
-        },
-    )
-    httpserver.expect_request(
-        "/messageexchange/MESH-TEST2/outbox/20210711164906010267_97CCD9/2",
-        method="POST",
-    ).respond_with_data(status=200)
-    httpserver.expect_request(
-        "/messageexchange/MESH-TEST2/outbox/20210711164906010267_97CCD9/3",
-        method="POST",
-    ).respond_with_data(status=200)
-    httpserver.expect_request(
-        "/messageexchange/MESH-TEST2/outbox/20210711164906010267_97CCD9/4",
-        method="POST",
-    ).respond_with_data(status=200)
     mock_input = _sample_multi_chunk_input_event(mesh_s3_bucket)
     mock_response = _sample_multi_chunk_input_event(mesh_s3_bucket)
     mock_response["body"].update({"complete": True})
@@ -134,7 +93,6 @@ def test_mesh_send_file_chunk_app_2_chunks_happy_path(
 
 
 def test_mesh_send_file_chunk_app_too_many_chunks(
-    httpserver: HTTPServer,
     environment: str,
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
@@ -144,18 +102,6 @@ def test_mesh_send_file_chunk_app_too_many_chunks(
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
 
     app = MeshSendMessageChunkApplication()
-
-    httpserver.expect_request(
-        "/messageexchange/MESH-TEST2/outbox",
-        method="POST",
-    ).respond_with_data(
-        json.dumps({"message_id": "20210711164906010267_97CCD9"}),
-        headers={
-            "Content-Type": "application/json",
-            "Content-Length": "33",
-            "Connection": "keep-alive",
-        },
-    )
 
     mock_input = _sample_too_many_chunks_input_event(mesh_s3_bucket)
     mock_response = _sample_too_many_chunks_input_event(mesh_s3_bucket)
@@ -167,7 +113,6 @@ def test_mesh_send_file_chunk_app_too_many_chunks(
 
 
 def test_mesh_send_file_chunk_app_no_chunks_invoke_via_eventbridge(
-    httpserver: HTTPServer,
     environment: str,
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
@@ -179,21 +124,7 @@ def test_mesh_send_file_chunk_app_no_chunks_invoke_via_eventbridge(
 
     app.config.crumb_size = sys.maxsize
     app.config.chunk_size = sys.maxsize
-
-    httpserver.expect_request(
-        "/messageexchange/MESH-TEST2/outbox",
-        method="POST",
-        headers={
-            "mex-subject": "Custom Subject",
-        },
-    ).respond_with_data(
-        json.dumps({"message_id": "20210711164906010267_97CCD9"}),
-        headers={
-            "Content-Type": "application/json",
-            "Content-Length": "44",
-            "Connection": "keep-alive",
-        },
-    )
+    app.config.compress_threshold = 10
 
     expected_lambda_response = _sample_output_invoked_via_event_bridge(mesh_s3_bucket)
     expected_lambda_response["body"].update({"complete": True})
@@ -230,11 +161,11 @@ def _sample_single_chunk_input_event(bucket: str):
         "headers": {"Content-Type": "application/json"},
         "body": {
             "internal_id": KNOWN_INTERNAL_ID,
-            "src_mailbox": "MESH-TEST2",
-            "dest_mailbox": "MESH-TEST1",
+            "src_mailbox": "X26ABC2",
+            "dest_mailbox": "X26ABC1",
             "workflow_id": "TESTWORKFLOW",
             "bucket": bucket,
-            "key": "MESH-TEST2/outbound/testfile.json",
+            "key": "X26ABC2/outbound/testfile.json",
             "chunked": False,
             "chunk_number": 1,
             "total_chunks": 1,
@@ -252,10 +183,10 @@ def _sample_single_chunk_input_event(bucket: str):
                 "filename": "testfile.json",
                 "local_id": None,
                 "partner_id": None,
-                "recipient": "MESH-TEST1",
+                "recipient": "X26ABC1",
                 "s3_bucket": bucket,
-                "s3_key": "MESH-TEST2/outbound/testfile.json",
-                "sender": "MESH-TEST2",
+                "s3_key": "X26ABC2/outbound/testfile.json",
+                "sender": "X26ABC2",
                 "subject": "Custom Subject",
                 "total_chunks": 1,
                 "workflow_id": "TESTWORKFLOW",
@@ -271,11 +202,11 @@ def _sample_multi_chunk_input_event(bucket: str):
         "headers": {"Content-Type": "application/json"},
         "body": {
             "internal_id": KNOWN_INTERNAL_ID,
-            "src_mailbox": "MESH-TEST2",
-            "dest_mailbox": "MESH-TEST1",
+            "src_mailbox": "X26ABC2",
+            "dest_mailbox": "X26ABC1",
             "workflow_id": "TESTWORKFLOW",
             "bucket": bucket,
-            "key": "MESH-TEST2/outbound/testfile.json",
+            "key": "X26ABC2/outbound/testfile.json",
             "chunked": True,
             "chunk_number": 1,
             "total_chunks": 4,
@@ -293,10 +224,10 @@ def _sample_multi_chunk_input_event(bucket: str):
                 "filename": "testfile.json",
                 "local_id": None,
                 "partner_id": None,
-                "recipient": "MESH-TEST1",
+                "recipient": "X26ABC1",
                 "s3_bucket": bucket,
-                "s3_key": "MESH-TEST2/outbound/testfile.json",
-                "sender": "MESH-TEST2",
+                "s3_key": "X26ABC2/outbound/testfile.json",
+                "sender": "X26ABC2",
                 "subject": "Custom Subject",
                 "total_chunks": 4,
                 "workflow_id": "TESTWORKFLOW",
@@ -312,11 +243,11 @@ def _sample_too_many_chunks_input_event(bucket: str):
         "headers": {"Content-Type": "application/json"},
         "body": {
             "internal_id": KNOWN_INTERNAL_ID,
-            "src_mailbox": "MESH-TEST2",
-            "dest_mailbox": "MESH-TEST1",
+            "src_mailbox": "X26ABC2",
+            "dest_mailbox": "X26ABC1",
             "workflow_id": "TESTWORKFLOW",
             "bucket": bucket,
-            "key": "MESH-TEST2/outbound/testfile.json",
+            "key": "X26ABC2/outbound/testfile.json",
             "chunked": True,
             "chunk_number": 1,
             "total_chunks": 2,
@@ -335,10 +266,10 @@ def _sample_too_many_chunks_input_event(bucket: str):
                 "filename": "testfile.json",
                 "local_id": None,
                 "partner_id": None,
-                "recipient": "MESH-TEST1",
+                "recipient": "X26ABC1",
                 "s3_bucket": bucket,
-                "s3_key": "MESH-TEST2/outbound/testfile.json",
-                "sender": "MESH-TEST2",
+                "s3_key": "X26ABC2/outbound/testfile.json",
+                "sender": "X26ABC2",
                 "subject": "Custom Subject",
                 "total_chunks": 2,
                 "workflow_id": "TESTWORKFLOW",
@@ -354,11 +285,11 @@ def _sample_input_event_multi_chunk(bucket: str):
         "headers": {"Content-Type": "application/json"},
         "body": {
             "internal_id": KNOWN_INTERNAL_ID,
-            "src_mailbox": "MESH-TEST2",
-            "dest_mailbox": "MESH-TEST1",
+            "src_mailbox": "X26ABC2",
+            "dest_mailbox": "X26ABC1",
             "workflow_id": "TESTWORKFLOW",
             "bucket": bucket,
-            "key": "MESH-TEST2/outbound/testfile.json",
+            "key": "X26ABC2/outbound/testfile.json",
             "chunked": True,
             "chunk_number": 1,
             "total_chunks": 3,
@@ -391,10 +322,10 @@ def _sample_output_invoked_via_event_bridge(bucket: str):
                 "filename": None,
                 "local_id": None,
                 "partner_id": None,
-                "recipient": "MESH-TEST1",
+                "recipient": "X26ABC1",
                 "s3_bucket": bucket,
-                "s3_key": "MESH-TEST2/outbound/testfile.json",
-                "sender": "MESH-TEST2",
+                "s3_key": "X26ABC2/outbound/testfile.json",
+                "sender": "X26ABC2",
                 "subject": "Custom Subject",
                 "total_chunks": 1,
                 "workflow_id": "TESTWORKFLOW",

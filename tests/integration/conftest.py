@@ -48,7 +48,8 @@ def get_mesh_client_one() -> Generator[MeshClient, None, None]:
     with MeshClient(
         url=SANDBOX_URL,
         mailbox=LOCAL_MAILBOXES[0],
-        password="password",
+        password="pwd123456",
+        shared_key=b"TestKey",
         verify=False,
         max_chunk_size=10 * MB,
     ) as client:
@@ -60,7 +61,8 @@ def get_mesh_client_two() -> Generator[MeshClient, None, None]:
     with MeshClient(
         url=SANDBOX_URL,
         mailbox=LOCAL_MAILBOXES[1],
-        password="password",
+        password="pwd123456",
+        shared_key=b"TestKey",
         verify=False,
         max_chunk_size=10 * MB,
     ) as client:

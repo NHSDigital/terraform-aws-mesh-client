@@ -1,12 +1,12 @@
 import json
 import os
-import ssl
 from collections.abc import Generator
 from typing import Literal, cast
 from uuid import uuid4
 
 import pytest
 from integration.test_helpers import temp_env_vars
+from mesh_client import MeshClient
 from moto import mock_aws
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_stepfunctions import SFNClient
@@ -19,8 +19,13 @@ from nhs_aws_helpers import (
 from nhs_aws_helpers import (
     stepfunctions,
 )
-from pytest_httpserver import HTTPServer
-from trustme import CA
+
+from mocked.mesh_testing_common import (
+    LOCAL_MAILBOXES,
+    MB,
+    SANDBOX_URL,
+    reset_sandbox_mailbox,
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -34,28 +39,9 @@ def s3_client(_mock_aws) -> S3Client:
     return _s3_client()
 
 
-@pytest.fixture(scope="session")
-def ca() -> CA:
-    return CA()
-
-
-@pytest.fixture(scope="session")
-def httpserver_ssl_context(ca: CA):
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    localhost_cert = ca.issue_cert("localhost")
-    localhost_cert.configure_cert(context)
-    return context
-
-
-@pytest.fixture(scope="module")
-def _httpclient_ssl_context(ca: CA):
-    with ca.cert_pem.tempfile() as ca_temp_path:
-        ssl.create_default_context(cafile=ca_temp_path)
-
-
 @pytest.fixture()
 def environment(
-    _mock_aws, httpserver: HTTPServer, ca: CA
+    _mock_aws,
 ) -> Generator[str, None, None]:
     environment = uuid4().hex
     with temp_env_vars(
@@ -65,9 +51,7 @@ def environment(
         AWS_LAMBDA_FUNCTION_NAME="lambda_test",
         AWS_LAMBDA_FUNCTION_MEMORY_SIZE="128",
         AWS_LAMBDA_FUNCTION_VERSION="1",
-        CRUMB_SIZE="10",
-        CHUNK_SIZE="10",
-        MESH_URL=f"https://localhost:{httpserver.port}",
+        MESH_URL="https://localhost:8700",
         MESH_BUCKET=f"{environment}-mesh",
         SEND_MESSAGE_STEP_FUNCTION_ARN=f"arn:aws:states:eu-west-2:123456789012:stateMachine:{environment}-send-message",
         GET_MESSAGES_STEP_FUNCTION_ARN=f"arn:aws:states:eu-west-2:123456789012:stateMachine:{environment}-get-messages",
@@ -76,6 +60,7 @@ def environment(
         CLIENT_KEY_CONFIG_KEY=f"/{environment}/mesh/MESH_CLIENT_KEY",
         SHARED_KEY_CONFIG_KEY=f"/{environment}/mesh/MESH_SHARED_KEY",
         MAILBOXES_BASE_CONFIG_KEY=f"/{environment}/mesh/mailboxes",
+        VERIFY_CHECKS_COMMON_NAME=False,
     ):
         yield environment
 
@@ -91,7 +76,7 @@ def mesh_s3_bucket(s3_client: S3Client, environment: str) -> str:
     file_content = FILE_CONTENT
     s3_client.put_object(
         Bucket=f"{environment}-mesh",
-        Key="MESH-TEST2/outbound/testfile.json",
+        Key="X26ABC2/outbound/testfile.json",
         Body=file_content,
         Metadata={
             "Mex-subject": "Custom Subject",
@@ -150,21 +135,21 @@ def _setup_step_function(
 
 
 @pytest.fixture(autouse=True)
-def _ssm_config(environment: str, ca: CA):
+def _ssm_config(environment: str):
     ssm_client = _ssm_client()
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/src_mailbox",
-        value="MESH-TEST2",
+        name=f"/{environment}/mesh/mapping/{environment}-mesh/X26ABC2/outbound/src_mailbox",
+        value="X26ABC2",
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/dest_mailbox",
-        value="MESH-TEST1",
+        name=f"/{environment}/mesh/mapping/{environment}-mesh/X26ABC2/outbound/dest_mailbox",
+        value="X26ABC1",
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mapping/{environment}-mesh/MESH-TEST2/outbound/workflow_id",
+        name=f"/{environment}/mesh/mapping/{environment}-mesh/X26ABC2/outbound/workflow_id",
         value="TESTWORKFLOW",
     )
     # Setup secrets
@@ -180,58 +165,63 @@ def _ssm_config(environment: str, ca: CA):
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mailboxes/MESH-TEST1/MAILBOX_PASSWORD",
+        name=f"/{environment}/mesh/mailboxes/X26ABC1/MAILBOX_PASSWORD",
         value="pwd123456",
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mailboxes/MESH-TEST1/INBOUND_BUCKET",
+        name=f"/{environment}/mesh/mailboxes/X26ABC1/INBOUND_BUCKET",
         value=f"{environment}-mesh",
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mailboxes/MESH-TEST1/INBOUND_FOLDER",
-        value="inbound-mesh-test1",
+        name=f"/{environment}/mesh/mailboxes/X26ABC1/INBOUND_FOLDER",
+        value="inbound-X26ABC1",
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mailboxes/MESH-TEST2/MAILBOX_PASSWORD",
+        name=f"/{environment}/mesh/mailboxes/X26ABC2/MAILBOX_PASSWORD",
         value="pwd123456",
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mailboxes/MESH-TEST2/INBOUND_BUCKET",
+        name=f"/{environment}/mesh/mailboxes/X26ABC2/INBOUND_BUCKET",
         value=f"{environment}-mesh",
     )
     put_parameter(
         ssm_client,
-        name=f"/{environment}/mesh/mailboxes/MESH-TEST2/INBOUND_FOLDER",
-        value="inbound-mesh-test2",
+        name=f"/{environment}/mesh/mailboxes/X26ABC2/INBOUND_FOLDER",
+        value="inbound-X26ABC2",
     )
     put_parameter(
         ssm_client,
         name=f"/{environment}/mesh/MESH_VERIFY_SSL",
-        value="False",
+        value="True",
     )
-    # these are self signed certs
-    ca_cert = ca.cert_pem.bytes().decode()
-
-    put_parameter(
-        ssm_client,
-        name=f"/{environment}/mesh/MESH_CA_CERT",
-        value=ca_cert,
-    )
-    client_key_cert = ca.issue_cert("localclient")
-    put_parameter(
-        ssm_client,
-        name=f"/{environment}/mesh/MESH_CLIENT_CERT",
-        value=client_key_cert.cert_chain_pems[0].bytes().decode(),
-    )
-    put_parameter(
-        ssm_client,
-        name=f"/{environment}/mesh/MESH_CLIENT_KEY",
-        value=client_key_cert.private_key_pem.bytes().decode(),
-    )
+    with open(
+        f"{os.path.dirname(__file__)}/../../scripts/self-signed-ca/bundles/server-sub-ca-bundle.pem"
+    ) as f:
+        put_parameter(
+            ssm_client,
+            name=f"/{environment}/mesh/MESH_CA_CERT",
+            value=f.read(),
+        )
+    with open(
+        f"{os.path.dirname(__file__)}/../../scripts/self-signed-ca/certs/client/valid/crt.pem"
+    ) as f:
+        put_parameter(
+            ssm_client,
+            name=f"/{environment}/mesh/MESH_CLIENT_CERT",
+            value=f.read(),
+        )
+    with open(
+        f"{os.path.dirname(__file__)}/../../scripts/self-signed-ca/certs/client/valid/key.pem"
+    ) as f:
+        put_parameter(
+            ssm_client,
+            name=f"/{environment}/mesh/MESH_CLIENT_KEY",
+            value=f.read(),
+        )
 
 
 def put_parameter(
@@ -246,3 +236,31 @@ def put_parameter(
     ssm_client.put_parameter(
         Name=name, Value=value, Type=param_type, Overwrite=overwrite
     )
+
+
+@pytest.fixture(name="mesh_client_one")
+def get_mesh_client_one() -> Generator[MeshClient, None, None]:
+    with MeshClient(
+        url=SANDBOX_URL,
+        mailbox=LOCAL_MAILBOXES[0],
+        password="pwd123456",
+        shared_key=b"TestKey",
+        verify=False,
+        max_chunk_size=10 * MB,
+    ) as client:
+        reset_sandbox_mailbox(client._mailbox)
+        yield client
+
+
+@pytest.fixture(name="mesh_client_two")
+def get_mesh_client_two() -> Generator[MeshClient, None, None]:
+    with MeshClient(
+        url=SANDBOX_URL,
+        mailbox=LOCAL_MAILBOXES[1],
+        password="pwd123456",
+        shared_key=b"TestKey",
+        verify=False,
+        max_chunk_size=10 * MB,
+    ) as client:
+        reset_sandbox_mailbox(client._mailbox)
+        yield client

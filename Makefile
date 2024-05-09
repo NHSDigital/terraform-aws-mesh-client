@@ -188,3 +188,6 @@ pack-app: guard-env
 
 list-functions:
 	AWS_ENDPOINT_URL=http://localhost:4569 aws lambda list-functions | jq -r .Functions[].FunctionName
+
+s3-ls:
+	AWS_ENDPOINT_URL=http://localhost:4569 aws s3 ls --recursive s3://local-mesh/

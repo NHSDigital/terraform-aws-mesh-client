@@ -1,73 +1,46 @@
 import random
 from http import HTTPStatus
+from urllib.parse import quote_plus
+from uuid import uuid4
 
+import pytest
+from mesh_client import MeshClient
 from mypy_boto3_s3 import S3Client
-from pytest_httpserver import HTTPServer
-from requests.exceptions import HTTPError
+from requests import HTTPError
 
 from .mesh_common_test import find_log_entries
 from .mesh_testing_common import (
     CONTEXT,
     KNOWN_INTERNAL_ID1,
-    KNOWN_MESSAGE_ID1,
-    KNOWN_MESSAGE_ID2,
+    inject_expired_non_delivery_report,
     was_value_logged,
 )
 
 
 def test_mesh_fetch_file_chunk_app_no_chunks_happy_path(
-    httpserver: HTTPServer,
     environment: str,
-    mesh_s3_bucket,
-    s3_client,
+    mesh_s3_bucket: str,
+    s3_client: S3Client,
+    mesh_client_one: MeshClient,
+    mesh_client_two: MeshClient,
     capsys,
 ):
     from mesh_fetch_message_chunk_application import MeshFetchMessageChunkApplication
 
+    workflow_id = uuid4().hex
+
     app = MeshFetchMessageChunkApplication()
-
-    """Test the lambda with small file, no chunking, happy path"""
-    # Mock responses from MESH server
     content = "123456789012345678901234567890123"
-
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}",
-        method="GET",
-    ).respond_with_data(
-        content,
-        status=HTTPStatus.OK.value,
-        headers={
-            "Content-Type": "application/octet-stream",
-            "Content-Length": str(len(content)),
-            "Connection": "keep-alive",
-            "Mex-Messageid": KNOWN_MESSAGE_ID1,
-            "Mex-From": "MESH-TEST2",
-            "Mex-To": "MESH-TEST1",
-            "Mex-Fromsmtp": "mesh.automation.testclient2@nhs.org",
-            "Mex-Tosmtp": "mesh.automation.testclient1@nhs.org",
-            "Mex-Filename": "testfile.txt",
-            "Mex-Workflowid": "TESTWORKFLOW",
-            "Mex-Messagetype": "DATA",
-            "Mex-Version": "1.0",
-            "Mex-Addresstype": "ALL",
-            "Mex-Statuscode": "00",
-            "Mex-Statusevent": "TRANSFER",
-            "Mex-Statusdescription": "Transferred to recipient mailbox",
-            "Mex-Statussuccess": "SUCCESS",
-            "Mex-Statustimestamp": "20210705162157",
-            "Mex-Content-Compressed": "N",
-            "Etag": "915cd12d58ce2f820959e9ba41b2ebb02f2e6005",
-        },
+    message_id = mesh_client_two.send_message(
+        recipient=mesh_client_one._mailbox,
+        data=content.encode(),
+        workflow_id=workflow_id,
     )
+    print(message_id)
 
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}/status/acknowledged",
-        method="PUT",
-    ).respond_with_data(
-        status=HTTPStatus.OK.value,
+    mock_input = _sample_first_input_event(
+        internal_id=KNOWN_INTERNAL_ID1, message_id=message_id
     )
-
-    mock_input = _sample_first_input_event()
     response = app.main(event=mock_input, context=CONTEXT)
 
     assert response["body"].get("internal_id") == mock_input["body"].get("internal_id")
@@ -91,123 +64,75 @@ def test_mesh_fetch_file_chunk_app_no_chunks_happy_path(
 
     s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
     assert s3_object
-    assert s3_object["Metadata"]["mex-messageid"] == KNOWN_MESSAGE_ID1
-    assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
-    assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
-    assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"
-    assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
+    assert s3_object["Metadata"] == {
+        "mex-statuscode": "00",
+        "mex-workflowid": workflow_id,
+        "mex-messagetype": "DATA",
+        "mex-content-compressed": "Y",
+        "mex-from": mesh_client_two._mailbox,
+        "mex-to": mesh_client_one._mailbox,
+        "mex-messageid": message_id,
+        "mex-statussuccess": "SUCCESS",
+        "mex-filename": f"{message_id}.dat",
+        "mex-statusdescription": "Transferred+to+recipient+mailbox",
+    }
+
     assert was_value_logged(logs.out, "MESHFETCH0002a", "Log_Level", "INFO")
     assert not was_value_logged(logs.out, "MESHFETCH0003", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "MESHFETCH0011", "Log_Level", "INFO")
-    # self.assertTrue(
-    #     was_value_logged(logs.out, "MESHFETCH0005a", "Log_Level", "INFO")
-    # )
-    # self.assertFalse(
-    #     was_value_logged(logs.out, "MESHFETCH0008", "Log_Level", "INFO")
-    # )
     assert not was_value_logged(logs.out, "MESHFETCH0010a", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
 
 
 def test_mesh_fetch_file_chunk_app_2_chunks_happy_path(
-    httpserver: HTTPServer, s3_client: S3Client, mesh_s3_bucket: str, capsys
+    s3_client: S3Client,
+    mesh_client_one: MeshClient,
+    mesh_client_two: MeshClient,
+    mesh_s3_bucket: str,
+    capsys,
 ):
-    _fetch_file_chunk_app_2_chunks_(httpserver, s3_client, capsys, 20)
+    _fetch_file_chunk_app_2_chunks_(
+        s3_client, mesh_client_one, mesh_client_two, capsys, 20
+    )
 
 
 def test_mesh_fetch_file_chunk_app_2_chunks_odd_sized_chunk_with_temp_file(
-    httpserver: HTTPServer, s3_client: S3Client, mesh_s3_bucket: str, capsys
+    s3_client: S3Client,
+    mesh_client_one: MeshClient,
+    mesh_client_two: MeshClient,
+    mesh_s3_bucket: str,
+    capsys,
 ):
-    _fetch_file_chunk_app_2_chunks_(httpserver, s3_client, capsys, 18)
+    _fetch_file_chunk_app_2_chunks_(
+        s3_client, mesh_client_one, mesh_client_two, capsys, 18
+    )
 
 
 def _fetch_file_chunk_app_2_chunks_(
-    httpserver: HTTPServer,
     s3_client: S3Client,
+    mesh_client_one: MeshClient,
+    mesh_client_two: MeshClient,
     capsys,
-    data_length: int,
+    data_length_mb: int,
 ):
     """
     Test that doing chunking works
     """
+    workflow_id = uuid4().hex
+
     mebibyte = 1024 * 1024
     # Create some test data
-    data1_length = data_length * mebibyte  # 20 MiB
-    data1 = random.randbytes(data1_length)
-    data2_length = 4 * mebibyte  # 4 MiB
-    data2 = random.randbytes(data2_length)
+    data = random.randbytes(data_length_mb * mebibyte)
 
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}",
-        method="GET",
-    ).respond_with_data(
-        data1,
-        status=HTTPStatus.PARTIAL_CONTENT.value,
-        headers={
-            "Content-Type": "application/octet-stream",
-            "Content-Length": str(data1_length),
-            "Connection": "keep-alive",
-            "Mex-Chunk-Range": "1:2",
-            "Mex-Total-Chunks": "2",
-            "Mex-Messageid": KNOWN_MESSAGE_ID1,
-            "Mex-From": "MESH-TEST2",
-            "Mex-To": "MESH-TEST1",
-            "Mex-Fromsmtp": "mesh.automation.testclient2@nhs.org",
-            "Mex-Tosmtp": "mesh.automation.testclient1@nhs.org",
-            "Mex-Filename": "testfile.txt",
-            "Mex-Workflowid": "TESTWORKFLOW",
-            "Mex-Messagetype": "DATA",
-            "Mex-Version": "1.0",
-            "Mex-Addresstype": "ALL",
-            "Mex-Statuscode": "00",
-            "Mex-Statusevent": "TRANSFER",
-            "Mex-Statusdescription": "Transferred to recipient mailbox",
-            "Mex-Statussuccess": "SUCCESS",
-            "Mex-Statustimestamp": "20210705162157",
-            "Mex-Content-Compressed": "N",
-            "Etag": "915cd12d58ce2f820959e9ba41b2ebb02f2e6005",
-        },
-    )
-    # next chunk http response
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}/2",
-        method="GET",
-    ).respond_with_data(
-        data2,
-        status=HTTPStatus.OK.value,
-        headers={
-            "Content-Type": "application/octet-stream",
-            "Content-Length": str(data2_length),
-            "Mex-Chunk-Range": "2:2",
-            "Mex-Total-Chunks": "2",
-            "Connection": "keep-alive",
-            "Mex-Messageid": KNOWN_MESSAGE_ID1,
-            "Mex-From": "MESH-TEST2",
-            "Mex-To": "MESH-TEST1",
-            "Mex-Fromsmtp": "mesh.automation.testclient2@nhs.org",
-            "Mex-Tosmtp": "mesh.automation.testclient1@nhs.org",
-            "Mex-Filename": "testfile.txt",
-            "Mex-Workflowid": "TESTWORKFLOW",
-            "Mex-Messagetype": "DATA",
-            "Mex-Version": "1.0",
-            "Mex-Addresstype": "ALL",
-            "Mex-Statuscode": "00",
-            "Mex-Statusevent": "TRANSFER",
-            "Mex-Statusdescription": "Transferred to recipient mailbox",
-            "Mex-Statussuccess": "SUCCESS",
-            "Mex-Statustimestamp": "20210705162157",
-            "Mex-Content-Compressed": "N",
-            "Etag": "915cd12d58ce2f820959e9ba41b2ebb02f2e6005",
-        },
-    )
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}/status/acknowledged",
-        method="PUT",
-    ).respond_with_data(
-        status=HTTPStatus.OK.value,
+    message_id = mesh_client_two.send_message(
+        recipient=mesh_client_one._mailbox,
+        data=data,
+        workflow_id=workflow_id,
     )
 
-    mock_input = _sample_first_input_event()
+    mock_input = _sample_first_input_event(
+        internal_id=KNOWN_INTERNAL_ID1, message_id=message_id
+    )
 
     from mesh_fetch_message_chunk_application import MeshFetchMessageChunkApplication
 
@@ -215,8 +140,7 @@ def _fetch_file_chunk_app_2_chunks_(
 
     response = app.main(event=mock_input, context=CONTEXT)
 
-    expected_return_code = HTTPStatus.PARTIAL_CONTENT.value
-    assert response["statusCode"] == expected_return_code
+    assert response["statusCode"] == HTTPStatus.PARTIAL_CONTENT.value
     assert response["body"]["chunk_num"] == 2
     assert response["body"]["complete"] is False
 
@@ -225,8 +149,7 @@ def _fetch_file_chunk_app_2_chunks_(
 
     response = app.main(event=mock_input, context=CONTEXT)
 
-    expected_return_code = HTTPStatus.OK.value
-    assert response["statusCode"] == expected_return_code
+    assert response["statusCode"] == HTTPStatus.OK.value
     assert response["body"]["complete"] is True
 
     # Check we got the logs we expect
@@ -243,106 +166,47 @@ def _fetch_file_chunk_app_2_chunks_(
 
     s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
     assert s3_object
-    assert s3_object["Metadata"]["mex-messageid"] == KNOWN_MESSAGE_ID1
-    assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
-    assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
-    assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"
-    assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
+    assert s3_object["Metadata"] == {
+        "mex-statuscode": "00",
+        "mex-workflowid": workflow_id,
+        "mex-messagetype": "DATA",
+        "mex-content-compressed": "Y",
+        "mex-from": mesh_client_two._mailbox,
+        "mex-to": mesh_client_one._mailbox,
+        "mex-messageid": message_id,
+        "mex-statussuccess": "SUCCESS",
+        "mex-filename": f"{message_id}.dat",
+        "mex-statusdescription": "Transferred+to+recipient+mailbox",
+    }
 
-    # self.assertTrue(
-    #     was_value_logged("MESHFETCH0005a", "Log_Level", "INFO")
-    # )
-    # self.assertFalse(
-    #     was_value_logged("MESHFETCH0008", "Log_Level", "INFO")
-    # )
     assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
 
 
 def test_mesh_fetch_file_chunk_app_2_chunks_using_temp_file(
-    httpserver: HTTPServer, s3_client: S3Client, mesh_s3_bucket: str, capsys
+    s3_client: S3Client,
+    mesh_client_one: MeshClient,
+    mesh_client_two: MeshClient,
+    mesh_s3_bucket: str,
+    capsys,
 ):
     """
     Test that doing chunking works with temp file
     """
+    workflow_id = uuid4().hex
+
     mebibyte = 1024 * 1024
     # Create some test data
-    data1_length = 18 * mebibyte  # 20 MiB
-    data1 = random.randbytes(data1_length)
-    data2_length = 4 * mebibyte  # 4 MiB
-    data2 = random.randbytes(data2_length)
+    data = random.randbytes(18 * mebibyte)
 
-    # Mock responses from MESH server TODO refactor!
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}",
-        method="GET",
-    ).respond_with_data(
-        data1,
-        status=HTTPStatus.PARTIAL_CONTENT.value,
-        headers={
-            "Content-Type": "application/octet-stream",
-            "Content-Length": str(data1_length),
-            "Connection": "keep-alive",
-            "Mex-Chunk-Range": "1:2",
-            "Mex-Total-Chunks": "2",
-            "Mex-Messageid": KNOWN_MESSAGE_ID1,
-            "Mex-From": "MESH-TEST2",
-            "Mex-To": "MESH-TEST1",
-            "Mex-Fromsmtp": "mesh.automation.testclient2@nhs.org",
-            "Mex-Tosmtp": "mesh.automation.testclient1@nhs.org",
-            "Mex-Filename": "testfile.txt",
-            "Mex-Workflowid": "TESTWORKFLOW",
-            "Mex-Messagetype": "DATA",
-            "Mex-Version": "1.0",
-            "Mex-Addresstype": "ALL",
-            "Mex-Statuscode": "00",
-            "Mex-Statusevent": "TRANSFER",
-            "Mex-Statusdescription": "Transferred to recipient mailbox",
-            "Mex-Statussuccess": "SUCCESS",
-            "Mex-Statustimestamp": "20210705162157",
-            "Mex-Content-Compressed": "N",
-            "Etag": "915cd12d58ce2f820959e9ba41b2ebb02f2e6005",
-        },
-    )
-    # next chunk http response
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}/2",
-        method="GET",
-    ).respond_with_data(
-        data2,
-        status=HTTPStatus.OK.value,
-        headers={
-            "Content-Type": "application/octet-stream",
-            "Content-Length": str(data2_length),
-            "Mex-Chunk-Range": "2:2",
-            "Mex-Total-Chunks": "2",
-            "Connection": "keep-alive",
-            "Mex-Messageid": KNOWN_MESSAGE_ID1,
-            "Mex-From": "MESH-TEST2",
-            "Mex-To": "MESH-TEST1",
-            "Mex-Fromsmtp": "mesh.automation.testclient2@nhs.org",
-            "Mex-Tosmtp": "mesh.automation.testclient1@nhs.org",
-            "Mex-Filename": "testfile.txt",
-            "Mex-Workflowid": "TESTWORKFLOW",
-            "Mex-Messagetype": "DATA",
-            "Mex-Version": "1.0",
-            "Mex-Addresstype": "ALL",
-            "Mex-Statuscode": "00",
-            "Mex-Statusevent": "TRANSFER",
-            "Mex-Statusdescription": "Transferred to recipient mailbox",
-            "Mex-Statussuccess": "SUCCESS",
-            "Mex-Statustimestamp": "20210705162157",
-            "Mex-Content-Compressed": "N",
-            "Etag": "915cd12d58ce2f820959e9ba41b2ebb02f2e6005",
-        },
-    )
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}/status/acknowledged",
-        method="PUT",
-    ).respond_with_data(
-        status=HTTPStatus.OK.value,
+    message_id = mesh_client_two.send_message(
+        recipient=mesh_client_one._mailbox,
+        data=data,
+        workflow_id=workflow_id,
     )
 
-    mock_input = _sample_first_input_event()
+    mock_input = _sample_first_input_event(
+        internal_id=KNOWN_INTERNAL_ID1, message_id=message_id
+    )
     from mesh_fetch_message_chunk_application import MeshFetchMessageChunkApplication
 
     app = MeshFetchMessageChunkApplication()
@@ -374,10 +238,18 @@ def test_mesh_fetch_file_chunk_app_2_chunks_using_temp_file(
 
     s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
     assert s3_object
-    assert s3_object["Metadata"]["mex-messagetype"] == "DATA"
-    assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
-    assert s3_object["Metadata"]["mex-from"] == "MESH-TEST2"
-    assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
+    assert s3_object["Metadata"] == {
+        "mex-statuscode": "00",
+        "mex-workflowid": workflow_id,
+        "mex-messagetype": "DATA",
+        "mex-content-compressed": "Y",
+        "mex-from": mesh_client_two._mailbox,
+        "mex-to": mesh_client_one._mailbox,
+        "mex-messageid": message_id,
+        "mex-statussuccess": "SUCCESS",
+        "mex-filename": f"{message_id}.dat",
+        "mex-statusdescription": "Transferred+to+recipient+mailbox",
+    }
 
     assert was_value_logged(logs.out, "MESHFETCH0002", "Log_Level", "INFO")
     assert not was_value_logged(logs.out, "MESHFETCH0002a", "Log_Level", "INFO")
@@ -389,43 +261,28 @@ def test_mesh_fetch_file_chunk_app_2_chunks_using_temp_file(
 
 
 def test_mesh_fetch_file_chunk_app_report(
-    httpserver: HTTPServer, s3_client: S3Client, mesh_s3_bucket: str, capsys
+    s3_client: S3Client,
+    mesh_client_one: MeshClient,
+    mesh_client_two: MeshClient,
+    mesh_s3_bucket: str,
+    capsys,
 ):
-    """Test the lambda with a Non-Delivery Report"""
-    # Mock responses from MESH server
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}",
-        method="GET",
-    ).respond_with_data(
-        status=HTTPStatus.OK.value,
-        headers={
-            "Content-Type": "application/octet-stream",
-            "Connection": "keep-alive",
-            "Mex-Messageid": KNOWN_MESSAGE_ID2,
-            "Mex-Linkedmsgid": KNOWN_MESSAGE_ID1,
-            "Mex-To": "MESH-TEST1",
-            "Mex-Subject": "NDR",
-            "Mex-Workflowid": "TESTWORKFLOW",
-            "Mex-Messagetype": "REPORT",
-            "Mex-Version": "1.0",
-            "Mex-Addresstype": "ALL",
-            "Mex-Statuscode": "14",
-            "Mex-Statusevent": "SEND",
-            "Mex-Statusdescription": "Message not collected by recipient after 5 days",  # pylint: disable=line-too-long
-            "Mex-Statussuccess": "ERROR",
-            "Mex-Statustimestamp": "20210705162157",
-            "Mex-Content-Compressed": "N",
-            "Etag": "915cd12d58ce2f820959e9ba41b2ebb02f2e6005",
-            "Strict-Transport-Security": "max-age=15552000",
-        },
+    file_name = uuid4().hex
+    subject = uuid4().hex
+    local_id = uuid4().hex
+    linked_message_id = uuid4().hex
+    report_message_id = inject_expired_non_delivery_report(
+        mailbox_id=mesh_client_one._mailbox,
+        workflow_id="TESTWORKFLOW",
+        file_name=file_name,
+        subject=subject,
+        local_id=local_id,
+        linked_message_id=linked_message_id,
     )
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}/status/acknowledged",
-        method="PUT",
-    ).respond_with_data(
-        status=HTTPStatus.OK.value,
+
+    mock_input = _sample_first_input_event(
+        internal_id=uuid4().hex, message_id=report_message_id
     )
-    mock_input = _sample_first_input_event()
 
     from mesh_fetch_message_chunk_application import MeshFetchMessageChunkApplication
 
@@ -437,9 +294,7 @@ def test_mesh_fetch_file_chunk_app_report(
     assert response["statusCode"] == expected_return_code
 
     logs = capsys.readouterr()
-    # self.assertTrue(
-    #     was_value_logged(logs.out, "MESHFETCH0008", "Log_Level", "INFO")
-    # )
+
     assert was_value_logged(logs.out, "MESHFETCH0012", "Log_Level", "INFO")
 
     log_entry = next(find_log_entries(logs.out, "MESHFETCH0001c"))
@@ -448,49 +303,42 @@ def test_mesh_fetch_file_chunk_app_report(
 
     s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
     assert s3_object
-    assert s3_object["Metadata"]["mex-messagetype"] == "REPORT"
-    assert s3_object["Metadata"]["mex-to"] == "MESH-TEST1"
-    assert s3_object["Metadata"]["mex-workflowid"] == "TESTWORKFLOW"
-    assert s3_object["Metadata"]["mex-statussuccess"] == "ERROR"
+    assert s3_object["Metadata"] == {
+        "mex-to": mesh_client_one._mailbox,
+        "mex-subject": quote_plus(f"NDR: {subject}"),
+        "mex-workflowid": "TESTWORKFLOW",
+        "mex-statussuccess": "ERROR",
+        "mex-messagetype": "REPORT",
+        "mex-messageid": report_message_id,
+        "mex-filename": file_name,
+        "mex-localid": local_id,
+    }
 
 
-def test_mesh_fetch_file_chunk_app_gone_away_unhappy_path(
-    httpserver: HTTPServer,
+def test_mesh_fetch_file_chunk_app_not_found_unhappy_path(
     mesh_s3_bucket,
 ):
-    """Test the lambda with unhappy path"""
-    httpserver.expect_request(
-        f"/messageexchange/MESH-TEST1/inbox/{KNOWN_MESSAGE_ID1}",
-        method="GET",
-    ).respond_with_data(
-        status=HTTPStatus.OK.value,
-        headers={
-            "Content-Type": "application/json",
-        },
+    mock_input = _sample_first_input_event(
+        internal_id=KNOWN_INTERNAL_ID1, message_id=uuid4().hex
     )
+    from mesh_fetch_message_chunk_application import MeshFetchMessageChunkApplication
 
-    mock_input = _sample_first_input_event()
-    try:
-        from mesh_fetch_message_chunk_application import (
-            MeshFetchMessageChunkApplication,
-        )
+    app = MeshFetchMessageChunkApplication()
 
-        app = MeshFetchMessageChunkApplication()
-
+    with pytest.raises(HTTPError) as http_error:
         app.main(event=mock_input, context=CONTEXT)
-    except HTTPError:
-        return
-    raise AssertionError("Failed to raise 410 Client Error")
+
+    assert http_error.value.response.status_code == HTTPStatus.NOT_FOUND.value
 
 
-def _sample_first_input_event():
+def _sample_first_input_event(internal_id: str, message_id: str):
     return {
         "statusCode": HTTPStatus.OK.value,
         "headers": {"Content-Type": "application/json"},
         "body": {
             "complete": False,
-            "internal_id": KNOWN_INTERNAL_ID1,
-            "message_id": KNOWN_MESSAGE_ID1,
-            "dest_mailbox": "MESH-TEST1",
+            "internal_id": internal_id,
+            "message_id": message_id,
+            "dest_mailbox": "X26ABC1",
         },
     }

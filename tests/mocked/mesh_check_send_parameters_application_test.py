@@ -1,7 +1,6 @@
 """ Testing MeshPollMailbox application """
 
 import json
-import os
 import sys
 from datetime import UTC, datetime
 from http import HTTPStatus
@@ -17,16 +16,16 @@ def test_mesh_check_send_parameters_happy_path_chunked(
 ):
     """Test the lambda as a whole, happy path for small file"""
 
-    mock_response = {
+    expected_response = {
         "statusCode": HTTPStatus.OK.value,
         "headers": {"Content-Type": "application/json"},
         "body": {
             # "internal_id": appears here in the payload but is asserted separately,
-            "src_mailbox": "MESH-TEST2",
-            "dest_mailbox": "MESH-TEST1",
+            "src_mailbox": "X26ABC2",
+            "dest_mailbox": "X26ABC1",
             "workflow_id": "TESTWORKFLOW",
             "bucket": mesh_s3_bucket,
-            "key": "MESH-TEST2/outbound/testfile.json",
+            "key": "X26ABC2/outbound/testfile.json",
             "chunked": True,
             "chunk_number": 1,
             "total_chunks": 4,
@@ -45,10 +44,10 @@ def test_mesh_check_send_parameters_happy_path_chunked(
                 "filename": None,
                 "local_id": None,
                 "partner_id": None,
-                "recipient": "MESH-TEST1",
+                "recipient": "X26ABC1",
                 "s3_bucket": mesh_s3_bucket,
-                "s3_key": "MESH-TEST2/outbound/testfile.json",
-                "sender": "MESH-TEST2",
+                "s3_key": "X26ABC2/outbound/testfile.json",
+                "sender": "X26ABC2",
                 "subject": "Custom Subject",
                 "total_chunks": 4,
                 "workflow_id": "TESTWORKFLOW",
@@ -60,6 +59,9 @@ def test_mesh_check_send_parameters_happy_path_chunked(
     )
 
     app = MeshCheckSendParametersApplication()
+    app.config.crumb_size = 10
+    app.config.chunk_size = 10
+    app.config.compress_threshold = app.config.chunk_size
 
     response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
 
@@ -71,7 +73,7 @@ def test_mesh_check_send_parameters_happy_path_chunked(
     assert (datetime.now(UTC) - internal_id_timestamp).total_seconds() < 10  # seconds
     del response["body"]["internal_id"]
 
-    assert response == mock_response
+    assert response == expected_response
 
     logs = capsys.readouterr()
     assert was_value_logged(logs.out, "LAMBDA0001", "Log_Level", "INFO")
@@ -91,17 +93,18 @@ def test_mesh_check_send_parameters_happy_path_unchunked(
 
     app.config.crumb_size = sys.maxsize
     app.config.chunk_size = sys.maxsize
+    app.config.compress_threshold = 10
 
-    mock_response = {
+    expected_response = {
         "statusCode": HTTPStatus.OK.value,
         "headers": {"Content-Type": "application/json"},
         "body": {
             # "internal_id": appears here in the payload but is asserted separately,
-            "src_mailbox": "MESH-TEST2",
-            "dest_mailbox": "MESH-TEST1",
+            "src_mailbox": "X26ABC2",
+            "dest_mailbox": "X26ABC1",
             "workflow_id": "TESTWORKFLOW",
             "bucket": mesh_s3_bucket,
-            "key": "MESH-TEST2/outbound/testfile.json",
+            "key": "X26ABC2/outbound/testfile.json",
             "chunked": False,
             "chunk_number": 1,
             "total_chunks": 1,
@@ -120,10 +123,10 @@ def test_mesh_check_send_parameters_happy_path_unchunked(
                 "filename": None,
                 "local_id": None,
                 "partner_id": None,
-                "recipient": "MESH-TEST1",
+                "recipient": "X26ABC1",
                 "s3_bucket": mesh_s3_bucket,
-                "s3_key": "MESH-TEST2/outbound/testfile.json",
-                "sender": "MESH-TEST2",
+                "s3_key": "X26ABC2/outbound/testfile.json",
+                "sender": "X26ABC2",
                 "subject": "Custom Subject",
                 "total_chunks": 1,
                 "workflow_id": "TESTWORKFLOW",
@@ -140,7 +143,7 @@ def test_mesh_check_send_parameters_happy_path_unchunked(
     assert (datetime.now(UTC) - internal_id_timestamp).total_seconds() < 10  # seconds
     del response["body"]["internal_id"]
 
-    assert response == mock_response
+    assert response == expected_response
 
     logs = capsys.readouterr()
     assert was_value_logged(logs.out, "LAMBDA0001", "Log_Level", "INFO")
@@ -209,9 +212,7 @@ def test_running_as_singleton(
     sf_response = stepfunctions().start_execution(
         stateMachineArn=send_message_sfn_arn,
         input=json.dumps(
-            sample_trigger_event(
-                mesh_s3_bucket, f"MESH-TEST2/outbound/{uuid4().hex}.json"
-            )
+            sample_trigger_event(mesh_s3_bucket, f"X26ABC2/outbound/{uuid4().hex}.json")
         ),
     )
     step_func_exec_arn = sf_response.get("executionArn", None)
@@ -237,7 +238,6 @@ def test_running_as_singleton(
     step_func_exec_arn = sf_response.get("executionArn", None)
     assert step_func_exec_arn is not None
     # do running check - should return 503 and log MESHSEND0003 error message
-    print("AWS_ENDPOINT_URL =", os.environ.get("AWS_ENDPOINT_URL"))
     response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
     expected_return_code = {"statusCode": HTTPStatus.TOO_MANY_REQUESTS.value}
     expected_header = {"Retry-After": 18000}
@@ -251,9 +251,52 @@ def test_running_as_singleton(
     assert was_value_logged(logs.out, "MESHSEND0004a", "Log_Level", "INFO")
 
 
-def sample_trigger_event(bucket: str, key: str = "MESH-TEST2/outbound/testfile.json"):
-    """Return Example S3 eventbridge event"""
-    return_value = {
+def sample_trigger_event(
+    bucket: str, key: str = "X26ABC2/outbound/testfile.json"
+) -> dict:
+
+    s3_event = {
+        "eventVersion": "1.08",
+        "eventTime": "2021-06-29T14:10:55Z",
+        "eventSource": "s3.amazonaws.com",
+        "eventName": "PutObject",
+        "awsRegion": "eu-west-2",
+        "requestParameters": {
+            "X-Amz-Date": "20210629T141055Z",
+            "bucketName": bucket,
+            "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+            "x-amz-acl": "private",
+            "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # pylint: disable=line-too-long
+            "Host": f"{bucket}.s3.eu-west-2.amazonaws.com",
+            "X-Amz-Expires": "300",
+            "key": key,
+            "x-amz-storage-class": "STANDARD",
+        },
+        "responseElements": {
+            "x-amz-server-side-encryption": "aws:kms",
+            "x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:eu-west-2:092420156801:key/4f295c4c-17fd-4c9d-84e9-266b01de0a5a",  # noqa pylint: disable=line-too-long
+        },
+        "requestID": "1234567890123456",
+        "eventID": "75e91cfc-f2db-4e09-8f80-a206ab4cd15e",
+        "readOnly": False,
+        "resources": [
+            {
+                "type": "AWS::S3::Object",
+                "ARN": f"arn:aws:s3:::{key}",  # pylint: disable=line-too-long
+            },
+            {
+                "accountId": "123456789012",
+                "type": "AWS::S3::Bucket",
+                "ARN": f"arn:aws:s3:::{bucket}",
+            },
+        ],
+        "eventType": "AwsApiCall",
+        "managementEvent": False,
+        "recipientAccountId": "123456789012",
+        "eventCategory": "Data",
+    }
+
+    event_bridge_event = {
         "version": "0",
         "id": "daea9bec-2d16-e943-2079-4d19b6e2ec1d",
         "detail-type": "AWS API Call via CloudTrail",
@@ -262,46 +305,7 @@ def sample_trigger_event(bucket: str, key: str = "MESH-TEST2/outbound/testfile.j
         "time": "2021-06-29T14:10:55Z",
         "region": "eu-west-2",
         "resources": [],
-        "detail": {
-            "eventVersion": "1.08",
-            "eventTime": "2021-06-29T14:10:55Z",
-            "eventSource": "s3.amazonaws.com",
-            "eventName": "PutObject",
-            "awsRegion": "eu-west-2",
-            "requestParameters": {
-                "X-Amz-Date": "20210629T141055Z",
-                "bucketName": bucket,
-                "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
-                "x-amz-acl": "private",
-                "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",  # pylint: disable=line-too-long
-                "Host": f"{bucket}.s3.eu-west-2.amazonaws.com",
-                "X-Amz-Expires": "300",
-                "key": key,
-                "x-amz-storage-class": "STANDARD",
-            },
-            "responseElements": {
-                "x-amz-server-side-encryption": "aws:kms",
-                "x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:eu-west-2:092420156801:key/4f295c4c-17fd-4c9d-84e9-266b01de0a5a",  # noqa pylint: disable=line-too-long
-            },
-            "requestID": "1234567890123456",
-            "eventID": "75e91cfc-f2db-4e09-8f80-a206ab4cd15e",
-            "readOnly": False,
-            "resources": [
-                {
-                    "type": "AWS::S3::Object",
-                    "ARN": f"arn:aws:s3:::{key}",  # pylint: disable=line-too-long
-                },
-                {
-                    "accountId": "123456789012",
-                    "type": "AWS::S3::Bucket",
-                    "ARN": f"arn:aws:s3:::{bucket}",
-                },
-            ],
-            "eventType": "AwsApiCall",
-            "managementEvent": False,
-            "recipientAccountId": "123456789012",
-            "eventCategory": "Data",
-        },
+        "detail": s3_event,
     }
-    # pylint: enable=line-too-long
-    return return_value
+
+    return event_bridge_event

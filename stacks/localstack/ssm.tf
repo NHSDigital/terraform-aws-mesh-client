@@ -39,7 +39,7 @@ resource "aws_ssm_parameter" "passwords" {
 
   name  = "/${local.config_prefix}/mesh/mailboxes/${each.key}/MAILBOX_PASSWORD"
   type  = "SecureString"
-  value = "password"
+  value = "pwd123456"
 }
 
 # todo: remove in 3.0
