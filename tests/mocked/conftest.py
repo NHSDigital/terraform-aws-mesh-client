@@ -51,8 +51,6 @@ def environment(
         AWS_LAMBDA_FUNCTION_NAME="lambda_test",
         AWS_LAMBDA_FUNCTION_MEMORY_SIZE="128",
         AWS_LAMBDA_FUNCTION_VERSION="1",
-        # CRUMB_SIZE="10",
-        # CHUNK_SIZE="10",
         MESH_URL="https://localhost:8700",
         MESH_BUCKET=f"{environment}-mesh",
         SEND_MESSAGE_STEP_FUNCTION_ARN=f"arn:aws:states:eu-west-2:123456789012:stateMachine:{environment}-send-message",
