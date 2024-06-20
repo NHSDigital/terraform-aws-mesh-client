@@ -50,7 +50,7 @@ resource "aws_sfn_state_machine" "get_messages" {
               Next       = "Is this the last chunk?"
               OutputPath = "$.Payload"
               Parameters = {
-                FunctionName = "${aws_lambda_function.fetch_message_chunk.arn}:$LATEST"
+                FunctionName = "${aws_lambda_function.fetch_message_chunk.arn}:${aws_lambda_function.fetch_message_chunk.version}"
                 "Payload.$"  = "$"
               }
               Resource = "arn:aws:states:::lambda:invoke"
@@ -96,7 +96,7 @@ resource "aws_sfn_state_machine" "get_messages" {
         Next       = "Failed?"
         OutputPath = "$.Payload"
         Parameters = {
-          FunctionName = "${aws_lambda_function.poll_mailbox.arn}:$LATEST"
+          FunctionName = "${aws_lambda_function.poll_mailbox.arn}:${aws_lambda_function.poll_mailbox.version}"
           "Payload.$"  = "$"
         }
         Resource = "arn:aws:states:::lambda:invoke"
