@@ -18,6 +18,7 @@ spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.7.7"
 aws-lambda-powertools = "^2.36.0"
 mesh-client = "^3.2.3"
+requests = "^2.32.3"
 
 [tool.poetry.group.dev.dependencies]
 # ci / testing dependencies
