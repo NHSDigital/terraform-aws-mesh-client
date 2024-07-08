@@ -120,6 +120,7 @@ mypy-boto3-lambda = {version = ">=1.34.0,<1.35.0", optional = true, markers = "e
 mypy-boto3-logs = {version = ">=1.34.0,<1.35.0", optional = true, markers = "extra == \"logs\""}
 mypy-boto3-s3 = {version = ">=1.34.0,<1.35.0", optional = true, markers = "extra == \"s3\""}
 mypy-boto3-secretsmanager = {version = ">=1.34.0,<1.35.0", optional = true, markers = "extra == \"secretsmanager\""}
+mypy-boto3-ses = {version = ">=1.34.0,<1.35.0", optional = true, markers = "extra == \"ses\""}
 mypy-boto3-sns = {version = ">=1.34.0,<1.35.0", optional = true, markers = "extra == \"sns\""}
 mypy-boto3-sqs = {version = ">=1.34.0,<1.35.0", optional = true, markers = "extra == \"sqs\""}
 mypy-boto3-ssm = {version = ">=1.34.0,<1.35.0", optional = true, markers = "extra == \"ssm\""}
@@ -553,13 +554,13 @@ botocore = ["botocore"]
 
 [[package]]
 name = "certifi"
-version = "2024.2.2"
+version = "2024.7.4"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "certifi-2024.2.2-py3-none-any.whl", hash = "sha256:dc383c07b76109f368f6106eee2b593b04a011ea4d55f652c6ca24a754d1cdd1"},
-    {file = "certifi-2024.2.2.tar.gz", hash = "sha256:0569859f95fc761b18b45ef421b1290a0f65f147e92a1e5eb3e635f9a5e4e66f"},
+    {file = "certifi-2024.7.4-py3-none-any.whl", hash = "sha256:c198e21b1289c2ab85ee4e67bb4b4ef3ead0892059901a8d5b622f24a1101e90"},
+    {file = "certifi-2024.7.4.tar.gz", hash = "sha256:5a1e7645bc0ec61a09e26c36f6106dd4cf40c6db3a1fb6352b0244e7fb057c7b"},
 ]
 
 [[package]]
@@ -881,22 +882,22 @@ files = [
 
 [[package]]
 name = "importlib-metadata"
-version = "7.0.1"
+version = "8.0.0"
 description = "Read metadata from Python packages"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "importlib_metadata-7.0.1-py3-none-any.whl", hash = "sha256:4805911c3a4ec7c3966410053e9ec6a1fecd629117df5adee56dfc9432a1081e"},
-    {file = "importlib_metadata-7.0.1.tar.gz", hash = "sha256:f238736bb06590ae52ac1fab06a3a9ef1d8dce2b7a35b5ab329371d6c8f5d2cc"},
+    {file = "importlib_metadata-8.0.0-py3-none-any.whl", hash = "sha256:15584cf2b1bf449d98ff8a6ff1abef57bf20f3ac6454f431736cd3e660921b2f"},
+    {file = "importlib_metadata-8.0.0.tar.gz", hash = "sha256:188bd24e4c346d3f0a933f275c2fec67050326a856b9a359881d7c2a697e8812"},
 ]
 
 [package.dependencies]
 zipp = ">=0.5"
 
 [package.extras]
-docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (<7.2.5)", "sphinx (>=3.5)", "sphinx-lint"]
+doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
 perf = ["ipython"]
-testing = ["flufl.flake8", "importlib-resources (>=1.3)", "packaging", "pyfakefs", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy (>=0.9.1)", "pytest-perf (>=0.9.2)", "pytest-ruff"]
+test = ["flufl.flake8", "importlib-resources (>=1.3)", "jaraco.test (>=5.4)", "packaging", "pyfakefs", "pytest (>=6,!=8.1.*)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy", "pytest-perf (>=0.9.2)", "pytest-ruff (>=0.2.1)"]
 
 [[package]]
 name = "iniconfig"
@@ -1256,6 +1257,20 @@ files = [
 typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
 
 [[package]]
+name = "mypy-boto3-ses"
+version = "1.34.0"
+description = "Type annotations for boto3.SES 1.34.0 service generated with mypy-boto3-builder 7.21.0"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mypy-boto3-ses-1.34.0.tar.gz", hash = "sha256:89e1438d9f2d4cf339c0245616334d52e0ca3a3f0ae2ce0d1f54a2257c5b9da4"},
+    {file = "mypy_boto3_ses-1.34.0-py3-none-any.whl", hash = "sha256:f7884d3e29fc039ea9186a32505a984586e9035bb8539b4ecc5b7d14a57ba9bb"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
+
+[[package]]
 name = "mypy-boto3-sns"
 version = "1.34.44"
 description = "Type annotations for boto3.SNS 1.34.44 service generated with mypy-boto3-builder 7.23.1"
@@ -1324,18 +1339,18 @@ files = [
 
 [[package]]
 name = "nhs-aws-helpers"
-version = "0.7.3"
+version = "0.7.7"
 description = ""
 optional = false
-python-versions = ">=3.8,<4.0"
+python-versions = "<4.0,>=3.8"
 files = [
-    {file = "nhs_aws_helpers-0.7.3-py3-none-any.whl", hash = "sha256:48df52bdd65aa7c0dc1508ec00ec4b122eced591a375920013308667f1ce1eb9"},
-    {file = "nhs_aws_helpers-0.7.3.tar.gz", hash = "sha256:116e046908a51264ba97b0e0c284b7115247c4266287cbca18c3fb8a174713fd"},
+    {file = "nhs_aws_helpers-0.7.7-py3-none-any.whl", hash = "sha256:97ccf8a9d4cdab9e2ffdecab25e0e5c43e1f787549bedc5e66524602492cd6ce"},
+    {file = "nhs_aws_helpers-0.7.7.tar.gz", hash = "sha256:cc9a1a5bc9253e2a6d2fc1eabbd8823f957ac624327fe051f05345b50e8276e6"},
 ]
 
 [package.dependencies]
 boto3 = ">=1.26.159,<2.0.0"
-boto3-stubs = {version = ">=1.28.36,<2.0.0", extras = ["athena", "dynamodb", "events", "firehose", "kms", "lambda", "logs", "s3", "secretsmanager", "sns", "sqs", "ssm", "stepfunctions"]}
+boto3-stubs = {version = ">=1.28.36,<2.0.0", extras = ["athena", "dynamodb", "events", "firehose", "kms", "lambda", "logs", "s3", "secretsmanager", "ses", "sns", "sqs", "ssm", "stepfunctions"]}
 botocore-stubs = ">=1.29.159,<2.0.0"
 
 [[package]]
@@ -1514,6 +1529,7 @@ files = [
     {file = "PyYAML-6.0.1-cp311-cp311-win_amd64.whl", hash = "sha256:bf07ee2fef7014951eeb99f56f39c9bb4af143d8aa3c21b1677805985307da34"},
     {file = "PyYAML-6.0.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:855fb52b0dc35af121542a76b9a84f8d1cd886ea97c84703eaa6d88e37a2ad28"},
     {file = "PyYAML-6.0.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:40df9b996c2b73138957fe23a16a4f0ba614f4c0efce1e9406a184b6d07fa3a9"},
+    {file = "PyYAML-6.0.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a08c6f0fe150303c1c6b71ebcd7213c2858041a7e01975da3a99aed1e7a378ef"},
     {file = "PyYAML-6.0.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6c22bec3fbe2524cde73d7ada88f6566758a8f7227bfbf93a408a9d86bcc12a0"},
     {file = "PyYAML-6.0.1-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:8d4e9c88387b0f5c7d5f281e55304de64cf7f9c0021a3525bd3b1c542da3b0e4"},
     {file = "PyYAML-6.0.1-cp312-cp312-win32.whl", hash = "sha256:d483d2cdf104e7c9fa60c544d92981f12ad66a457afae824d146093b8c294c54"},
@@ -1550,13 +1566,13 @@ files = [
 
 [[package]]
 name = "requests"
-version = "2.31.0"
+version = "2.32.3"
 description = "Python HTTP for Humans."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "requests-2.31.0-py3-none-any.whl", hash = "sha256:58cd2187c01e70e6e26505bca751777aa9f2ee0b7f4300988b709f44e013003f"},
-    {file = "requests-2.31.0.tar.gz", hash = "sha256:942c5a758f98d790eaed1a29cb6eefc7ffb0d1cf7af05c3d2791656dbd6ad1e1"},
+    {file = "requests-2.32.3-py3-none-any.whl", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"},
+    {file = "requests-2.32.3.tar.gz", hash = "sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760"},
 ]
 
 [package.dependencies]
@@ -1692,19 +1708,20 @@ files = [
 
 [[package]]
 name = "urllib3"
-version = "1.26.18"
+version = "2.2.2"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
+python-versions = ">=3.8"
 files = [
-    {file = "urllib3-1.26.18-py2.py3-none-any.whl", hash = "sha256:34b97092d7e0a3a8cf7cd10e386f401b3737364026c45e622aa02903dffe0f07"},
-    {file = "urllib3-1.26.18.tar.gz", hash = "sha256:f8ecc1bba5667413457c529ab955bf8c67b45db799d159066261719e328580a0"},
+    {file = "urllib3-2.2.2-py3-none-any.whl", hash = "sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472"},
+    {file = "urllib3-2.2.2.tar.gz", hash = "sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168"},
 ]
 
 [package.extras]
-brotli = ["brotli (==1.0.9)", "brotli (>=1.0.9)", "brotlicffi (>=0.8.0)", "brotlipy (>=0.6.0)"]
-secure = ["certifi", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "ipaddress", "pyOpenSSL (>=0.14)", "urllib3-secure-extra"]
-socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
+brotli = ["brotli (>=1.0.9)", "brotlicffi (>=0.8.0)"]
+h2 = ["h2 (>=4,<5)"]
+socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
+zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "werkzeug"
@@ -1752,4 +1769,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "570bf0f8545a4770e30615a44cf2b08349a561d4c1ebf8a058de74c4fe6576b4"
+content-hash = "5bea73ad4d3fb7a0374858df985558191e9a94d3628cfa82a98dad61cfa59715"
