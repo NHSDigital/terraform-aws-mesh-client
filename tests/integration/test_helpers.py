@@ -144,9 +144,7 @@ class CloudwatchLogsCapture:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
-            return False
-        return True
+        return exc_type is None
 
     def _split(self) -> float:
         new_ts = time()

@@ -14,6 +14,7 @@ resource "aws_lambda_function" "poll_mailbox" {
   role             = aws_iam_role.poll_mailbox.arn
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
 
+  publish = true
 
   environment {
     variables = local.common_env_vars

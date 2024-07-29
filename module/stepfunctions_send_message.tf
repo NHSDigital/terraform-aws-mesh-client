@@ -7,6 +7,8 @@ resource "aws_sfn_state_machine" "send_message" {
   type     = "STANDARD"
   role_arn = aws_iam_role.send_message.arn
 
+  publish = true
+
   logging_configuration {
     log_destination        = "${aws_cloudwatch_log_group.send_message.arn}:*"
     include_execution_data = true
@@ -26,7 +28,7 @@ resource "aws_sfn_state_machine" "send_message" {
         Next       = "Failed?"
         OutputPath = "$.Payload"
         Parameters = {
-          FunctionName = "${aws_lambda_function.check_send_parameters.arn}:$LATEST"
+          FunctionName = "${aws_lambda_function.check_send_parameters.arn}:${aws_lambda_function.check_send_parameters.version}"
           "Payload.$"  = "$"
         }
         Resource = "arn:aws:states:::lambda:invoke"
@@ -73,7 +75,7 @@ resource "aws_sfn_state_machine" "send_message" {
         Next       = "Completed sending?"
         OutputPath = "$.Payload"
         Parameters = {
-          FunctionName = "${aws_lambda_function.send_message_chunk.arn}:$LATEST"
+          FunctionName = "${aws_lambda_function.send_message_chunk.arn}:${aws_lambda_function.send_message_chunk.version}"
           "Payload.$"  = "$"
         }
         Resource = "arn:aws:states:::lambda:invoke"
