@@ -7,6 +7,8 @@ resource "aws_sfn_state_machine" "send_message" {
   type     = "STANDARD"
   role_arn = aws_iam_role.send_message.arn
 
+  publish = true
+
   logging_configuration {
     log_destination        = "${aws_cloudwatch_log_group.send_message.arn}:*"
     include_execution_data = true

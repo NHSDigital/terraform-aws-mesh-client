@@ -14,6 +14,8 @@ resource "aws_lambda_function" "check_send_parameters" {
   role             = aws_iam_role.check_send_parameters.arn
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
 
+  publish = true
+
   environment {
     variables = local.common_env_vars
   }

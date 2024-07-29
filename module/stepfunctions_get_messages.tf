@@ -7,6 +7,8 @@ resource "aws_sfn_state_machine" "get_messages" {
   type     = "STANDARD"
   role_arn = aws_iam_role.get_messages.arn
 
+  publish = true
+
   logging_configuration {
     log_destination        = "${aws_cloudwatch_log_group.get_messages.arn}:*"
     include_execution_data = true
