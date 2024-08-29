@@ -11,7 +11,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "~3.11"
+python = "^3.11"
 importlib-metadata = "8.0.0"
 urllib3 = "^2.2.2"
 spine-aws-common = "^0.2.14"
@@ -28,7 +28,7 @@ coverage = "^7.2.7"
 pytest = "^8.1.1"
 pytest-asyncio = "^0.23.6"
 moto = {extras = ["s3", "ssm", "stepfunctions", "secretsmanager"], version = "^5.0.5"}
-boto3-stubs = {extras = ["s3", "ssm", "secretsmanager", "dynamodb", "stepfunctions", "sqs", "lambda", "logs",], version = "^1.34.32"}
+boto3-stubs = {extras = ["s3", "ssm", "secretsmanager", "dynamodb", "stepfunctions", "sqs", "lambda", "logs",], version = "^1.34.152"}
 ruff = "^0"
 petname = "^2.6"
 black = "^24"
