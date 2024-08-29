@@ -39,7 +39,7 @@ def s3_client(_mock_aws) -> S3Client:
     return _s3_client()
 
 
-@pytest.fixture()
+@pytest.fixture
 def environment(
     _mock_aws,
 ) -> Generator[str, None, None]:
@@ -65,7 +65,7 @@ def environment(
         yield environment
 
 
-@pytest.fixture()
+@pytest.fixture
 def mesh_s3_bucket(s3_client: S3Client, environment: str) -> str:
     bucket = os.environ["MESH_BUCKET"]
     s3_client.create_bucket(
@@ -85,14 +85,14 @@ def mesh_s3_bucket(s3_client: S3Client, environment: str) -> str:
     return bucket
 
 
-@pytest.fixture()
+@pytest.fixture
 def send_message_sfn_arn(environment: str) -> str:
     return _setup_step_function(
         stepfunctions(), environment, f"{environment}-send-message"
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_messages_sfn_arn(environment: str):
     return _setup_step_function(
         stepfunctions(), environment, f"{environment}-get-messages"
