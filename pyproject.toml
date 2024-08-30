@@ -11,7 +11,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "~3.11"
 importlib-metadata = "8.0.0"
 urllib3 = "^2.2.2"
 spine-aws-common = "^0.2.14"
