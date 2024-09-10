@@ -120,6 +120,6 @@ def test_strtobool_exception_raised(input_val):
         strtobool(input_val, True)
 
 
-@pytest.mark.parametrize("input_val",["HELLO", True, [], "YESH", 3, None])
+@pytest.mark.parametrize("input_val", ["HELLO", True, [], "YESH", 3, None])
 def test_strtobool_exception_swallowed(input_val):
     assert strtobool(input_val, False) is None
