@@ -32,9 +32,9 @@ echo -e "Generating websvr key and csr:\n"
 csr_conf="${this_dir}/conf/server.conf"
 
 if [[ ${dns_name2} == "?" ]]; then
-  export SAN="subjectAltName=DNS:${dns_name1}"
+  export SAN="DNS:${dns_name1}"
 else
-  export SAN="subjectAltName=DNS:${dns_name1},DNS:${dns_name2}"
+  export SAN="DNS:${dns_name1},DNS:${dns_name2}"
 fi
 
 export CN="${dns_name1}"
