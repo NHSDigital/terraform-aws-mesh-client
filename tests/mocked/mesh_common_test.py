@@ -2,10 +2,11 @@
 
 import re
 from collections.abc import Generator
+import pytest
 from uuid import uuid4
 
 from nhs_aws_helpers import secrets_client, ssm_client
-from shared.common import get_params
+from shared.common import get_params, strtobool
 
 
 def find_log_entries(logs: str, log_reference) -> Generator[dict[str, str], None, None]:
@@ -98,3 +99,53 @@ def test_get_params_ssm_and_secrets(environment: str):
         f"/{env}/mesh/MESH_CLIENT_KEY2": "DummyKey2",
     }
     assert expected_params == param_dict
+
+@pytest.mark.parametrize("input_val", [
+    "True",
+    "true",
+    "1",
+    "Yes",
+    "Y",
+    "t",
+    "T"
+])
+def test_strtobool_true(input_val):
+    assert strtobool(input_val, False) is True
+
+
+@pytest.mark.parametrize("input_val", [
+    "False",
+    "false",
+    "0",
+    "No",
+    "N",
+    "f",
+    "F"
+])
+def test_strtobool_false(input_val):
+    assert strtobool(input_val, False) is False
+
+
+@pytest.mark.parametrize("input_val", [
+    "HELLO",
+    True,
+    [],
+    "YESH",
+    3,
+    None
+])
+def test_strtobool_exception_raised(input_val):
+    with pytest.raises(ValueError, match='Expected "yes", "true", "t", "y", "1", "no", "false", "f", "n", "0"'):
+        strtobool(input_val, True)
+
+
+@pytest.mark.parametrize("input_val", [
+   "HELLO",
+    True,
+    [],
+    "YESH",
+    3,
+    None
+])
+def test_strtobool_exception_swallowed(input_val):
+    assert strtobool(input_val, False) is None
