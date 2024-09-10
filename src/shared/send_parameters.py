@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from distutils.util import strtobool
 from math import ceil
 from typing import Any
 from urllib.parse import unquote_plus
@@ -10,7 +9,7 @@ from mypy_boto3_s3.service_resource import Object
 from mypy_boto3_ssm import SSMClient
 from nhs_aws_helpers import ssm_client
 
-from shared.common import convert_params_to_dict
+from shared.common import convert_params_to_dict, strtobool
 from shared.config import EnvConfig
 
 _MESH_SEND_KWARGS = {

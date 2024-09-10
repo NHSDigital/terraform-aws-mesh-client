@@ -8,6 +8,9 @@ from mypy_boto3_ssm import SSMClient
 from mypy_boto3_stepfunctions import SFNClient
 from nhs_aws_helpers import secrets_client, ssm_client, stepfunctions
 
+BOOL_TRUE_SET = {"yes", "true", "t", "y", "1"}
+BOOL_FALSE_SET = {"no", "false", "f", "n", "0"}
+
 
 class SingletonCheckFailure(Exception):
     """Singleton check failed"""
@@ -30,6 +33,20 @@ def nullsafe_quote(value: str | None) -> str:
         return ""
 
     return quote_plus(value, encoding="utf-8")
+
+
+def strtobool(value, raise_exc=False):
+    if isinstance(value, str):
+        value = value.lower()
+        if value in BOOL_TRUE_SET:
+            return True
+        if value in BOOL_FALSE_SET:
+            return False
+
+    if raise_exc:
+        list_str = '", "'.join(BOOL_TRUE_SET | BOOL_FALSE_SET)
+        raise ValueError(f'Expected "{list_str}"')
+    return None
 
 
 def singleton_check(
