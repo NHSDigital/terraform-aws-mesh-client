@@ -43,13 +43,13 @@ runs:
           git merge --ff-only "${{ github.event.pull_request.head.sha }}"
 
       - name: setup python using pyproject.toml
-        if: ${{ inputs.force-python-version == "" }}
+        if: ${{ inputs.force-python-version == '' }}
         uses: actions/setup-python@v5
         with:
           python-version-file: 'pyproject.toml'
 
       - name: setup specific python version
-        if: ${{ inputs.force-python-version != "" }}
+        if: ${{ inputs.force-python-version != '' }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.force-python-version }}
