@@ -5,6 +5,10 @@ inputs:
      required: false
      default: "false"
      description: "whether to configure aws credentials"
+   force-python-version:
+     required: false
+     default: ""
+     description: "provide a specific python version (see setup-python action docs) or empty string to use the version specified in pyproject.toml"
 
 
 runs:
@@ -38,10 +42,17 @@ runs:
           git checkout -b "merging-${{ github.event.number }}"
           git merge --ff-only "${{ github.event.pull_request.head.sha }}"
 
-      - name: setup python
-        uses: actions/setup-python@v4
+      - name: setup python using pyproject.toml
+        if: ${{ inputs.force-python-version == "" }}
+        uses: actions/setup-python@v5
         with:
           python-version-file: 'pyproject.toml'
+
+      - name: setup specific python version
+        if: ${{ inputs.force-python-version != "" }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.force-python-version }}
 
       - name: install terraform
         uses: hashicorp/setup-terraform@v2

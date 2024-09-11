@@ -67,9 +67,14 @@ jobs:
 
       - name: common build setup
         uses: ./.github/actions/build-common
+        with:
+          force-python-version: ${{ matrix.python-version }}
 
       - name: ci install
         uses: ./.github/actions/install-ci
+
+      - name: install tox-github-ci plugin
+        run: pip install tox-gh-actions
 
       - name: black
         run: make black-check
