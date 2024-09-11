@@ -67,6 +67,9 @@ pytest: certs
 
 test: pytest
 
+tox:
+	poetry run tox
+
 tflint:
 	@docker run -v "$(pwd)/module:/data" -v "$(pwd)/tflint.hcl:/tflint.hcl" --entrypoint=/bin/sh \
 		ghcr.io/terraform-linters/tflint \
