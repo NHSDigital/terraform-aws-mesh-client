@@ -52,6 +52,43 @@ jobs:
         if: success() || failure()
         run: make down
 
+  tox:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    runs-on: ubuntu-latest
+    if: github.repository == 'NHSDigital/terraform-aws-mesh-client'
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: common build setup
+        uses: ./.github/actions/build-common
+        with:
+          force-python-version: ${{ matrix.python-version }}
+
+      - name: ci install
+        uses: ./.github/actions/install-ci
+
+      - name: install tox-github-ci plugin
+        run: pip install tox-gh-actions
+
+      - name: black
+        run: make black-check
+
+      - name: start localstack
+        run: make up-ci
+
+      - name: run tests in tox
+        run: make tox
+
+      - name: stop docker containers
+        if: success() || failure()
+        run: make down
+
   lint:
     runs-on: ubuntu-latest
     if: github.repository == 'NHSDigital/terraform-aws-mesh-client'

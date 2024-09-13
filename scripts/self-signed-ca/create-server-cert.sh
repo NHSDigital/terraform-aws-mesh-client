@@ -32,13 +32,13 @@ echo -e "Generating websvr key and csr:\n"
 csr_conf="${this_dir}/conf/server.conf"
 
 if [[ ${dns_name2} == "?" ]]; then
-  san="subjectAltName = DNS:${dns_name1}"
+  export SAN="DNS:${dns_name1}"
 else
-  san="subjectAltName = DNS:${dns_name1}, DNS:${dns_name2}"
+  export SAN="DNS:${dns_name1},DNS:${dns_name2}"
 fi
 
 export CN="${dns_name1}"
-openssl req -newkey rsa:2048 -nodes -keyout "${cert_key}" -new -out "${cert_csr}" -config "${csr_conf}" -extensions v3_req -addext "${san}"
+openssl req -newkey rsa:2048 -nodes -keyout "${cert_key}" -new -out "${cert_csr}" -config "${csr_conf}" -extensions v3_req
 
 #extra_extensions=""
 #if [[ "${type}" == "client" ]]; then
