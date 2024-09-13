@@ -156,7 +156,7 @@ legacy_tox_ini = """
 
     [gh-actions]
     python =
-        3.11: py310
+        3.11: py311
         3.12: py312
 
     [testenv]
