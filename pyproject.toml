@@ -23,7 +23,7 @@ requests = "^2.32.3"
 [tool.poetry.group.dev.dependencies]
 # ci / testing dependencies
 boto3 = "^1.33.1"
-mypy = "^1.4.0"
+mypy = "^1.11.2"
 coverage = "^7.2.7"
 pytest = "^8.1.1"
 pytest-asyncio = "^0.23.6"
