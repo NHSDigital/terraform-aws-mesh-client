@@ -2,6 +2,7 @@ import gzip
 import hashlib
 import json
 import random
+import re
 import tempfile
 from datetime import datetime
 from io import BytesIO
@@ -11,6 +12,7 @@ from uuid import uuid4
 
 import pytest
 from mesh_client import MeshClient
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_events import EventBridgeClient
 from mypy_boto3_events.type_defs import PutEventsRequestEntryTypeDef
 from mypy_boto3_lambda import LambdaClient
@@ -19,6 +21,7 @@ from mypy_boto3_ssm import SSMClient
 from mypy_boto3_stepfunctions import SFNClient
 
 from integration.constants import (
+    CHECK_PARAMS_LOG_GROUP,
     FETCH_FUNCTION,
     FETCH_LOG_GROUP,
     GET_MESSAGES_SFN_ARN,
@@ -636,3 +639,68 @@ def test_send_receive_legacy_mapping(
 
     message = mesh_client_two.retrieve_message(message_id)
     message.status = "acknowledged"  # type: ignore[attr-defined]
+
+
+def test_send_locking_write(
+    local_mesh_bucket: Bucket,
+    sfn: SFNClient,
+    events: EventBridgeClient,
+    ssm: SSMClient,
+    local_lock_table: Table,
+):
+    """
+    Queue a step function execution for an S3 file and ensure that the expected DynamoDB lock table row is written out.
+    """
+    wait_till_not_running(state_machine_arn=GET_MESSAGES_SFN_ARN, sfn=sfn)
+
+    sender = LOCAL_MAILBOXES[0]
+    recipient = LOCAL_MAILBOXES[1]
+    workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
+    filename = f"{uuid4().hex}.dat"
+    key = f"outbound_{sender}_to_{recipient}/{filename}"
+    s3_object = local_mesh_bucket.Object(key)
+    content = b"test"
+    content_type = "text/plain"
+    expected_lock_name = f"SendLock_{local_mesh_bucket.name}_{key}"
+
+    with temp_mapping_for_s3_object(  # noqa: SIM117, RUF100
+        s3_object, sender, recipient, workflow_id, ssm
+    ):
+        with CloudwatchLogsCapture(log_group=CHECK_PARAMS_LOG_GROUP) as cw:
+            s3_object.put(Body=content, ContentType=content_type)
+            events.put_events(
+                Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
+            )  # no cloudtrail in localstack
+            cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+
+    logged_name, logged_exec_id = _get_lock_details_from_log_capture(cw)
+
+    assert logged_name == expected_lock_name
+
+    row = _get_lock_row(local_lock_table, expected_lock_name)
+
+    assert row["LockName"] == expected_lock_name, "Unexpected lock name in row"
+    assert row["LockOwner"] == logged_exec_id, "Unexpected owner for this lock row"
+    assert row["AcquiredTime"], "Lock row didn't contain a timestamp"
+
+
+def _get_lock_row(local_lock_table: Table, lock_name: str) -> dict[str, str]:
+    result = local_lock_table.get_item(Key={"LockName": lock_name})
+    assert "Item" in result
+    return cast(dict[str, str], result["Item"])
+
+
+def _get_lock_details_from_log_capture(cw: CloudwatchLogsCapture) -> tuple[str, str]:
+    """
+    Pull out the MESH0009 line and extract the lock_name and execution_id fields.
+    """
+
+    acquire_start_result = cw.match_events(
+        cw.find_logs(),
+        re.compile(
+            r"^.*MESHSEND0009.*lock_name=\'(SendLock[a-zA-Z0-9\-\/_\.]+)\' for execution_id='([a-z0-9\-\:]+)'.*$"
+        ),
+    )
+    assert len(acquire_start_result) == 1
+
+    return cast(tuple[str, str], acquire_start_result[0]["match"].group(1, 2))

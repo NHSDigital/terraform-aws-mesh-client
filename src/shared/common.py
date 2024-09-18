@@ -1,8 +1,11 @@
+from datetime import datetime
 import json
 import os
 from collections.abc import Callable
 from urllib.parse import quote_plus
 
+from mypy_boto3_dynamodb import DynamoDBClient
+from mypy_boto3_dynamodb.client import Exceptions as DDBExceptions
 from mypy_boto3_secretsmanager import SecretsManagerClient
 from mypy_boto3_ssm import SSMClient
 from mypy_boto3_stepfunctions import SFNClient
@@ -47,6 +50,30 @@ def strtobool(value, raise_exc=False):
         list_str = '", "'.join(BOOL_TRUE_VALUES + BOOL_FALSE_VALUES)
         raise ValueError(f'Expected "{list_str}"')
     return None
+
+
+def acquire_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
+    """
+    Attempt to take ownership of the semaphore row in the lock table.
+    If the row already exists with an owner, then raise a SingletonCheckFailure.
+    """
+    lock_table_name = os.environ["DDB_LOCK_TABLE_NAME"]
+
+    try:
+        resp = ddb_client.update_item(
+            ExpressionAttributeNames={"#LO": "LockOwner", "#AT": "AcquiredTime"},
+            ExpressionAttributeValues={
+                ":o": {"S": execution_id},
+                ":t": {"S": str(datetime.now())},
+            },
+            UpdateExpression="SET #LO = :o, #AT = :t",
+            TableName=lock_table_name,
+            Key={"LockName": {"S": lock_name}},
+            ConditionExpression="attribute_not_exists(LockOwner)",
+        )
+    except DDBExceptions.ConditionalCheckFailedException as ex:
+        raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ex
+    return resp.items
 
 
 def singleton_check(

@@ -3,7 +3,13 @@ from time import time
 from typing import Any, TypedDict
 
 from mesh_client import MeshClient, optional_header_map
-from nhs_aws_helpers import s3_resource, secrets_client, ssm_client, stepfunctions
+from nhs_aws_helpers import (
+    dynamodb_client,
+    s3_resource,
+    secrets_client,
+    ssm_client,
+    stepfunctions,
+)
 from spine_aws_common import LambdaApplication
 
 from shared.common import get_params
@@ -35,6 +41,7 @@ class MESHLambdaApplication(LambdaApplication):
         self.ssm = ssm_client()
         self.sfn = stepfunctions()
         self.secrets = secrets_client()
+        self.ddb_client = dynamodb_client()
         self.config = EnvConfig()
         self.environment = self.config.environment
         self.mailbox_params: dict[str, MailboxParams] = {}

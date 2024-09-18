@@ -4,7 +4,12 @@ from http import HTTPStatus
 from typing import Any
 
 from shared.application import MESHLambdaApplication
-from shared.common import SingletonCheckFailure, return_failure, singleton_check
+from shared.common import (
+    SingletonCheckFailure,
+    acquire_lock,
+    return_failure,
+    singleton_check,
+)
 from shared.send_parameters import get_send_parameters
 from spine_aws_common.utilities import human_readable_bytes
 
@@ -22,11 +27,26 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
         return self._create_new_internal_id()
 
     def start(self):
+
+        self.log_object.write_log(
+            "MESHSEND0004b",
+            None,
+            {"debug_str": str(self.event.raw_event)},
+        )
+
+        print("CONTEXT", self.context)
+        print("EVENT", self.event.raw_event)
+
+        event_details = self.event["EventDetail"]["detail"]
+        execution_id = self.event["ExecutionId"]
+
+        print("EXECUTION_ID", execution_id)
+
         # in case of crash, set to internal server error so next stage fails
         self.response = {"statusCode": int(HTTPStatus.INTERNAL_SERVER_ERROR)}
 
-        bucket = self.event["detail"]["requestParameters"]["bucketName"]
-        key = self.event["detail"]["requestParameters"]["key"]
+        bucket = event_details["requestParameters"]["bucketName"]
+        key = event_details["requestParameters"]["key"]
 
         self.log_object.write_log("MESHSEND0001", None, {"bucket": bucket, "file": key})
 
@@ -54,11 +74,19 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
             },
         )
         try:
-            check = partial(self.is_send_for_same_file, send_params=send_params)
-            singleton_check(
-                self.config.send_message_step_function_arn,
-                check,
-                self.sfn,
+
+            lock_name = f"SendLock_{send_params.s3_bucket}_{send_params.s3_key}"
+
+            self.log_object.write_log(
+                "MESHSEND0009",
+                None,
+                {"lock_name": lock_name, "execution_id": execution_id},
+            )
+
+            acquire_lock(
+                self.ddb_client,
+                lock_name,
+                execution_id,
             )
 
         except SingletonCheckFailure as e:
