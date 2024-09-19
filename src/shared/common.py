@@ -1,11 +1,11 @@
-from datetime import datetime
 import json
 import os
 from collections.abc import Callable
+from datetime import datetime
 from urllib.parse import quote_plus
 
+from botocore.exceptions import ClientError
 from mypy_boto3_dynamodb import DynamoDBClient
-from mypy_boto3_dynamodb.client import Exceptions as DDBExceptions
 from mypy_boto3_secretsmanager import SecretsManagerClient
 from mypy_boto3_ssm import SSMClient
 from mypy_boto3_stepfunctions import SFNClient
@@ -71,8 +71,9 @@ def acquire_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
             Key={"LockName": {"S": lock_name}},
             ConditionExpression="attribute_not_exists(LockOwner)",
         )
-    except DDBExceptions.ConditionalCheckFailedException as ex:
-        raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ex
+    except ClientError as ce:
+        if ce.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ce
     return resp.items
 
 

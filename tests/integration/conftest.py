@@ -1,8 +1,8 @@
 from collections.abc import Generator
 
-from mypy_boto3_dynamodb.service_resource import Table
 import pytest
 from mesh_client import MeshClient
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_events import EventBridgeClient
 from mypy_boto3_lambda import LambdaClient
 from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
@@ -17,7 +17,6 @@ from nhs_aws_helpers import (
     secrets_client,
     ssm_client,
     stepfunctions,
-    dynamodb_client,
 )
 
 # noinspection PyUnresolvedReferences

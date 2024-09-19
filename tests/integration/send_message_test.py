@@ -34,6 +34,7 @@ from integration.constants import (
 from integration.test_helpers import (
     CloudwatchLogsCapture,
     sync_json_lambda_invocation_successful,
+    temp_lock_row,
     temp_mapping_for_s3_object,
     wait_for,
     wait_for_execution_outcome,
@@ -684,10 +685,80 @@ def test_send_locking_write(
     assert row["AcquiredTime"], "Lock row didn't contain a timestamp"
 
 
+def test_send_locked(
+    local_mesh_bucket: Bucket,
+    sfn: SFNClient,
+    events: EventBridgeClient,
+    ssm: SSMClient,
+    local_lock_table: Table,
+):
+    """
+    Ensure that locking works expected - the SFN should fail and log appropriately.
+    """
+    wait_till_not_running(state_machine_arn=GET_MESSAGES_SFN_ARN, sfn=sfn)
+
+    sender = LOCAL_MAILBOXES[0]
+    recipient = LOCAL_MAILBOXES[1]
+    workflow_id = f"{uuid4().hex[:8]} {uuid4().hex[:8]}"
+    filename = f"{uuid4().hex}.dat"
+    key = f"outbound_{sender}_to_{recipient}/{filename}"
+    s3_object = local_mesh_bucket.Object(key)
+    content = b"test"
+    content_type = "text/plain"
+    expected_lock_name = f"SendLock_{local_mesh_bucket.name}_{key}"
+
+    with temp_mapping_for_s3_object(  # noqa: SIM117, RUF100
+        s3_object, sender, recipient, workflow_id, ssm
+    ), temp_lock_row(expected_lock_name, "TEMP", local_lock_table):
+        # Given an existing lock row for this S3 file..
+        with CloudwatchLogsCapture(log_group=CHECK_PARAMS_LOG_GROUP) as cw:
+            s3_object.put(Body=content, ContentType=content_type)
+            # When we queue a send event for this document
+            events.put_events(
+                Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
+            )  # no cloudtrail in localstack
+            cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+
+        # We still need exec ID, but get the lock name from MESHSEND0003 to validate the log format
+        _, logged_exec_id = _get_lock_details_from_log_capture(cw)
+        logged_name = _get_lock_name_from_fail_logs(cw)
+
+        assert logged_name == expected_lock_name
+
+        # Sure the step function execution failed and that it was due to the lock row we created.
+        sfn_steps = sfn.get_execution_history(executionArn=logged_exec_id)["events"]
+        assert len(sfn_steps) == 10
+        assert sfn_steps[9]["type"] == "ExecutionFailed"
+        failed_step_details = json.loads(
+            sfn_steps[8]["stateEnteredEventDetails"]["input"]
+        )
+
+        assert (
+            failed_step_details["body"]["error"]
+            == f"Lock already exists for {expected_lock_name}"
+        )
+
+
 def _get_lock_row(local_lock_table: Table, lock_name: str) -> dict[str, str]:
     result = local_lock_table.get_item(Key={"LockName": lock_name})
     assert "Item" in result
     return cast(dict[str, str], result["Item"])
+
+
+def _get_lock_name_from_fail_logs(cw: CloudwatchLogsCapture) -> str:
+    """
+    Pull out the MESH0003 line and extract the error message.
+    """
+
+    acquire_start_result = cw.match_events(
+        cw.find_logs(),
+        re.compile(
+            r"^.*MESHSEND0003.*error=\'Lock already exists for (SendLock[a-zA-Z0-9\-\/_\.]+)\'.*$"
+        ),
+    )
+    assert len(acquire_start_result) == 1
+
+    return str(acquire_start_result[0]["match"].group(1))
 
 
 def _get_lock_details_from_log_capture(cw: CloudwatchLogsCapture) -> tuple[str, str]:

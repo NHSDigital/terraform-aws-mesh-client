@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from datetime import datetime
 import json
 import math
 import os
@@ -14,6 +15,7 @@ from typing import cast
 
 import requests
 from botocore.exceptions import ClientError
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_lambda.type_defs import InvocationResponseTypeDef
 from mypy_boto3_logs.type_defs import LogStreamTypeDef, OutputLogEventTypeDef
 from mypy_boto3_s3.service_resource import Object
@@ -388,6 +390,22 @@ def temp_mapping_for_s3_object(
             f"{base_path}/workflow_id",
         ]
     )
+
+
+@contextmanager
+def temp_lock_row(lock_name: str, lock_owner: str, lock_table: Table):
+
+    lock_table.put_item(
+        Item={
+            "LockName": lock_name,
+            "LockOwner": lock_owner,
+            "AcquiredTime": str(datetime.now()),
+        }
+    )
+
+    yield lock_name
+
+    lock_table.delete_item(Key={"LockName": lock_name})
 
 
 @contextmanager
