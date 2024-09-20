@@ -12,7 +12,11 @@ from .mesh_testing_common import CONTEXT, was_value_logged
 
 
 def test_mesh_check_send_parameters_happy_path_chunked(
-    mesh_s3_bucket: str, environment: str, send_message_sfn_arn: str, capsys
+    mesh_s3_bucket: str,
+    environment: str,
+    send_message_sfn_arn: str,
+    capsys,
+    mocked_lock_table,
 ):
     """Test the lambda as a whole, happy path for small file"""
 
@@ -52,6 +56,8 @@ def test_mesh_check_send_parameters_happy_path_chunked(
                 "total_chunks": 4,
                 "workflow_id": "TESTWORKFLOW",
             },
+            "lock_name": f"SendLock_{mesh_s3_bucket}_X26ABC2/outbound/testfile.json",
+            "execution_id": "TEST1234",
         },
     }
     from mesh_check_send_parameters_application import (
@@ -305,7 +311,10 @@ def sample_trigger_event(
         "time": "2021-06-29T14:10:55Z",
         "region": "eu-west-2",
         "resources": [],
-        "detail": s3_event,
+        "EventDetail": {
+            "detail": s3_event,
+        },
+        "ExecutionId": "TEST1234",
     }
 
     return event_bridge_event

@@ -8,8 +8,12 @@ import pytest
 from integration.test_helpers import temp_env_vars
 from mesh_client import MeshClient
 from moto import mock_aws
+from mypy_boto3_dynamodb import DynamoDBClient
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_stepfunctions import SFNClient
+from nhs_aws_helpers import (
+    dynamodb_client as _ddb_client,
+)
 from nhs_aws_helpers import (
     s3_client as _s3_client,
 )
@@ -39,6 +43,40 @@ def s3_client(_mock_aws) -> S3Client:
     return _s3_client()
 
 
+@pytest.fixture(name="ddb_client")
+def ddb_client(_mock_aws) -> DynamoDBClient:
+    return _ddb_client()
+
+
+@pytest.fixture
+def mocked_lock_table(ddb_client: DynamoDBClient, environment):
+    table_name = os.getenv("DDB_LOCK_TABLE_NAME") or "mocked-lock-table"
+    ddb_client.create_table(
+        AttributeDefinitions=[
+            {"AttributeName": "LockOwner", "AttributeType": "S"},
+            {"AttributeName": "LockType", "AttributeType": "S"},
+            {"AttributeName": "LockName", "AttributeType": "S"},
+        ],
+        TableName=table_name,
+        KeySchema=[{"AttributeName": "LockName", "KeyType": "HASH"}],
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "LockTypeOwnerTableIndex",
+                "KeySchema": [
+                    {"AttributeName": "LockType", "KeyType": "HASH"},
+                    {"AttributeName": "LockOwner", "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "KEYS_ONLY"},
+            }
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    yield ddb_client.describe_table(TableName=table_name).get("Table", None)
+
+    # FIXME - do I need this?
+    ddb_client.delete_table(TableName=table_name)
+
+
 @pytest.fixture
 def environment(
     _mock_aws,
@@ -61,6 +99,7 @@ def environment(
         SHARED_KEY_CONFIG_KEY=f"/{environment}/mesh/MESH_SHARED_KEY",
         MAILBOXES_BASE_CONFIG_KEY=f"/{environment}/mesh/mailboxes",
         VERIFY_CHECKS_COMMON_NAME=False,
+        DDB_LOCK_TABLE_NAME="mocked-lock-table",
     ):
         yield environment
 

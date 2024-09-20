@@ -90,6 +90,7 @@ def acquire_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
     except ClientError as ce:
         if ce.response["Error"]["Code"] == "ConditionalCheckFailedException":
             raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ce
+        raise ce
     return resp.items
 
 
