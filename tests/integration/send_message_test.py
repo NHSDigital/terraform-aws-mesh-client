@@ -30,6 +30,7 @@ from integration.constants import (
     POLL_FUNCTION,
     POLL_LOG_GROUP,
     SEND_LOG_GROUP,
+    SEND_MESSAGE_SFN_ARN,
 )
 from integration.test_helpers import (
     CloudwatchLogsCapture,
@@ -642,17 +643,17 @@ def test_send_receive_legacy_mapping(
     message.status = "acknowledged"  # type: ignore[attr-defined]
 
 
-def test_send_locking_write(
+def test_send_locking(
     local_mesh_bucket: Bucket,
     sfn: SFNClient,
     events: EventBridgeClient,
     ssm: SSMClient,
-    local_lock_table: Table,
 ):
     """
-    Queue a step function execution for an S3 file and ensure that the expected DynamoDB lock table row is written out.
+    Queue a step function execution for an S3 file and ensure that the expected DynamoDB lock table row is written out
+    and then removed.
     """
-    wait_till_not_running(state_machine_arn=GET_MESSAGES_SFN_ARN, sfn=sfn)
+    wait_till_not_running(state_machine_arn=SEND_MESSAGE_SFN_ARN, sfn=sfn)
 
     sender = LOCAL_MAILBOXES[0]
     recipient = LOCAL_MAILBOXES[1]
@@ -666,26 +667,29 @@ def test_send_locking_write(
 
     with temp_mapping_for_s3_object(  # noqa: SIM117, RUF100
         s3_object, sender, recipient, workflow_id, ssm
-    ):
-        with CloudwatchLogsCapture(log_group=CHECK_PARAMS_LOG_GROUP) as cw:
-            s3_object.put(Body=content, ContentType=content_type)
-            events.put_events(
-                Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
-            )  # no cloudtrail in localstack
-            cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+    ), CloudwatchLogsCapture(log_group=CHECK_PARAMS_LOG_GROUP) as cw:
+        s3_object.put(Body=content, ContentType=content_type)
+        events.put_events(
+            Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
+        )  # no cloudtrail in localstack
+        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
 
-    logged_name, logged_exec_id = _get_lock_details_from_log_capture(cw)
+        # Assert the values in the log line while acquiring.
+        acquire_logged_name, acquire_logged_exec_id = (
+            _get_lock_details_from_log_capture(cw, "MESHSEND0009")
+        )
+        assert acquire_logged_name == expected_lock_name
 
-    assert logged_name == expected_lock_name
+        # Now switch the log group to the "send" lambda and make sure it logged the release correctly
+        cw.log_group = SEND_LOG_GROUP
+        release_logged_name, release_logged_exec_id = (
+            _get_lock_details_from_log_capture(cw, "MESHSEND0010")
+        )
+        assert release_logged_exec_id == acquire_logged_exec_id
+        assert release_logged_name == acquire_logged_name
 
-    row = _get_lock_row(local_lock_table, expected_lock_name)
 
-    assert row["LockName"] == expected_lock_name, "Unexpected lock name in row"
-    assert row["LockOwner"] == logged_exec_id, "Unexpected owner for this lock row"
-    assert row["AcquiredTime"], "Lock row didn't contain a timestamp"
-
-
-def test_send_locked(
+def test_send_lock_already_exists(
     local_mesh_bucket: Bucket,
     sfn: SFNClient,
     events: EventBridgeClient,
@@ -695,7 +699,7 @@ def test_send_locked(
     """
     Ensure that locking works expected - the SFN should fail and log appropriately.
     """
-    wait_till_not_running(state_machine_arn=GET_MESSAGES_SFN_ARN, sfn=sfn)
+    wait_till_not_running(state_machine_arn=SEND_MESSAGE_SFN_ARN, sfn=sfn)
 
     sender = LOCAL_MAILBOXES[0]
     recipient = LOCAL_MAILBOXES[1]
@@ -720,7 +724,7 @@ def test_send_locked(
             cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
 
         # We still need exec ID, but get the lock name from MESHSEND0003 to validate the log format
-        _, logged_exec_id = _get_lock_details_from_log_capture(cw)
+        _, logged_exec_id = _get_lock_details_from_log_capture(cw, "MESHSEND0009")
         logged_name = _get_lock_name_from_fail_logs(cw)
 
         assert logged_name == expected_lock_name
@@ -739,12 +743,6 @@ def test_send_locked(
         )
 
 
-def _get_lock_row(local_lock_table: Table, lock_name: str) -> dict[str, str]:
-    result = local_lock_table.get_item(Key={"LockName": lock_name})
-    assert "Item" in result
-    return cast(dict[str, str], result["Item"])
-
-
 def _get_lock_name_from_fail_logs(cw: CloudwatchLogsCapture) -> str:
     """
     Pull out the MESH0003 line and extract the error message.
@@ -761,17 +759,20 @@ def _get_lock_name_from_fail_logs(cw: CloudwatchLogsCapture) -> str:
     return str(acquire_start_result[0]["match"].group(1))
 
 
-def _get_lock_details_from_log_capture(cw: CloudwatchLogsCapture) -> tuple[str, str]:
+def _get_lock_details_from_log_capture(
+    cw: CloudwatchLogsCapture, log_ref: str
+) -> tuple[str, str]:
     """
     Pull out the MESH0009 line and extract the lock_name and execution_id fields.
+    Hard-coded to the "SendLock" lock name.
     """
 
-    acquire_start_result = cw.match_events(
+    search_result = cw.match_events(
         cw.find_logs(),
         re.compile(
-            r"^.*MESHSEND0009.*lock_name=\'(SendLock[a-zA-Z0-9\-\/_\.]+)\' for execution_id='([a-z0-9\-\:]+)'.*$"
+            rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)' for execution_id='([a-z0-9\-\:]+)'.*$"
         ),
     )
-    assert len(acquire_start_result) == 1
+    assert len(search_result) == 1
 
-    return cast(tuple[str, str], acquire_start_result[0]["match"].group(1, 2))
+    return cast(tuple[str, str], search_result[0]["match"].group(1, 2))

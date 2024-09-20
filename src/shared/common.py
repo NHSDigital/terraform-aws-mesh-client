@@ -15,6 +15,22 @@ BOOL_TRUE_VALUES = ["yes", "true", "t", "y", "1"]
 BOOL_FALSE_VALUES = ["no", "false", "f", "n", "0"]
 
 
+class LockReleaseDenied(Exception):
+    """Attempted to release a lock owned by a different execution id."""
+
+    def __init__(self, lock_name, lock_owner, execution_id):
+        super().__init__()
+        self.lock_name = lock_name
+        self.lock_owner = lock_owner
+        self.execution_id = execution_id
+
+    def __str__(self) -> str:
+        return (
+            f"Unable to delete lock_name='{self.lock_name}' as execution_id='{self.execution_id}'"
+            f"because lock_owner='{self.lock_owner}'"
+        )
+
+
 class SingletonCheckFailure(Exception):
     """Singleton check failed"""
 
@@ -75,6 +91,29 @@ def acquire_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
         if ce.response["Error"]["Code"] == "ConditionalCheckFailedException":
             raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ce
     return resp.items
+
+
+def release_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
+    """
+    Release the named lock row.
+    """
+    lock_table_name = os.environ["DDB_LOCK_TABLE_NAME"]
+
+    try:
+        ddb_client.delete_item(
+            TableName=lock_table_name,
+            Key={"LockName": {"S": lock_name}},
+            ExpressionAttributeNames={"#LO": "LockOwner"},
+            ExpressionAttributeValues={":loval": {"S": execution_id}},
+            ConditionExpression="#LO = :loval",
+            ReturnValuesOnConditionCheckFailure="ALL_OLD",
+        )
+    except ClientError as ce:
+        if ce.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            # lock_owner = ce.response.get("Item", {}).get("LockOwner")
+            print("LOCK_OWNER-RESPONSE", str(ce.response.get("Item", {})))
+            lock_owner = "TEST"
+            raise LockReleaseDenied(lock_name, lock_owner, execution_id) from ce
 
 
 def singleton_check(

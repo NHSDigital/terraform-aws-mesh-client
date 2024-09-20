@@ -1,5 +1,4 @@
 from dataclasses import asdict
-from functools import partial
 from http import HTTPStatus
 from typing import Any
 
@@ -8,7 +7,6 @@ from shared.common import (
     SingletonCheckFailure,
     acquire_lock,
     return_failure,
-    singleton_check,
 )
 from shared.send_parameters import get_send_parameters
 from spine_aws_common.utilities import human_readable_bytes
@@ -34,13 +32,8 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
             {"debug_str": str(self.event.raw_event)},
         )
 
-        print("CONTEXT", self.context)
-        print("EVENT", self.event.raw_event)
-
         event_details = self.event["EventDetail"]["detail"]
         execution_id = self.event["ExecutionId"]
-
-        print("EXECUTION_ID", execution_id)
 
         # in case of crash, set to internal server error so next stage fails
         self.response = {"statusCode": int(HTTPStatus.INTERNAL_SERVER_ERROR)}
@@ -132,6 +125,8 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
                 "message_id": None,
                 "current_byte_position": 0,
                 "send_params": asdict(send_params),
+                "lock_name": lock_name,
+                "execution_id": execution_id,
             },
         }
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-from datetime import datetime
 import json
 import math
 import os
@@ -9,6 +8,7 @@ import re
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from json import JSONDecodeError
 from time import sleep, time
 from typing import cast
@@ -135,7 +135,7 @@ class CloudwatchLogsCapture:
         log_group: str,
         start_timestamp: float | None = None,
     ):
-        self._log_group = log_group
+        self.log_group = log_group
         self._start_timestamp = start_timestamp
         self._logs = cloudwatchlogs_client()
         self.reports: list[dict] = []
@@ -159,12 +159,12 @@ class CloudwatchLogsCapture:
 
         while True:
             try:
-                response = self._logs.describe_log_streams(logGroupName=self._log_group)
+                response = self._logs.describe_log_streams(logGroupName=self.log_group)
                 streams: list = response["logStreams"]
 
                 while "nextToken" in response:
                     response = self._logs.describe_log_streams(
-                        logGroupName=self._log_group,
+                        logGroupName=self.log_group,
                         nextToken=response["nextToken"],
                     )
                     streams.extend(response["logStreams"])
@@ -178,7 +178,7 @@ class CloudwatchLogsCapture:
                     raise client_error
                 if time() > end_wait:
                     raise TimeoutError(
-                        f"error waiting for streams for {self._log_group}"
+                        f"error waiting for streams for {self.log_group}"
                     ) from client_error
                 sleep(0.1)
                 continue
@@ -192,13 +192,13 @@ class CloudwatchLogsCapture:
 
         logs: list[dict] = []
         response = self._logs.filter_log_events(
-            logGroupName=self._log_group, startTime=since_timestamp
+            logGroupName=self.log_group, startTime=since_timestamp
         )
         logs.extend(cast(list[dict], response["events"]))
 
         while "nextToken" in response:
             response = self._logs.filter_log_events(
-                logGroupName=self._log_group,
+                logGroupName=self.log_group,
                 startTime=since_timestamp,
                 nextToken=response["nextToken"],
             )
@@ -246,7 +246,7 @@ class CloudwatchLogsCapture:
 
             if time() > end_wait:
                 raise TimeoutError(
-                    f"failed to match {min_results} json logs for log group {self._log_group} in {max_wait}s",
+                    f"failed to match {min_results} json logs for log group {self.log_group} in {max_wait}s",
                     self.reports,
                 )
 
