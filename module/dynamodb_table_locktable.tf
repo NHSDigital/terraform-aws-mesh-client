@@ -4,7 +4,7 @@ locals {
 
 #tfsec:ignore:aws-dynamodb-enable-at-rest-encryption
 resource "aws_dynamodb_table" "lock_table" {
-    name            = "${local.locktable_name}"
+    name            = local.locktable_name
     billing_mode    = "PROVISIONED"
     read_capacity   = 20
     write_capacity  = 20
