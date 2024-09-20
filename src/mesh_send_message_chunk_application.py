@@ -125,6 +125,21 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
             )
             yield file_content
 
+    def _attempt_lock_release(self):
+        try:
+            release_lock(self.ddb_client, self.lock_name, self.execution_id)
+        except LockReleaseDenied as ex:
+            # Failure is non-terminal as we've already completed our work
+            self.log_object.write_log(
+                "MESHSEND0011",
+                None,
+                {
+                    "lock_name": ex.lock_name,
+                    "execution_id": ex.execution_id,
+                    "lock_owner": ex.lock_owner,
+                },
+            )
+
     def start(self):
         """Main body of lambda"""
 
@@ -240,19 +255,7 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
                 {"lock_name": self.lock_name, "execution_id": self.execution_id},
             )
 
-            try:
-                release_lock(self.ddb_client, self.lock_name, self.execution_id)
-            except LockReleaseDenied as ex:
-                # Failure is non-terminal as we've already completed our work
-                self.log_object.write_log(
-                    "MESHSEND0011",
-                    None,
-                    {
-                        "lock_name": ex.lock_name,
-                        "execution_id": ex.execution_id,
-                        "lock_owner": ex.lock_owner,
-                    },
-                )
+            self._attempt_lock_release()
 
         self.response["body"].update(
             {
