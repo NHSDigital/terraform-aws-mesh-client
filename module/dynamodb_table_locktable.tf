@@ -2,6 +2,7 @@ locals {
     locktable_name = "${local.name}-lock-table"
 }
 
+#tfsec:ignore:aws-dynamodb-enable-at-rest-encryption
 resource "aws_dynamodb_table" "lock_table" {
     name            = "${local.locktable_name}"
     billing_mode    = "PROVISIONED"
@@ -9,6 +10,13 @@ resource "aws_dynamodb_table" "lock_table" {
     write_capacity  = 20
     hash_key        = "LockName"
     stream_enabled = false
+    point_in_time_recovery {
+      enabled = true
+    }
+
+    server_side_encryption {
+      enabled = true
+    }
 
     attribute {
       name = "LockName"
