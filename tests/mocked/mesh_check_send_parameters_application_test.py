@@ -1,13 +1,8 @@
 """ Testing MeshPollMailbox application """
 
-import json
 import sys
 from datetime import UTC, datetime
 from http import HTTPStatus
-from uuid import uuid4
-
-from nhs_aws_helpers import stepfunctions
-import pytest
 
 from .mesh_testing_common import CONTEXT, was_value_logged
 
