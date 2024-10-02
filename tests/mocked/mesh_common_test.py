@@ -4,8 +4,8 @@ import re
 from collections.abc import Generator
 from uuid import uuid4
 
-from freezegun import freeze_time
 import pytest
+from freezegun import freeze_time
 from nhs_aws_helpers import secrets_client, ssm_client
 from shared.common import (
     LockDetails,
