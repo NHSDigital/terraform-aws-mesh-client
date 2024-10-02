@@ -1,11 +1,14 @@
 import json
 import os
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import quote_plus
 
+import boto3
 from botocore.exceptions import ClientError
 from mypy_boto3_dynamodb import DynamoDBClient
+from mypy_boto3_dynamodb.type_defs import AttributeValueTypeDef
 from mypy_boto3_secretsmanager import SecretsManagerClient
 from mypy_boto3_ssm import SSMClient
 from mypy_boto3_stepfunctions import SFNClient
@@ -13,6 +16,8 @@ from nhs_aws_helpers import secrets_client, ssm_client, stepfunctions
 
 BOOL_TRUE_VALUES = ["yes", "true", "t", "y", "1"]
 BOOL_FALSE_VALUES = ["no", "false", "f", "n", "0"]
+
+ddb_res = boto3.resource("dynamodb")
 
 
 class LockReleaseDenied(Exception):
@@ -47,6 +52,19 @@ class AwsFailedToPerformError(Exception):
         self.msg = msg
 
 
+@dataclass
+class LockDetails:
+    LockName: str
+    LockOwner: str
+    AcquiredTime: str
+
+    @classmethod
+    def from_result(
+        cls, result_dict: dict[str, AttributeValueTypeDef]
+    ) -> "LockDetails":
+        return cls(**{res: val["S"] for res, val in result_dict.items()})
+
+
 def nullsafe_quote(value: str | None) -> str:
     if not value:
         return ""
@@ -68,7 +86,9 @@ def strtobool(value, raise_exc=False):
     return None
 
 
-def acquire_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
+def acquire_lock(
+    ddb_client: DynamoDBClient, lock_name: str, execution_id: str
+) -> LockDetails:
     """
     Attempt to take ownership of the semaphore row in the lock table.
     If the row already exists with an owner, then raise a SingletonCheckFailure.
@@ -86,12 +106,13 @@ def acquire_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
             TableName=lock_table_name,
             Key={"LockName": {"S": lock_name}},
             ConditionExpression="attribute_not_exists(LockOwner)",
+            ReturnValues="ALL_NEW",
         )
     except ClientError as ce:
         if ce.response["Error"]["Code"] == "ConditionalCheckFailedException":
             raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ce
         raise ce
-    return resp.items
+    return LockDetails.from_result(resp["Attributes"])
 
 
 def release_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
@@ -101,20 +122,35 @@ def release_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
     lock_table_name = os.environ["DDB_LOCK_TABLE_NAME"]
 
     try:
-        ddb_client.delete_item(
+        response = ddb_client.delete_item(
             TableName=lock_table_name,
             Key={"LockName": {"S": lock_name}},
             ExpressionAttributeNames={"#LO": "LockOwner"},
             ExpressionAttributeValues={":loval": {"S": execution_id}},
             ConditionExpression="#LO = :loval",
             ReturnValuesOnConditionCheckFailure="ALL_OLD",
+            ReturnValues="ALL_OLD",
         )
-    except ClientError as ce:
-        if ce.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            # lock_owner = ce.response.get("Item", {}).get("LockOwner")
-            print("LOCK_OWNER-RESPONSE", str(ce.response.get("Item", {})))
-            lock_owner = "TEST"
-            raise LockReleaseDenied(lock_name, lock_owner, execution_id) from ce
+    except ddb_client.exceptions.ConditionalCheckFailedException as ex:
+        # Check if this exception contains the lock owner in Localstack+
+        lock_details = query_lock(ddb_client, lock_name)
+        raise LockReleaseDenied(
+            lock_details.LockName, lock_details.LockOwner, execution_id
+        ) from ex
+
+    return LockDetails.from_result(response["Attributes"])
+
+
+def query_lock(ddb_client: DynamoDBClient, lock_name: str) -> LockDetails:
+    """
+    Get a lock row from the table.
+    """
+    lock_table_name = os.environ["DDB_LOCK_TABLE_NAME"]
+
+    resp = ddb_client.get_item(
+        TableName=lock_table_name, Key={"LockName": {"S": lock_name}}
+    )
+    return LockDetails.from_result(resp["Item"])
 
 
 def singleton_check(

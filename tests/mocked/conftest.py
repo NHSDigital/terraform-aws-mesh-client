@@ -5,6 +5,7 @@ from typing import Literal, cast
 from uuid import uuid4
 
 import pytest
+from freezegun import freeze_time
 from integration.test_helpers import temp_env_vars
 from mesh_client import MeshClient
 from moto import mock_aws
@@ -23,6 +24,7 @@ from nhs_aws_helpers import (
 from nhs_aws_helpers import (
     stepfunctions,
 )
+from shared.common import LockDetails, acquire_lock
 
 from mocked.mesh_testing_common import (
     LOCAL_MAILBOXES,
@@ -50,6 +52,9 @@ def ddb_client(_mock_aws) -> DynamoDBClient:
 
 @pytest.fixture
 def mocked_lock_table(ddb_client: DynamoDBClient, environment):
+    """
+    Create a temporary lock table and delete after use.
+    """
     table_name = os.getenv("DDB_LOCK_TABLE_NAME") or "mocked-lock-table"
     ddb_client.create_table(
         AttributeDefinitions=[
@@ -73,8 +78,31 @@ def mocked_lock_table(ddb_client: DynamoDBClient, environment):
     )
     yield ddb_client.describe_table(TableName=table_name).get("Table", None)
 
-    # FIXME - do I need this?
     ddb_client.delete_table(TableName=table_name)
+
+
+@pytest.fixture
+def create_lock_row(ddb_client: DynamoDBClient, mocked_lock_table):
+    """
+    Use a "fixture as a factory" pattern so we can pre-seed multiple lock rows, track their details and delete them
+    afterwards.
+    """
+    created_rows: list[LockDetails] = []
+
+    def _create_lock_row() -> LockDetails:
+        lock_name = uuid4().hex
+        execution_id = uuid4().hex
+        new_row = acquire_lock(ddb_client, lock_name, execution_id)
+        created_rows.append(new_row)
+        return new_row
+
+    yield _create_lock_row
+
+    for created_row in created_rows:
+        ddb_client.delete_item(
+            TableName=mocked_lock_table["TableName"],
+            Key={"LockName": {"S": created_row.LockName}},
+        )
 
 
 @pytest.fixture

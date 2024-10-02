@@ -129,7 +129,6 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
         try:
             release_lock(self.ddb_client, self.lock_name, self.execution_id)
         except LockReleaseDenied as ex:
-            # Failure is non-terminal as we've already completed our work
             self.log_object.write_log(
                 "MESHSEND0011",
                 None,
