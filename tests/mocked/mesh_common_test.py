@@ -204,6 +204,9 @@ def test_release_lock(ddb_client, mocked_lock_table, create_lock_row):
 
 
 def test_release_lock_not_owned(ddb_client, mocked_lock_table, create_lock_row):
+    """
+    Ensure that we are denied when attempting to a release a lock which is owned by another execution id.
+    """
     existing_lock_row: LockDetails = create_lock_row()
 
     assert (
