@@ -17,8 +17,6 @@ from nhs_aws_helpers import secrets_client, ssm_client, stepfunctions
 BOOL_TRUE_VALUES = ["yes", "true", "t", "y", "1"]
 BOOL_FALSE_VALUES = ["no", "false", "f", "n", "0"]
 
-ddb_res = boto3.resource("dynamodb")
-
 
 class LockReleaseDenied(Exception):
     """Attempted to release a lock owned by a different execution id."""

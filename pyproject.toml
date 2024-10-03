@@ -170,6 +170,7 @@ legacy_tox_ini = """
         moto
         boto3
         petname
+        freezegun
     commands =
         pytest
 """
