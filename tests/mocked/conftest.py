@@ -5,7 +5,6 @@ from typing import Literal, cast
 from uuid import uuid4
 
 import pytest
-from freezegun import freeze_time
 from integration.test_helpers import temp_env_vars
 from mesh_client import MeshClient
 from moto import mock_aws
