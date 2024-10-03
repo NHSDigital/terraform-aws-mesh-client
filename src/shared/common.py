@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import quote_plus
 
-from botocore.exceptions import ClientError
 from mypy_boto3_dynamodb import DynamoDBClient
 from mypy_boto3_dynamodb.type_defs import AttributeValueTypeDef
 from mypy_boto3_secretsmanager import SecretsManagerClient
