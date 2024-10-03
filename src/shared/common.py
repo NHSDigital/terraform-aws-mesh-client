@@ -105,10 +105,9 @@ def acquire_lock(
             ConditionExpression="attribute_not_exists(LockOwner)",
             ReturnValues="ALL_NEW",
         )
-    except ClientError as ce:
-        if ce.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ce
-        raise ce
+    except ddb_client.exceptions.ConditionalCheckFailedException as ex:
+        print("LOCKEDRESPONSE", ex.response)
+        raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ex
     return LockDetails.from_result(resp["Attributes"])
 
 
