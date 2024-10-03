@@ -126,6 +126,15 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
             yield file_content
 
     def _attempt_lock_release(self):
+
+        if not self.lock_name or not self.execution_id:
+            self.log_object.write_log(
+                "MESHSEND0012",
+                None,
+                {"lock_name": self.lock_name, "execution_id": self.execution_id},
+            )
+            return
+
         try:
             release_lock(self.ddb_client, self.lock_name, self.execution_id)
         except LockReleaseDenied as ex:

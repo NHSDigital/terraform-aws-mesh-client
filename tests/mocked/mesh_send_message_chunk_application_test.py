@@ -88,6 +88,10 @@ def test_mesh_send_file_chunk_app_2_chunks_happy_path(
     assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "MESHSEND0008", "Log_Level", "INFO")
 
+    # Lambda was invoked without a step function, this is a good chance to ensure we don't bomb out when
+    # lock details are missing.
+    assert was_value_logged(logs.out, "MESHSEND0012", "Log_Level", "INFO")
+
 
 def test_mesh_send_file_chunk_app_too_many_chunks(
     environment: str,
