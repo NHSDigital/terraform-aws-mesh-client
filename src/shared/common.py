@@ -105,7 +105,6 @@ def acquire_lock(
             ReturnValues="ALL_NEW",
         )
     except ddb_client.exceptions.ConditionalCheckFailedException as ex:
-        print("LOCKEDRESPONSE", ex.response)
         raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ex
     return LockDetails.from_result(resp["Attributes"])
 
@@ -127,7 +126,6 @@ def release_lock(ddb_client: DynamoDBClient, lock_name: str, execution_id: str):
             ReturnValues="ALL_OLD",
         )
     except ddb_client.exceptions.ConditionalCheckFailedException as ex:
-        # Check if this exception contains the lock owner in Localstack+
         lock_details = query_lock(ddb_client, lock_name)
         raise LockReleaseDenied(
             lock_details.LockName, lock_details.LockOwner, execution_id
