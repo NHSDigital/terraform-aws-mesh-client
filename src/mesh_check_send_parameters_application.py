@@ -33,7 +33,9 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
         )
 
         event_details = self.event["EventDetail"]["detail"]
-        execution_id = self.event["ExecutionId"]
+        owner_id = (
+            self.event.get("ExecutionId") or f"intenalID_{self._get_internal_id()}"
+        )
 
         # in case of crash, set to internal server error so next stage fails
         self.response = {"statusCode": int(HTTPStatus.INTERNAL_SERVER_ERROR)}
@@ -70,16 +72,16 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
 
             lock_name = f"SendLock_{send_params.s3_bucket}_{send_params.s3_key}"
 
-            self.log_object.write_log(
-                "MESHSEND0009",
-                None,
-                {"lock_name": lock_name, "execution_id": execution_id},
-            )
-
             acquire_lock(
                 self.ddb_client,
                 lock_name,
-                execution_id,
+                owner_id,
+            )
+
+            self.log_object.write_log(
+                "MESHSEND0009",
+                None,
+                {"lock_name": lock_name, "owner_id": owner_id},
             )
 
         except SingletonCheckFailure as e:
@@ -126,7 +128,7 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
                 "current_byte_position": 0,
                 "send_params": asdict(send_params),
                 "lock_name": lock_name,
-                "execution_id": execution_id,
+                "owner_id": owner_id,
             },
         }
 

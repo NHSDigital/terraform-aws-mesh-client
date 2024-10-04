@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from requests import Response
 from requests.structures import CaseInsensitiveDict
 from shared.application import INBOUND_BUCKET, INBOUND_FOLDER, MESHLambdaApplication
-from shared.common import nullsafe_quote
+from shared.common import nullsafe_quote, release_lock
 from shared.config import MiB
 
 _METADATA_HEADERS = {
@@ -87,6 +87,8 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
         self.log_object.internal_id = self.internal_id
         self.s3_bucket = self.input.get("s3_bucket", "")  # will be empty on first chunk
         self.s3_key = self.input.get("s3_key", "")  # will be empty on first chunk
+        self.lock_name = self.response.get("lock_name")
+        self.owner_id = self.response.get("owner_id")
 
     @property
     def http_response(self) -> Response:
@@ -120,6 +122,19 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
                 return
 
             self._handle_multiple_chunk_message()
+
+            if self.owner_id and self.lock_name:
+                release_lock(
+                    self.ddb_client,
+                    self.lock_name,
+                    self.owner_id,
+                )
+            else:
+                self.log_object.write_log(
+                    "MESHSEND0015",
+                    "None",
+                    {"lock_name": self.lock_name, "owner_id": self.owner_id},
+                )
 
     def _retrieve_current_chunk(self):
         self._http_response = self.get_chunk(

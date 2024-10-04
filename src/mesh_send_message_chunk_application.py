@@ -59,7 +59,7 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
         self.current_byte = self.input.get("current_byte_position", 0)
         self.current_chunk = self.input.get("chunk_number", 1)
         self.lock_name = self.input.get("lock_name", None)
-        self.execution_id = self.input.get("execution_id", None)
+        self.owner_id = self.input.get("owner_id", None)
         self.send_params = self._get_send_params()
         self.response: dict[str, Any] = (
             {
@@ -127,16 +127,16 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
 
     def _attempt_lock_release(self):
 
-        if not self.lock_name or not self.execution_id:
+        if not self.lock_name or not self.owner_id:
             self.log_object.write_log(
                 "MESHSEND0012",
                 None,
-                {"lock_name": self.lock_name, "execution_id": self.execution_id},
+                {"lock_name": self.lock_name, "owner_id": self.owner_id},
             )
             return
 
         try:
-            release_lock(self.ddb_client, self.lock_name, self.execution_id)
+            release_lock(self.ddb_client, self.lock_name, self.owner_id)
         except LockReleaseDenied as ex:
             self.log_object.write_log(
                 "MESHSEND0011",
@@ -257,13 +257,13 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
                 },
             )
 
+            self._attempt_lock_release()
+
             self.log_object.write_log(
                 "MESHSEND0010",
                 None,
-                {"lock_name": self.lock_name, "execution_id": self.execution_id},
+                {"lock_name": self.lock_name, "owner_id": self.owner_id},
             )
-
-            self._attempt_lock_release()
 
         self.response["body"].update(
             {

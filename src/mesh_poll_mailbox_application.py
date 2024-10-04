@@ -4,7 +4,11 @@ from typing import Any
 from aws_lambda_powertools.shared.functions import strtobool
 from requests import HTTPError
 from shared.application import MESHLambdaApplication
-from shared.common import SingletonCheckFailure, return_failure, singleton_check
+from shared.common import (
+    SingletonCheckFailure,
+    acquire_lock,
+    return_failure,
+)
 
 
 class HandshakeFailure(Exception):
@@ -28,12 +32,20 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
 
         self.handshake: bool = False
         self.response: dict[str, Any] = {}
+        self.execution_id = None
 
     def initialise(self):
         # initialise
         self.mailbox_id = self.event["mailbox"]
         self.handshake = bool(strtobool(self.event.get("handshake", "false")))
         self.response = {}
+
+        print("POLL_EVENT", self.event.raw_event)
+        print("EXECUTION_ID", self.execution_id)
+
+    def process_event(self, event):
+        self.execution_id = event.get("ExecutionId")
+        return self.EVENT_TYPE(event.get("EventDetail", {}))
 
     def start(self):
         # in case of crash
@@ -48,10 +60,20 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 return
 
         try:
-            singleton_check(
-                self.config.get_messages_step_function_arn,
-                self.is_same_mailbox_check,
-                self.sfn,
+            lock_name = f"FetchLock_{self.mailbox_id}"
+
+            owner_id = self.execution_id or f"internalID_{self._get_internal_id()}"
+
+            acquire_lock(
+                self.ddb_client,
+                lock_name,
+                owner_id,
+            )
+
+            self.log_object.write_log(
+                "MESHPOLL0003",
+                None,
+                {"lock_name": lock_name, "owner_id": owner_id},
             )
 
         except SingletonCheckFailure as e:
@@ -104,6 +126,8 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 "internal_id": self.log_object.internal_id,
                 "message_count": message_count,
                 "message_list": output_list,
+                "lock_name": lock_name,
+                "execution_id": self.execution_id,
             },
             # Parameters for a follow-up iteration through the messages in this execution
             "mailbox": self.mailbox_id,
