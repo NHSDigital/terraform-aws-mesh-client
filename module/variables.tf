@@ -194,8 +194,8 @@ variable "get_messages_schedule" {
   description = "schedule on which to check for new messages, it's recommended this is quite frequent, but it can be tweaked."
 }
 
-  type        = number
 variable "get_messages_page_limit" {
+  type        = number
   default     = 500
   description = "the number of message ids to pull back in a call to list messages for a mailbox"
 }
