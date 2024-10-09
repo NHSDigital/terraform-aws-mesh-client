@@ -119,9 +119,8 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
             self._ensure_s3_bucket_and_key(is_report)
             if is_report or self.number_of_chunks < 2:
                 self._handle_un_chunked_message(is_report)
-                return
-
-            self._handle_multiple_chunk_message()
+            else:
+                self._handle_multiple_chunk_message()
 
             if self.owner_id and self.lock_name:
                 release_lock(
@@ -132,7 +131,7 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
             else:
                 self.log_object.write_log(
                     "MESHSEND0015",
-                    "None",
+                    None,
                     {"lock_name": self.lock_name, "owner_id": self.owner_id},
                 )
 
