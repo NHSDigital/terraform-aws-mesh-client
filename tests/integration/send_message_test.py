@@ -770,7 +770,7 @@ def _get_lock_details_from_log_capture(
     search_result = cw.match_events(
         cw.find_logs(),
         re.compile(
-            rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)' for execution_id='([a-z0-9\-\:]+)'.*$"
+            rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)' with owner_id='([a-z0-9\-\:]+)'.*$"
         ),
     )
     assert len(search_result) == 1
