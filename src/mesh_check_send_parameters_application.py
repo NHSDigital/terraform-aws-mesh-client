@@ -72,16 +72,16 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
 
             lock_name = f"SendLock_{send_params.s3_bucket}_{send_params.s3_key}"
 
-            acquire_lock(
-                self.ddb_client,
-                lock_name,
-                owner_id,
-            )
-
             self.log_object.write_log(
                 "MESHSEND0009",
                 None,
                 {"lock_name": lock_name, "owner_id": owner_id},
+            )
+
+            acquire_lock(
+                self.ddb_client,
+                lock_name,
+                owner_id,
             )
 
         except SingletonCheckFailure as e:
