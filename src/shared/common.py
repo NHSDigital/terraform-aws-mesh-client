@@ -16,8 +16,7 @@ BOOL_TRUE_VALUES = ["yes", "true", "t", "y", "1"]
 BOOL_FALSE_VALUES = ["no", "false", "f", "n", "0"]
 
 
-class LockReleaseDenied(Exception):
-    """Attempted to release a lock owned by a different execution id."""
+class AbstractLockOperationException(Exception):
 
     def __init__(self, lock_name, lock_owner, execution_id):
         super().__init__()
@@ -26,10 +25,24 @@ class LockReleaseDenied(Exception):
         self.execution_id = execution_id
 
     def __str__(self) -> str:
+        raise NotImplementedError
+
+
+class LockReleaseDenied(AbstractLockOperationException):
+    """Attempted to release a lock owned by a different execution id."""
+
+    def __str__(self) -> str:
         return (
             f"Unable to delete lock_name='{self.lock_name}' as execution_id='{self.execution_id}'"
             f"because lock_owner='{self.lock_owner}'"
         )
+
+
+class LockExists(AbstractLockOperationException):
+    """Attempted to acquire a lock failed as the lock already exists."""
+
+    def __str__(self) -> str:
+        return f"Lock already exists for {self.lock_name}"
 
 
 class SingletonCheckFailure(Exception):
@@ -105,7 +118,10 @@ def acquire_lock(
             ReturnValues="ALL_NEW",
         )
     except ddb_client.exceptions.ConditionalCheckFailedException as ex:
-        raise SingletonCheckFailure(f"Lock already exists for {lock_name}") from ex
+        lock_details = query_lock(ddb_client, lock_name)
+        raise LockExists(
+            lock_details.LockName, lock_details.LockOwner, execution_id
+        ) from ex
     return LockDetails.from_result(resp["Attributes"])
 
 

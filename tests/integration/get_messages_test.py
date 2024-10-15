@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from mesh_client import MeshClient
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_lambda import LambdaClient
 from mypy_boto3_stepfunctions import SFNClient
 
@@ -19,6 +20,12 @@ from .test_helpers import (
     wait_for_execution_outcome,
     wait_till_not_running,
 )
+
+
+@pytest.fixture(autouse=True)
+def _clear_fetch_locks(local_lock_table: Table):
+    for mailbox in LOCAL_MAILBOXES:
+        local_lock_table.delete_item(Key={"LockName": f"FetchLock_{mailbox}"})
 
 
 @pytest.mark.parametrize("mailbox_id", LOCAL_MAILBOXES)
@@ -168,8 +175,7 @@ def test_trigger_step_function_get_messages_pagination(
         )
 
         output, result = wait_for_execution_outcome(
-            execution_arn=execution["executionArn"],
-            sfn=sfn,
+            execution_arn=execution["executionArn"], sfn=sfn, timeout=20
         )
 
         assert result["status"] == "SUCCEEDED"

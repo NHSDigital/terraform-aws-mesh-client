@@ -5,6 +5,7 @@ from aws_lambda_powertools.shared.functions import strtobool
 from requests import HTTPError
 from shared.application import MESHLambdaApplication
 from shared.common import (
+    LockExists,
     SingletonCheckFailure,
     acquire_lock,
     return_failure,
@@ -82,15 +83,20 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                     owner_id,
                 )
 
-        except SingletonCheckFailure as e:
-            self.response = return_failure(
-                self.log_object,
-                int(HTTPStatus.TOO_MANY_REQUESTS),
-                "MESHPOLL0002",
-                self.mailbox_id,
-                message=e.msg,
-            )
-            return
+        except LockExists as e:
+            if e.execution_id != self.execution_id:
+                """
+                We the get_messages step function can poll again in certain conditions, so acquisition failure
+                is ok if this specific execution_id is already the owner.
+                """
+                self.response = return_failure(
+                    self.log_object,
+                    int(HTTPStatus.TOO_MANY_REQUESTS),
+                    "MESHPOLL0002",
+                    self.mailbox_id,
+                    message=str(e),
+                )
+                return
 
         with self:
             message_list = self.list_messages()

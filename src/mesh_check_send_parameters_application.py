@@ -4,6 +4,7 @@ from typing import Any
 
 from shared.application import MESHLambdaApplication
 from shared.common import (
+    LockExists,
     SingletonCheckFailure,
     acquire_lock,
     return_failure,
@@ -84,13 +85,13 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
                 owner_id,
             )
 
-        except SingletonCheckFailure as e:
+        except LockExists as e:
             self.response = return_failure(
                 self.log_object,
                 int(HTTPStatus.TOO_MANY_REQUESTS),
                 "MESHSEND0003",
                 send_params.sender,
-                message=e.msg,
+                message=str(e),
             )
             return
 
