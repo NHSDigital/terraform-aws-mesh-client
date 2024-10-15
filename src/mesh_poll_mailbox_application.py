@@ -47,7 +47,7 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
         event_detail = event.get("EventDetail", {})
         if event_detail:
             # Enhanced event detail format from the step function
-            self.execution_id = event.get("ExecutionId")
+            self.execution_id = event.get("ExecutionId") or None
 
         return self.EVENT_TYPE(event_detail or event)
 
@@ -66,19 +66,21 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
         try:
             lock_name = f"FetchLock_{self.mailbox_id}"
 
-            owner_id = self.execution_id or f"internalID_{self._get_internal_id()}"
+            owner_id = self.execution_id
 
-            self.log_object.write_log(
-                "MESHPOLL0003",
-                None,
-                {"lock_name": lock_name, "owner_id": owner_id},
-            )
+            if owner_id:
 
-            acquire_lock(
-                self.ddb_client,
-                lock_name,
-                owner_id,
-            )
+                self.log_object.write_log(
+                    "MESHPOLL0003",
+                    None,
+                    {"lock_name": lock_name, "owner_id": owner_id},
+                )
+
+                acquire_lock(
+                    self.ddb_client,
+                    lock_name,
+                    owner_id,
+                )
 
         except SingletonCheckFailure as e:
             self.response = return_failure(
