@@ -9,6 +9,7 @@ from freezegun import freeze_time
 from nhs_aws_helpers import secrets_client, ssm_client
 from shared.common import (
     LockDetails,
+    LockExists,
     LockReleaseDenied,
     SingletonCheckFailure,
     acquire_lock,
@@ -145,9 +146,9 @@ def test_acquire_lock(ddb_client, mocked_lock_table, **kwargs):
 
     result = acquire_lock(ddb_client, lock_name, execution_id1)
 
-    with pytest.raises(SingletonCheckFailure) as sfe:
+    with pytest.raises(LockExists) as sfe:
         acquire_lock(ddb_client, lock_name, execution_id2)
-    assert sfe.value.msg == f"Lock already exists for {lock_name}"
+    assert str(sfe.value) == f"Lock already exists for {lock_name}"
 
     assert result.LockName == lock_name
     assert result.LockOwner == execution_id1
