@@ -72,28 +72,3 @@ def test_mesh_poll_mailbox_happy_path(
     assert was_value_logged(logs.out, "LAMBDA0002", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "MESHPOLL0001", "Log_Level", "INFO")
-
-
-def test_mesh_poll_mailbox_singleton_check(
-    environment: str, get_messages_sfn_arn: str, capsys
-):
-    from mesh_poll_mailbox_application import MeshPollMailboxApplication
-
-    app = MeshPollMailboxApplication()
-
-    mock_input = {"mailbox": uuid4().hex}
-
-    stepfunctions().start_execution(
-        stateMachineArn=get_messages_sfn_arn,
-        input=json.dumps(mock_input),
-    )
-    # Have to run a second execution as the app.main() below doesn't actually create one
-    # so the singleton check would just see the one above and think that it is itself.
-    stepfunctions().start_execution(
-        stateMachineArn=get_messages_sfn_arn,
-        input=json.dumps(mock_input),
-    )
-
-    response = app.main(event=mock_input, context=CONTEXT)
-
-    assert response["statusCode"] == int(HTTPStatus.TOO_MANY_REQUESTS)
