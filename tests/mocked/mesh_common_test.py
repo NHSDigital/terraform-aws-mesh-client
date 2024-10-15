@@ -11,7 +11,6 @@ from shared.common import (
     LockDetails,
     LockExists,
     LockReleaseDenied,
-    SingletonCheckFailure,
     acquire_lock,
     get_params,
     release_lock,
