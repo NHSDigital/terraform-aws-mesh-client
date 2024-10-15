@@ -5,7 +5,6 @@ from typing import Any
 from shared.application import MESHLambdaApplication
 from shared.common import (
     LockExists,
-    SingletonCheckFailure,
     acquire_lock,
     return_failure,
 )
