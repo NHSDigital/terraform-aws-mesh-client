@@ -51,8 +51,7 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
 
         return self.EVENT_TYPE(event_detail or event)
 
-    def _acquire_lock(self):
-        lock_name = f"FetchLock_{self.mailbox_id}"
+    def _acquire_lock(self, lock_name: str):
 
         owner_id = self.execution_id
 
@@ -83,7 +82,9 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 return
 
         try:
-            self._acquire_lock()
+
+            lock_name = f"FetchLock_{self.mailbox_id}"
+            self._acquire_lock(lock_name)
 
         except LockExists as e:
             if e.execution_id != self.execution_id:

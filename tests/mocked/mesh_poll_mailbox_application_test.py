@@ -4,7 +4,6 @@ from uuid import uuid4
 
 from mesh_client import MeshClient
 from nhs_aws_helpers import stepfunctions
-
 from shared.common import LockExists
 
 from .mesh_testing_common import (
