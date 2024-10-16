@@ -51,6 +51,25 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
 
         return self.EVENT_TYPE(event_detail or event)
 
+    def _acquire_lock(self):
+        lock_name = f"FetchLock_{self.mailbox_id}"
+
+        owner_id = self.execution_id
+
+        if owner_id:
+
+            self.log_object.write_log(
+                "MESHPOLL0003",
+                None,
+                {"lock_name": lock_name, "owner_id": owner_id},
+            )
+
+            acquire_lock(
+                self.ddb_client,
+                lock_name,
+                owner_id,
+            )
+
     def start(self):
         # in case of crash
         self.response = {"statusCode": int(HTTPStatus.INTERNAL_SERVER_ERROR)}
@@ -64,23 +83,7 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 return
 
         try:
-            lock_name = f"FetchLock_{self.mailbox_id}"
-
-            owner_id = self.execution_id
-
-            if owner_id:
-
-                self.log_object.write_log(
-                    "MESHPOLL0003",
-                    None,
-                    {"lock_name": lock_name, "owner_id": owner_id},
-                )
-
-                acquire_lock(
-                    self.ddb_client,
-                    lock_name,
-                    owner_id,
-                )
+            self._acquire_lock()
 
         except LockExists as e:
             if e.execution_id != self.execution_id:
