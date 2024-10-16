@@ -667,26 +667,28 @@ def test_send_locking(
 
     with temp_mapping_for_s3_object(  # noqa: SIM117, RUF100
         s3_object, sender, recipient, workflow_id, ssm
-    ), CloudwatchLogsCapture(log_group=CHECK_PARAMS_LOG_GROUP) as cw:
-        s3_object.put(Body=content, ContentType=content_type)
-        events.put_events(
-            Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
-        )  # no cloudtrail in localstack
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+    ):
+        with CloudwatchLogsCapture(log_group=CHECK_PARAMS_LOG_GROUP) as cw:
+            s3_object.put(Body=content, ContentType=content_type)
+            events.put_events(
+                Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
+            )  # no cloudtrail in localstack
+            cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
 
-        # Assert the values in the log line while acquiring.
-        acquire_logged_name, acquire_logged_exec_id = (
-            _get_lock_details_from_log_capture(cw, "MESHSEND0009")
-        )
-        assert acquire_logged_name == expected_lock_name
+            # Assert the values in the log line while acquiring.
+            acquire_logged_name, acquire_logged_exec_id = (
+                _get_lock_details_from_log_capture(cw, "MESHSEND0009")
+            )
+            assert acquire_logged_name == expected_lock_name
 
-        # Now switch the log group to the "send" lambda and make sure it logged the release correctly
-        cw.log_group = SEND_LOG_GROUP
-        release_logged_name, release_logged_exec_id = (
-            _get_lock_details_from_log_capture(cw, "MESHSEND0010")
-        )
-        assert release_logged_exec_id == acquire_logged_exec_id
-        assert release_logged_name == acquire_logged_name
+        with CloudwatchLogsCapture(log_group=SEND_LOG_GROUP) as cw:
+            # Now switch the log group to the "send" lambda and make sure it logged the release correctly
+            cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+            release_logged_name, release_logged_exec_id = (
+                _get_lock_details_from_log_capture(cw, "MESHSEND0010")
+            )
+            assert release_logged_exec_id == acquire_logged_exec_id
+            assert release_logged_name == acquire_logged_name
 
 
 def test_send_lock_already_exists(
@@ -773,6 +775,6 @@ def _get_lock_details_from_log_capture(
             rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)' with owner_id='([a-z0-9\-\:]+)'.*$"
         ),
     )
-    assert len(search_result) == 1
+    assert len(search_result) == 1, f"No matching log row for {log_ref}"
 
     return cast(tuple[str, str], search_result[0]["match"].group(1, 2))
