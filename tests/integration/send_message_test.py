@@ -778,7 +778,9 @@ def _get_lock_details_from_log_capture(
             rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)' with owner_id='([a-z0-9\-\:]+)'.*$"
         ),
     )
-    assert len(search_result) == 1, f"No matching log row for {log_ref}"
+    assert (
+        len(search_result) == 1
+    ), f"No matching log row for {log_ref}. Full list: {search_result}"
 
     return cast(tuple[str, str], search_result[0]["match"].group(1, 2))
 
