@@ -21,6 +21,8 @@ locals {
     MESH_URL    = local.mesh_url[var.mesh_env]
     MESH_BUCKET = aws_s3_bucket.mesh.bucket
 
+    DDB_LOCK_TABLE_NAME = aws_dynamodb_table.lock_table.name
+
     CHUNK_SIZE         = var.chunk_size
     CRUMB_SIZE         = var.crumb_size == null ? var.chunk_size : var.crumb_size
     NEVER_COMPRESS     = var.never_compress

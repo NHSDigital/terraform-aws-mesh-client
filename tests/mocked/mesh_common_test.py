@@ -5,8 +5,17 @@ from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
+from freezegun import freeze_time
 from nhs_aws_helpers import secrets_client, ssm_client
-from shared.common import get_params, strtobool
+from shared.common import (
+    LockDetails,
+    LockExists,
+    LockReleaseDenied,
+    acquire_lock,
+    get_params,
+    release_lock,
+    strtobool,
+)
 
 
 def find_log_entries(logs: str, log_reference) -> Generator[dict[str, str], None, None]:
@@ -123,3 +132,99 @@ def test_strtobool_exception_raised(input_val):
 @pytest.mark.parametrize("input_val", ["HELLO", True, [], "YESH", 3, None])
 def test_strtobool_exception_swallowed(input_val):
     assert strtobool(input_val, False) is None
+
+
+@freeze_time("2024-10-01", as_kwarg="frozen_time")
+def test_acquire_lock(ddb_client, mocked_lock_table, **kwargs):
+    """
+    Ensure that a lock can bq acquired with teh expected values, and that this lock cannot be re-acquired.
+    """
+    lock_name = "TESTLOCK1234"
+    execution_id1 = uuid4().hex
+    execution_id2 = uuid4().hex
+
+    result = acquire_lock(ddb_client, lock_name, execution_id1)
+
+    with pytest.raises(LockExists) as sfe:
+        acquire_lock(ddb_client, lock_name, execution_id2)
+    assert str(sfe.value) == f"Lock already exists for {lock_name}"
+
+    assert result.LockName == lock_name
+    assert result.LockOwner == execution_id1
+    assert result.AcquiredTime == str(kwargs["frozen_time"].time_to_freeze)
+
+
+@freeze_time("2024-10-01", as_kwarg="frozen_time")
+def test_acquire_lock_multi(ddb_client, mocked_lock_table, **kwargs):
+    """
+    Ensure that a lock can be acquired with the expected values, and that this lock cannot be re-acquired.
+    """
+    lock_name1 = "TESTLOCK1234"
+    lock_name2 = "TESTLOCK5678"
+    execution_id = uuid4().hex
+
+    result1 = acquire_lock(ddb_client, lock_name1, execution_id)
+    result2 = acquire_lock(ddb_client, lock_name2, execution_id)
+
+    assert result1.LockName == lock_name1
+    assert result1.LockOwner == execution_id
+    assert result1.AcquiredTime == str(kwargs["frozen_time"].time_to_freeze)
+    assert result2.LockName == lock_name2
+    assert result2.LockOwner == execution_id
+    assert result2.AcquiredTime == str(kwargs["frozen_time"].time_to_freeze)
+
+
+def test_release_lock(ddb_client, mocked_lock_table, create_lock_row):
+    """
+    Ensure that when more than one lock row exists, release_lock() deletes the correct row.
+    """
+
+    _ = create_lock_row()
+    named_lock_row = create_lock_row()
+
+    assert (
+        ddb_client.describe_table(TableName=mocked_lock_table["TableName"])["Table"][
+            "ItemCount"
+        ]
+        == 2
+    )
+
+    release_result = release_lock(
+        ddb_client, named_lock_row.LockName, named_lock_row.LockOwner
+    )
+
+    assert (
+        ddb_client.describe_table(TableName=mocked_lock_table["TableName"])["Table"][
+            "ItemCount"
+        ]
+        == 1
+    )
+
+    assert release_result == named_lock_row
+
+
+def test_release_lock_not_owned(ddb_client, mocked_lock_table, create_lock_row):
+    """
+    Ensure that we are denied when attempting to a release a lock which is owned by another execution id.
+    """
+    existing_lock_row: LockDetails = create_lock_row()
+
+    assert (
+        ddb_client.describe_table(TableName=mocked_lock_table["TableName"])["Table"][
+            "ItemCount"
+        ]
+        == 1
+    )
+
+    with pytest.raises(LockReleaseDenied) as ex:
+        release_lock(ddb_client, existing_lock_row.LockName, uuid4().hex)
+
+    assert ex.value.lock_name == existing_lock_row.LockName
+    assert ex.value.lock_owner == existing_lock_row.LockOwner
+
+    assert (
+        ddb_client.describe_table(TableName=mocked_lock_table["TableName"])["Table"][
+            "ItemCount"
+        ]
+        == 1
+    )

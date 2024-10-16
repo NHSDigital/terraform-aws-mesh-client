@@ -17,6 +17,7 @@ class EnvConfig:
         )  # e.g. local-mesh (local.name in modue)
         self.mesh_url = os.environ.get("MESH_URL", "https://mesh_sandbox")
         self.mesh_bucket = os.environ.get("MESH_BUCKET", "")
+        self.lock_table_name = os.environ.get("LOCK_TABLE_NAME", None)
         self.verify_ssl = bool(strtobool(os.environ.get("VERIFY_SSL", "true")))
         self.verify_checks_common_name = bool(
             strtobool(os.environ.get("VERIFY_CHECKS_COMMON_NAME", "true"))

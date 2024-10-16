@@ -29,7 +29,10 @@ resource "aws_sfn_state_machine" "send_message" {
         OutputPath = "$.Payload"
         Parameters = {
           FunctionName = "${aws_lambda_function.check_send_parameters.arn}:${aws_lambda_function.check_send_parameters.version}"
-          "Payload.$"  = "$"
+          Payload = {
+            "EventDetail.$" = "$"
+            "ExecutionId.$" = "$$.Execution.Id"
+          }
         }
         Resource = "arn:aws:states:::lambda:invoke"
         Retry = [

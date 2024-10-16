@@ -7,7 +7,13 @@ from typing import Any
 
 from mypy_boto3_s3.service_resource import Object
 from shared.application import MESHLambdaApplication
-from shared.common import SingletonCheckFailure, return_failure, singleton_check
+from shared.common import (
+    LockReleaseDenied,
+    SingletonCheckFailure,
+    release_lock,
+    return_failure,
+    singleton_check,
+)
 from shared.send_parameters import SendParameters, get_send_parameters
 
 
@@ -52,6 +58,8 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
         self.input = {} if self.from_event_bridge else self.event.get("body", {})
         self.current_byte = self.input.get("current_byte_position", 0)
         self.current_chunk = self.input.get("chunk_number", 1)
+        self.lock_name = self.input.get("lock_name", None)
+        self.owner_id = self.input.get("owner_id", None)
         self.send_params = self._get_send_params()
         self.response: dict[str, Any] = (
             {
@@ -116,6 +124,29 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
                 },
             )
             yield file_content
+
+    def _attempt_lock_release(self):
+
+        if not self.lock_name or not self.owner_id:
+            self.log_object.write_log(
+                "MESHSEND0012",
+                None,
+                {"lock_name": self.lock_name, "owner_id": self.owner_id},
+            )
+            return
+
+        try:
+            release_lock(self.ddb_client, self.lock_name, self.owner_id)
+        except LockReleaseDenied as ex:
+            self.log_object.write_log(
+                "MESHSEND0011",
+                None,
+                {
+                    "lock_name": ex.lock_name,
+                    "execution_id": ex.execution_id,
+                    "lock_owner": ex.lock_owner,
+                },
+            )
 
     def start(self):
         """Main body of lambda"""
@@ -224,6 +255,14 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
                     "chunk_num": self.current_chunk,
                     "max_chunk": total_chunks,
                 },
+            )
+
+            self._attempt_lock_release()
+
+            self.log_object.write_log(
+                "MESHSEND0010",
+                None,
+                {"lock_name": self.lock_name, "owner_id": self.owner_id},
             )
 
         self.response["body"].update(
