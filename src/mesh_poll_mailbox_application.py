@@ -40,34 +40,13 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
         self.handshake = bool(strtobool(self.event.get("handshake", "false")))
         self.response = {}
 
-        print("POLL_EVENT", self.event.raw_event)
-        print("EXECUTION_ID", self.execution_id)
-
     def process_event(self, event):
         event_detail = event.get("EventDetail", {})
         if event_detail:
             # Enhanced event detail format from the step function
-            self.execution_id = event.get("ExecutionId") or None
+            self.execution_id = str(event.get("ExecutionId")) or None
 
         return self.EVENT_TYPE(event_detail or event)
-
-    def _acquire_lock(self, lock_name: str):
-
-        owner_id = self.execution_id
-
-        if owner_id:
-
-            self.log_object.write_log(
-                "MESHPOLL0003",
-                None,
-                {"lock_name": lock_name, "owner_id": owner_id},
-            )
-
-            acquire_lock(
-                self.ddb_client,
-                lock_name,
-                owner_id,
-            )
 
     def start(self):
         # in case of crash
@@ -84,22 +63,17 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
         try:
 
             lock_name = f"FetchLock_{self.mailbox_id}"
-            self._acquire_lock(lock_name)
+            self._acquire_lock(lock_name, self.execution_id)
 
         except LockExists as e:
-            if e.execution_id != self.execution_id:
-                """
-                We the get_messages step function can poll again in certain conditions, so acquisition failure
-                is ok if this specific execution_id is already the owner.
-                """
-                self.response = return_failure(
-                    self.log_object,
-                    int(HTTPStatus.TOO_MANY_REQUESTS),
-                    "MESHPOLL0002",
-                    self.mailbox_id,
-                    message=str(e),
-                )
-                return
+            self.response = return_failure(
+                self.log_object,
+                int(HTTPStatus.TOO_MANY_REQUESTS),
+                "MESHPOLL0002",
+                self.mailbox_id,
+                message=str(e),
+            )
+            return
 
         with self:
             message_list = self.list_messages()

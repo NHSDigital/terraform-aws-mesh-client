@@ -33,9 +33,7 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
         )
 
         event_details = self.event["EventDetail"]["detail"]
-        owner_id = (
-            self.event.get("ExecutionId") or f"intenalID_{self._get_internal_id()}"
-        )
+        execution_id = self.event.get("ExecutionId")
 
         # in case of crash, set to internal server error so next stage fails
         self.response = {"statusCode": int(HTTPStatus.INTERNAL_SERVER_ERROR)}
@@ -70,19 +68,9 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
         )
         try:
 
-            lock_name = f"SendLock_{send_params.s3_bucket}_{send_params.s3_key}"
+            lock_name = send_params.send_lock_name()
 
-            self.log_object.write_log(
-                "MESHSEND0009",
-                None,
-                {"lock_name": lock_name, "owner_id": owner_id},
-            )
-
-            acquire_lock(
-                self.ddb_client,
-                lock_name,
-                owner_id,
-            )
+            self._acquire_lock(lock_name, execution_id)
 
         except LockExists as e:
             self.response = return_failure(
@@ -128,7 +116,7 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
                 "current_byte_position": 0,
                 "send_params": asdict(send_params),
                 "lock_name": lock_name,
-                "owner_id": owner_id,
+                "execution_id": execution_id,
             },
         }
 

@@ -59,7 +59,6 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
         self.current_byte = self.input.get("current_byte_position", 0)
         self.current_chunk = self.input.get("chunk_number", 1)
         self.lock_name = self.input.get("lock_name", None)
-        self.owner_id = self.input.get("owner_id", None)
         self.send_params = self._get_send_params()
         self.response: dict[str, Any] = (
             {
@@ -74,6 +73,15 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
         )
 
         self.response["body"]["send_params"] = asdict(self.send_params)
+
+        # Execution ID can come from the Step Function context or we use the internalID (e.g. direct invocation)
+        self.execution_id = (
+            self.input.get("execution_id") or self.log_object.internal_id
+        )
+        # Again, might not be from the Step Function context if directly invoked via EventBridge.
+        self.lock_name = (
+            self.input.get("lock_name") or self.send_params.send_lock_name()
+        )
 
     def _get_send_params(self) -> SendParameters:
         # invoked from most recent check send params or from another send message chunk
@@ -125,29 +133,6 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
             )
             yield file_content
 
-    def _attempt_lock_release(self):
-
-        if not self.lock_name or not self.owner_id:
-            self.log_object.write_log(
-                "MESHSEND0012",
-                None,
-                {"lock_name": self.lock_name, "owner_id": self.owner_id},
-            )
-            return
-
-        try:
-            release_lock(self.ddb_client, self.lock_name, self.owner_id)
-        except LockReleaseDenied as ex:
-            self.log_object.write_log(
-                "MESHSEND0011",
-                None,
-                {
-                    "lock_name": ex.lock_name,
-                    "execution_id": ex.execution_id,
-                    "lock_owner": ex.lock_owner,
-                },
-            )
-
     def start(self):
         """Main body of lambda"""
 
@@ -168,33 +153,7 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
             },
         )
 
-        if self.from_event_bridge:
-            self.log_object.write_log(
-                "MESHSEND0002",
-                None,
-                {
-                    "mailbox": send_params.sender,
-                    "bucket": send_params.s3_bucket,
-                    "key": send_params.s3_key,
-                },
-            )
-            try:
-                check = partial(self.is_send_for_same_file, send_params=send_params)
-                singleton_check(
-                    self.config.send_message_step_function_arn,
-                    check,
-                    self.sfn,
-                )
-
-            except SingletonCheckFailure as e:
-                self.response = return_failure(
-                    self.log_object,
-                    int(HTTPStatus.TOO_MANY_REQUESTS),
-                    "MESHSEND0003",
-                    send_params.sender,
-                    message=e.msg,
-                )
-                return
+        self._acquire_lock(self.lock_name, self.execution_id)
 
         if not self.s3_object:
             self.s3_object = self.s3.Object(send_params.s3_bucket, send_params.s3_key)
@@ -257,13 +216,7 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
                 },
             )
 
-            self._attempt_lock_release()
-
-            self.log_object.write_log(
-                "MESHSEND0010",
-                None,
-                {"lock_name": self.lock_name, "owner_id": self.owner_id},
-            )
+            self._release_lock(self.lock_name, self.execution_id)
 
         self.response["body"].update(
             {

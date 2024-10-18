@@ -108,6 +108,8 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
 
         self.mailbox_id = self.input["dest_mailbox"]
 
+        self._acquire_lock(self.input["lock_name"], self.input["execution_id"])
+
         with self:
             # get stream for this chunk
 
