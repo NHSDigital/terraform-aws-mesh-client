@@ -88,9 +88,9 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
         self.s3_bucket = self.input.get("s3_bucket", "")  # will be empty on first chunk
         self.s3_key = self.input.get("s3_key", "")  # will be empty on first chunk
 
-        self.lock_name = self.input.get("lock_name")
-        self.execution_id = self.input.get("execution_id")
-        self.should_release_lock = self.input.get("release_lock", False)
+        self.lock_name = self.input.get("lock_name") or None
+        self.execution_id = self.input.get("execution_id") or None
+        self.should_release_lock = self.input.get("release_lock", False) or False
 
     @property
     def http_response(self) -> Response:
@@ -113,7 +113,7 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
         print("INPUT", self.input)
         print("RAW_EVENT", self.event.raw_event)
 
-        self._acquire_lock(self.input["lock_name"], self.input["execution_id"])
+        self._acquire_lock(self.lock_name, self.execution_id)
 
         with self:
             # get stream for this chunk
@@ -133,8 +133,7 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
                 return
 
             if self.execution_id and self.lock_name:
-                release_lock(
-                    self.ddb_client,
+                self._release_lock(
                     self.lock_name,
                     self.execution_id,
                 )
