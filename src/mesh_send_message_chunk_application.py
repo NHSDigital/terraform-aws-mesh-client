@@ -58,7 +58,6 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
         self.input = {} if self.from_event_bridge else self.event.get("body", {})
         self.current_byte = self.input.get("current_byte_position", 0)
         self.current_chunk = self.input.get("chunk_number", 1)
-        self.lock_name = self.input.get("lock_name", None)
         self.send_params = self._get_send_params()
         self.response: dict[str, Any] = (
             {

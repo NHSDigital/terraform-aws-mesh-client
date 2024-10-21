@@ -41,6 +41,7 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
         self.response = {}
 
     def process_event(self, event):
+        print("EVENT", event)
         event_detail = event.get("EventDetail", {})
         if event_detail:
             # Enhanced event detail format from the step function
@@ -93,10 +94,16 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                     "internal_id": self.log_object.internal_id,
                     "message_id": message,
                     "dest_mailbox": self.mailbox_id,
+                    "lock_name": lock_name,
+                    "execution_id": self.execution_id,
+                    "release_lock": False,
                 },
             }
             for message in message_list
         ]
+
+        if output_list:
+            output_list[-1]["body"]["release_lock"] = True
 
         self.log_object.write_log(
             "MESHPOLL0001",
@@ -115,8 +122,6 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 "internal_id": self.log_object.internal_id,
                 "message_count": message_count,
                 "message_list": output_list,
-                "lock_name": lock_name,
-                "execution_id": self.execution_id,
             },
             # Parameters for a follow-up iteration through the messages in this execution
             "mailbox": self.mailbox_id,

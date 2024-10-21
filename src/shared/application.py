@@ -72,7 +72,7 @@ class MESHLambdaApplication(LambdaApplication):
         """
         if not lock_name or not execution_id:
             self.log_object.write_log(
-                "MESHSEND0006",
+                "MESHLOCK0007",
                 None,
                 {"lock_name": lock_name, "owner_id": execution_id},
             )
