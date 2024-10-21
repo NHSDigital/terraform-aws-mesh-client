@@ -1,7 +1,6 @@
 import json
 from uuid import uuid4
 
-from mypy_boto3_events import EventBridgeClient
 import pytest
 from mesh_client import MeshClient
 from mypy_boto3_dynamodb.service_resource import Table

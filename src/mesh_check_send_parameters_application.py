@@ -5,7 +5,6 @@ from typing import Any
 from shared.application import MESHLambdaApplication
 from shared.common import (
     LockExists,
-    acquire_lock,
     return_failure,
 )
 from shared.send_parameters import get_send_parameters

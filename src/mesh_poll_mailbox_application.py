@@ -6,7 +6,6 @@ from requests import HTTPError
 from shared.application import MESHLambdaApplication
 from shared.common import (
     LockExists,
-    acquire_lock,
     return_failure,
 )
 
