@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from requests import Response
 from requests.structures import CaseInsensitiveDict
 from shared.application import INBOUND_BUCKET, INBOUND_FOLDER, MESHLambdaApplication
-from shared.common import nullsafe_quote, release_lock
+from shared.common import nullsafe_quote
 from shared.config import MiB
 
 _METADATA_HEADERS = {
