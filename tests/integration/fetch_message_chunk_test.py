@@ -204,6 +204,7 @@ def test_fetch_message_single_chunked_message_completely_reads(
                         "dest_mailbox": recipient,
                         "lock_name": f"FetchLock_{recipient}",
                         "execution_id": uuid4().hex,
+                        "release_lock": True,
                     }
                 }
             ).encode("utf-8"),

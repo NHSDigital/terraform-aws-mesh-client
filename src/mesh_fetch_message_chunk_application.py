@@ -110,9 +110,6 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
 
         self.mailbox_id = self.input["dest_mailbox"]
 
-        print("INPUT", self.input)
-        print("RAW_EVENT", self.event.raw_event)
-
         self._acquire_lock(self.lock_name, self.execution_id)
 
         with self:
