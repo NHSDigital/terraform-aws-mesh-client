@@ -1,12 +1,9 @@
-import json
 import sys
 from http import HTTPStatus
 
 import pytest
 from mesh_send_message_chunk_application import MaxByteExceededException
-from nhs_aws_helpers import stepfunctions
 
-from .mesh_check_send_parameters_application_test import sample_trigger_event
 from .mesh_testing_common import (
     CONTEXT,
     FILE_CONTENT,
@@ -25,6 +22,7 @@ def test_mesh_send_file_chunk_app_no_chunks_happy_path(
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
     capsys,
+    mocked_lock_table,
 ):
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
 
@@ -54,6 +52,7 @@ def test_mesh_send_file_chunk_app_2_chunks_happy_path(
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
     capsys,
+    mocked_lock_table,
 ):
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
 
@@ -97,6 +96,7 @@ def test_mesh_send_file_chunk_app_too_many_chunks(
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
     capsys,
+    mocked_lock_table,
 ):
     """Test lambda throws MaxByteExceededException when too many chunks specified"""
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
@@ -110,48 +110,6 @@ def test_mesh_send_file_chunk_app_too_many_chunks(
 
     with pytest.raises(MaxByteExceededException):
         app.main(event=mock_input, context=CONTEXT)
-
-
-def test_mesh_send_file_chunk_app_no_chunks_invoke_via_eventbridge(
-    environment: str,
-    mesh_s3_bucket: str,
-    send_message_sfn_arn: str,
-    capsys,
-):
-    from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
-
-    app = MeshSendMessageChunkApplication()
-
-    app.config.crumb_size = sys.maxsize
-    app.config.chunk_size = sys.maxsize
-    app.config.compress_threshold = 10
-
-    expected_lambda_response = _sample_output_invoked_via_event_bridge(mesh_s3_bucket)
-    expected_lambda_response["body"].update({"complete": True})
-    expected_lambda_response["body"].update(
-        {"current_byte_position": len(FILE_CONTENT)}
-    )
-
-    response = stepfunctions().start_execution(
-        stateMachineArn=send_message_sfn_arn,
-        input=json.dumps(sample_trigger_event(mesh_s3_bucket)),
-    )
-    step_func_exec_arn = response.get("executionArn", None)
-    assert step_func_exec_arn is not None
-
-    lambda_response = app.main(
-        event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT
-    )
-
-    lambda_response["body"].pop("message_id")
-    lambda_response["body"].pop("internal_id")
-
-    assert lambda_response == expected_lambda_response
-    # Check completion
-    logs = capsys.readouterr()
-    assert was_value_logged(logs.out, "MESHSEND0002", "Log_Level", "INFO")
-    assert was_value_logged(logs.out, "MESHSEND0008", "Log_Level", "INFO")
-    assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
 
 
 def _sample_single_chunk_input_event(bucket: str):
@@ -212,6 +170,7 @@ def _sample_multi_chunk_input_event(bucket: str):
             "total_chunks": 4,
             "complete": False,
             "current_byte_position": 0,
+            "execution_id": "TEST123456",
             "send_params": {
                 "checksum": None,
                 "chunked": True,

@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from mesh_client import MeshClient
 from nhs_aws_helpers import stepfunctions
+from shared.common import LockExists
 
 from .mesh_testing_common import (
     CONTEXT,
@@ -17,6 +18,7 @@ def test_mesh_poll_mailbox_happy_path(
     environment: str,
     get_messages_sfn_arn: str,
     capsys,
+    mocked_lock_table,
 ):
     num_messages = 3
     message_ids = [
@@ -28,7 +30,10 @@ def test_mesh_poll_mailbox_happy_path(
         for i in range(num_messages)
     ]
 
-    mock_input = {"mailbox": mesh_client_one._mailbox}
+    mock_input = {
+        "EventDetail": {"mailbox": mesh_client_one._mailbox},
+        "ExecutionId": "TEST12345",
+    }
 
     stepfunctions().start_execution(
         stateMachineArn=get_messages_sfn_arn,
@@ -74,26 +79,28 @@ def test_mesh_poll_mailbox_happy_path(
     assert was_value_logged(logs.out, "MESHPOLL0001", "Log_Level", "INFO")
 
 
-def test_mesh_poll_mailbox_singleton_check(
-    environment: str, get_messages_sfn_arn: str, capsys
+def test_mesh_poll_mailbox_lock_exists(
+    monkeypatch, mesh_client_one, get_messages_sfn_arn
 ):
+    mock_input = {
+        "EventDetail": {"mailbox": mesh_client_one._mailbox},
+        "ExecutionId": "TEST12345",
+    }
+
+    stepfunctions().start_execution(
+        stateMachineArn=get_messages_sfn_arn,
+        input=json.dumps(mock_input),
+    )
     from mesh_poll_mailbox_application import MeshPollMailboxApplication
 
     app = MeshPollMailboxApplication()
 
-    mock_input = {"mailbox": uuid4().hex}
+    def no_lockie(_, __):
+        raise LockExists("test", "test2", "test3")
 
-    stepfunctions().start_execution(
-        stateMachineArn=get_messages_sfn_arn,
-        input=json.dumps(mock_input),
-    )
-    # Have to run a second execution as the app.main() below doesn't actually create one
-    # so the singleton check would just see the one above and think that it is itself.
-    stepfunctions().start_execution(
-        stateMachineArn=get_messages_sfn_arn,
-        input=json.dumps(mock_input),
-    )
+    monkeypatch.setattr(app, "_acquire_lock", no_lockie)
 
     response = app.main(event=mock_input, context=CONTEXT)
 
-    assert response["statusCode"] == int(HTTPStatus.TOO_MANY_REQUESTS)
+    assert response["statusCode"] == 429
+    assert response["body"]["error"] == "Lock already exists for test"

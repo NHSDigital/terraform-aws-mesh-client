@@ -99,7 +99,10 @@ resource "aws_sfn_state_machine" "get_messages" {
         OutputPath = "$.Payload"
         Parameters = {
           FunctionName = "${aws_lambda_function.poll_mailbox.arn}:${aws_lambda_function.poll_mailbox.version}"
-          "Payload.$"  = "$"
+          Payload = {
+            "EventDetail.$" = "$"
+            "ExecutionId.$" = "$$.Execution.Id"
+          }
         }
         Resource = "arn:aws:states:::lambda:invoke"
         Retry = [

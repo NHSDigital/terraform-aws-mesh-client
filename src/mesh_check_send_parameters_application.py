@@ -1,10 +1,12 @@
 from dataclasses import asdict
-from functools import partial
 from http import HTTPStatus
 from typing import Any
 
 from shared.application import MESHLambdaApplication
-from shared.common import SingletonCheckFailure, return_failure, singleton_check
+from shared.common import (
+    LockExists,
+    return_failure,
+)
 from shared.send_parameters import get_send_parameters
 from spine_aws_common.utilities import human_readable_bytes
 
@@ -22,11 +24,21 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
         return self._create_new_internal_id()
 
     def start(self):
+
+        self.log_object.write_log(
+            "MESHSEND0004b",
+            None,
+            {"debug_str": str(self.event.raw_event)},
+        )
+
+        event_details = self.event["EventDetail"]["detail"]
+        execution_id = self.event.get("ExecutionId")
+
         # in case of crash, set to internal server error so next stage fails
         self.response = {"statusCode": int(HTTPStatus.INTERNAL_SERVER_ERROR)}
 
-        bucket = self.event["detail"]["requestParameters"]["bucketName"]
-        key = self.event["detail"]["requestParameters"]["key"]
+        bucket = event_details["requestParameters"]["bucketName"]
+        key = event_details["requestParameters"]["key"]
 
         self.log_object.write_log("MESHSEND0001", None, {"bucket": bucket, "file": key})
 
@@ -54,20 +66,18 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
             },
         )
         try:
-            check = partial(self.is_send_for_same_file, send_params=send_params)
-            singleton_check(
-                self.config.send_message_step_function_arn,
-                check,
-                self.sfn,
-            )
 
-        except SingletonCheckFailure as e:
+            lock_name = send_params.send_lock_name()
+
+            self._acquire_lock(lock_name, execution_id)
+
+        except LockExists as e:
             self.response = return_failure(
                 self.log_object,
                 int(HTTPStatus.TOO_MANY_REQUESTS),
                 "MESHSEND0003",
                 send_params.sender,
-                message=e.msg,
+                message=str(e),
             )
             return
 
@@ -104,6 +114,8 @@ class MeshCheckSendParametersApplication(MESHLambdaApplication):
                 "message_id": None,
                 "current_byte_position": 0,
                 "send_params": asdict(send_params),
+                "lock_name": lock_name,
+                "execution_id": execution_id,
             },
         }
 

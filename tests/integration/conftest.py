@@ -2,6 +2,7 @@ from collections.abc import Generator
 
 import pytest
 from mesh_client import MeshClient
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_events import EventBridgeClient
 from mypy_boto3_lambda import LambdaClient
 from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
@@ -9,6 +10,7 @@ from mypy_boto3_secretsmanager import SecretsManagerClient
 from mypy_boto3_ssm import SSMClient
 from mypy_boto3_stepfunctions import SFNClient
 from nhs_aws_helpers import (
+    ddb_table,
     events_client,
     lambdas,
     s3_resource,
@@ -99,6 +101,11 @@ def get_lambdas() -> LambdaClient:
     return lambdas()
 
 
-@pytest.fixture()
+@pytest.fixture
 def local_mesh_bucket(s3: S3ServiceResource) -> Bucket:
     return s3.Bucket("local-mesh")
+
+
+@pytest.fixture(scope="module")
+def local_lock_table() -> Table:
+    return ddb_table(table_name="local-mesh-lock-table")

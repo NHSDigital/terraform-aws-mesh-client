@@ -8,8 +8,12 @@ import pytest
 from integration.test_helpers import temp_env_vars
 from mesh_client import MeshClient
 from moto import mock_aws
+from mypy_boto3_dynamodb import DynamoDBClient
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_stepfunctions import SFNClient
+from nhs_aws_helpers import (
+    dynamodb_client as _ddb_client,
+)
 from nhs_aws_helpers import (
     s3_client as _s3_client,
 )
@@ -19,6 +23,7 @@ from nhs_aws_helpers import (
 from nhs_aws_helpers import (
     stepfunctions,
 )
+from shared.common import LockDetails, acquire_lock
 
 from mocked.mesh_testing_common import (
     LOCAL_MAILBOXES,
@@ -39,7 +44,67 @@ def s3_client(_mock_aws) -> S3Client:
     return _s3_client()
 
 
-@pytest.fixture()
+@pytest.fixture(name="ddb_client")
+def ddb_client(_mock_aws) -> DynamoDBClient:
+    return _ddb_client()
+
+
+@pytest.fixture
+def mocked_lock_table(ddb_client: DynamoDBClient, environment):
+    """
+    Create a temporary lock table and delete after use.
+    """
+    table_name = os.getenv("DDB_LOCK_TABLE_NAME") or "mocked-lock-table"
+    ddb_client.create_table(
+        AttributeDefinitions=[
+            {"AttributeName": "LockOwner", "AttributeType": "S"},
+            {"AttributeName": "LockType", "AttributeType": "S"},
+            {"AttributeName": "LockName", "AttributeType": "S"},
+        ],
+        TableName=table_name,
+        KeySchema=[{"AttributeName": "LockName", "KeyType": "HASH"}],
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "LockTypeOwnerTableIndex",
+                "KeySchema": [
+                    {"AttributeName": "LockType", "KeyType": "HASH"},
+                    {"AttributeName": "LockOwner", "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "KEYS_ONLY"},
+            }
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    yield ddb_client.describe_table(TableName=table_name).get("Table", None)
+
+    ddb_client.delete_table(TableName=table_name)
+
+
+@pytest.fixture
+def create_lock_row(ddb_client: DynamoDBClient, mocked_lock_table):
+    """
+    Use a "fixture as a factory" pattern so we can pre-seed multiple lock rows, track their details and delete them
+    afterwards.
+    """
+    created_rows: list[LockDetails] = []
+
+    def _create_lock_row() -> LockDetails:
+        lock_name = uuid4().hex
+        execution_id = uuid4().hex
+        new_row = acquire_lock(ddb_client, lock_name, execution_id)
+        created_rows.append(new_row)
+        return new_row
+
+    yield _create_lock_row
+
+    for created_row in created_rows:
+        ddb_client.delete_item(
+            TableName=mocked_lock_table["TableName"],
+            Key={"LockName": {"S": created_row.LockName}},
+        )
+
+
+@pytest.fixture
 def environment(
     _mock_aws,
 ) -> Generator[str, None, None]:
@@ -61,11 +126,12 @@ def environment(
         SHARED_KEY_CONFIG_KEY=f"/{environment}/mesh/MESH_SHARED_KEY",
         MAILBOXES_BASE_CONFIG_KEY=f"/{environment}/mesh/mailboxes",
         VERIFY_CHECKS_COMMON_NAME=False,
+        DDB_LOCK_TABLE_NAME="mocked-lock-table",
     ):
         yield environment
 
 
-@pytest.fixture()
+@pytest.fixture
 def mesh_s3_bucket(s3_client: S3Client, environment: str) -> str:
     bucket = os.environ["MESH_BUCKET"]
     s3_client.create_bucket(
@@ -85,14 +151,14 @@ def mesh_s3_bucket(s3_client: S3Client, environment: str) -> str:
     return bucket
 
 
-@pytest.fixture()
+@pytest.fixture
 def send_message_sfn_arn(environment: str) -> str:
     return _setup_step_function(
         stepfunctions(), environment, f"{environment}-send-message"
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_messages_sfn_arn(environment: str):
     return _setup_step_function(
         stepfunctions(), environment, f"{environment}-get-messages"

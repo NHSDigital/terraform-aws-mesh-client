@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from mesh_client import MeshClient
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_lambda import LambdaClient
 from mypy_boto3_stepfunctions import SFNClient
 
@@ -15,10 +16,17 @@ from .constants import (
 )
 from .test_helpers import (
     CloudwatchLogsCapture,
+    assert_all_info_logs,
     sync_json_lambda_invocation_successful,
     wait_for_execution_outcome,
     wait_till_not_running,
 )
+
+
+@pytest.fixture(autouse=True)
+def _clear_fetch_locks(local_lock_table: Table):
+    for mailbox in LOCAL_MAILBOXES:
+        local_lock_table.delete_item(Key={"LockName": f"FetchLock_{mailbox}"})
 
 
 @pytest.mark.parametrize("mailbox_id", LOCAL_MAILBOXES)
@@ -37,7 +45,8 @@ def test_invoke_get_messages_directly(mailbox_id: str, lambdas: LambdaClient):
     assert not body
 
     assert logs
-    assert all(log.get("Log_Level") == "INFO" for log in logs)
+    # We don't pass locking info in, so a warning is expected.
+    assert_all_info_logs(logs, ["MESHLOCK0007"])
 
 
 @pytest.mark.parametrize("mailbox_id", LOCAL_MAILBOXES)
@@ -64,7 +73,8 @@ def test_trigger_step_function_no_handshake(mailbox_id: str, sfn: SFNClient):
         )
         logs = cw.find_logs(parse_logs=True)
         assert logs
-        assert all(log.get("Log_Level") == "INFO" for log in logs if log)
+        # We don't pass locking info in, so a warning is expected.
+        assert_all_info_logs(logs, ["MESHLOCK0007"])
         assert not any(log.get("logReference") == "MESHMBOX0004" for log in logs if log)
 
 
@@ -132,7 +142,8 @@ def test_invoke_get_when_message_exists(
     assert body["message_count"] == 1
 
     assert logs
-    assert all(log.get("Log_Level") == "INFO" for log in logs)
+    # We don't pass locking info in, so a warning is expected.
+    assert_all_info_logs(logs, ["MESHLOCK0007"])
 
     received = body["message_list"][0]["body"]
     message_id = received["message_id"]
@@ -168,8 +179,7 @@ def test_trigger_step_function_get_messages_pagination(
         )
 
         output, result = wait_for_execution_outcome(
-            execution_arn=execution["executionArn"],
-            sfn=sfn,
+            execution_arn=execution["executionArn"], sfn=sfn, timeout=20
         )
 
         assert result["status"] == "SUCCEEDED"
@@ -190,7 +200,9 @@ def test_trigger_step_function_get_messages_pagination(
         logs = poll_logs + fetch_logs
         assert logs
 
-        assert all(log.get("Log_Level") == "INFO" for log in logs if log)
+        # We don't pass locking info in, so a warning is expected.
+        assert_all_info_logs(logs, ["MESHLOCK0007"])
+
         downloaded_logs = list(
             filter(lambda x: x.get("logReference") == "MESHFETCH0011", logs)
         )
