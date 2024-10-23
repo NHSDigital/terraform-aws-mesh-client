@@ -34,6 +34,7 @@ from integration.constants import (
 )
 from integration.test_helpers import (
     CloudwatchLogsCapture,
+    assert_all_info_logs,
     sync_json_lambda_invocation_successful,
     temp_lock_row,
     temp_mapping_for_s3_object,
@@ -191,9 +192,7 @@ def test_send_receive_with_metadata(
         logs = cw.find_logs(parse_logs=True)
 
     assert logs
-    assert all(
-        log.get("Log_Level") == "INFO" for log in logs if log and "Log_Level" in log
-    ), logs
+    assert_all_info_logs(logs, ["MESHLOCK0007"])
 
     payload, _ = sync_json_lambda_invocation_successful(response)
     assert payload
@@ -332,9 +331,7 @@ def test_send_receive_with_metadata_all_settings(
         logs = cw.find_logs(parse_logs=True)
 
     assert logs
-    assert all(
-        log.get("Log_Level") == "INFO" for log in logs if log and "Log_Level" in log
-    ), logs
+    assert_all_info_logs(logs, ["MESHLOCK0007"])
 
     payload, _ = sync_json_lambda_invocation_successful(response)
     assert payload

@@ -93,7 +93,7 @@ def assert_all_info_logs(logs: list[dict], allowed_exceptions: list[str] | None 
     assert all(
         log.get("Log_Level") == "INFO" or log.get("logReference") in allowed_exceptions
         for log in logs
-    )
+    ), logs
 
 
 def sync_lambda_invocation_successful(
