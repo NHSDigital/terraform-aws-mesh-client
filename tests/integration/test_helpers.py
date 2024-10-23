@@ -87,6 +87,15 @@ def parse_lambda_logs(
     ]
 
 
+def assert_all_info_logs(logs: list[dict], allowed_exceptions: list[str] | None = None):
+    if allowed_exceptions is None:
+        allowed_exceptions = []
+    assert all(
+        log.get("Log_Level") == "INFO" or log.get("logReference") in allowed_exceptions
+        for log in logs
+    )
+
+
 def sync_lambda_invocation_successful(
     response: InvocationResponseTypeDef,
 ) -> tuple[str, list[str]]:
