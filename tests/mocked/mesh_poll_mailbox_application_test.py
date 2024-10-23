@@ -95,7 +95,7 @@ def test_mesh_poll_mailbox_lock_exists(
 
     app = MeshPollMailboxApplication()
 
-    def no_lockie(_):
+    def no_lockie(_, __):
         raise LockExists("test", "test2", "test3")
 
     monkeypatch.setattr(app, "_acquire_lock", no_lockie)

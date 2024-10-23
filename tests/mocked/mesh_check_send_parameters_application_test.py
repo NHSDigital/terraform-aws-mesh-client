@@ -53,7 +53,7 @@ def test_mesh_check_send_parameters_happy_path_chunked(
                 "workflow_id": "TESTWORKFLOW",
             },
             "lock_name": f"SendLock_{mesh_s3_bucket}_X26ABC2/outbound/testfile.json",
-            "owner_id": "TEST1234",
+            "execution_id": "TEST1234",
         },
     }
     from mesh_check_send_parameters_application import (
@@ -138,7 +138,7 @@ def test_mesh_check_send_parameters_happy_path_unchunked(
                 "workflow_id": "TESTWORKFLOW",
             },
             "lock_name": f"SendLock_{mesh_s3_bucket}_X26ABC2/outbound/testfile.json",
-            "owner_id": "TEST1234",
+            "execution_id": "TEST1234",
         },
     }
     response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)

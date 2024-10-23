@@ -22,6 +22,7 @@ def test_mesh_send_file_chunk_app_no_chunks_happy_path(
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
     capsys,
+    mocked_lock_table,
 ):
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
 
@@ -51,6 +52,7 @@ def test_mesh_send_file_chunk_app_2_chunks_happy_path(
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
     capsys,
+    mocked_lock_table,
 ):
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
 
@@ -88,16 +90,13 @@ def test_mesh_send_file_chunk_app_2_chunks_happy_path(
     assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "MESHSEND0008", "Log_Level", "INFO")
 
-    # Lambda was invoked without a step function, this is a good chance to ensure we don't bomb out when
-    # lock details are missing.
-    assert was_value_logged(logs.out, "MESHSEND0012", "Log_Level", "INFO")
-
 
 def test_mesh_send_file_chunk_app_too_many_chunks(
     environment: str,
     mesh_s3_bucket: str,
     send_message_sfn_arn: str,
     capsys,
+    mocked_lock_table,
 ):
     """Test lambda throws MaxByteExceededException when too many chunks specified"""
     from mesh_send_message_chunk_application import MeshSendMessageChunkApplication
@@ -171,6 +170,7 @@ def _sample_multi_chunk_input_event(bucket: str):
             "total_chunks": 4,
             "complete": False,
             "current_byte_position": 0,
+            "execution_id": "TEST123456",
             "send_params": {
                 "checksum": None,
                 "chunked": True,
