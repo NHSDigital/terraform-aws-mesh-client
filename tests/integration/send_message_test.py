@@ -674,7 +674,7 @@ def test_send_locking(
 
         # Assert the values in the log line while acquiring.
         acquire_logged_name, acquire_logged_exec_id = (
-            _get_lock_details_from_log_capture(cw, "MESHSEND0009")
+            _get_lock_details_from_log_capture(cw, "MESHLOCK0001")
         )
         assert acquire_logged_name == expected_lock_name
 
@@ -685,7 +685,7 @@ def test_send_locking(
         # Now switch the log group to the "send" lambda and make sure it logged the release correctly
         cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
         release_logged_name, release_logged_exec_id = (
-            _get_lock_details_from_log_capture(cw, "MESHSEND0010")
+            _get_lock_details_from_log_capture(cw, "MESHLOCK0002")
         )
         assert release_logged_exec_id == acquire_logged_exec_id
         assert release_logged_name == acquire_logged_name
@@ -726,7 +726,7 @@ def test_send_lock_already_exists(
             cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
 
         # We still need exec ID, but get the lock name from MESHSEND0003 to validate the log format
-        _, logged_exec_id = _get_lock_details_from_log_capture(cw, "MESHSEND0009")
+        _, logged_exec_id = _get_lock_details_from_log_capture(cw, "MESHLOCK0001")
         logged_name = _get_lock_name_from_fail_logs(cw)
 
         assert logged_name == expected_lock_name
@@ -765,14 +765,14 @@ def _get_lock_details_from_log_capture(
     cw: CloudwatchLogsCapture, log_ref: str
 ) -> tuple[str, str]:
     """
-    Pull out the MESH0009 line and extract the lock_name and execution_id fields.
+    Pull out the MESHLOCK**** line and extract the lock_name and execution_id fields.
     Hard-coded to the "SendLock" lock name.
     """
 
     search_result = cw.match_events(
         cw.find_logs(),
         re.compile(
-            rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)' with owner_id='([a-z0-9\-\:]+)'.*$"
+            rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)'.*owner_id='([a-z0-9\-\:]+)'.*$"
         ),
     )
     assert (

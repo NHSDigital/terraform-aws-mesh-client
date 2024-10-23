@@ -114,6 +114,11 @@ class MESHLambdaApplication(LambdaApplication):
         non-terminal warning.
         """
         try:
+            self.log_object.write_log(
+                "MESHLOCK0002",
+                None,
+                {"lock_name": lock_name, "owner_id": execution_id},
+            )
             release_lock(self.ddb_client, lock_name, execution_id)
         except LockReleaseDenied as ex:
             self.log_object.write_log(
