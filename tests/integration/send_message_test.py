@@ -781,7 +781,7 @@ def _get_lock_details_from_log_capture(
         len(search_result) == 1
     ), f"No matching log row for {log_ref}. Full list: {search_result}"
 
-    return search_result[0]["match"].group(1)
+    return str(search_result[0]["match"].group(1))
 
 
 def _assert_check_send_params_execution(cw: CloudwatchLogsCapture):
