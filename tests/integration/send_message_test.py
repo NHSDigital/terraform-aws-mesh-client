@@ -670,11 +670,13 @@ def test_send_locking(
         events.put_events(
             Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
         )  # no cloudtrail in localstack
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        internal_id = cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") == "LAMBDA0003"
+        )[0]["internalID"]
 
         # Assert the values in the log line while acquiring.
         acquire_logged_name, acquire_logged_exec_id = (
-            _get_lock_details_from_log_capture(cw, "MESHLOCK0001")
+            _get_lock_details_from_log_capture(cw, "MESHLOCK0001", internal_id)
         )
         assert acquire_logged_name == expected_lock_name
 
@@ -683,9 +685,11 @@ def test_send_locking(
         cw.log_group = SEND_LOG_GROUP
 
         # Now switch the log group to the "send" lambda and make sure it logged the release correctly
-        cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+        internal_id = cw.wait_for_logs(
+            predicate=lambda x: x.get("logReference") == "LAMBDA0003"
+        )[0]["internalID"]
         release_logged_name, release_logged_exec_id = (
-            _get_lock_details_from_log_capture(cw, "MESHLOCK0002")
+            _get_lock_details_from_log_capture(cw, "MESHLOCK0002", internal_id)
         )
         assert release_logged_exec_id == acquire_logged_exec_id
         assert release_logged_name == acquire_logged_name
@@ -723,10 +727,14 @@ def test_send_lock_already_exists(
             events.put_events(
                 Entries=[sample_trigger_event(local_mesh_bucket.name, key)]
             )  # no cloudtrail in localstack
-            cw.wait_for_logs(predicate=lambda x: x.get("logReference") == "LAMBDA0003")
+            internal_id = cw.wait_for_logs(
+                predicate=lambda x: x.get("logReference") == "LAMBDA0003"
+            )[0]["internalID"]
 
         # We still need exec ID, but get the lock name from MESHSEND0003 to validate the log format
-        _, logged_exec_id = _get_lock_details_from_log_capture(cw, "MESHLOCK0001")
+        _, logged_exec_id = _get_lock_details_from_log_capture(
+            cw, "MESHLOCK0001", internal_id
+        )
         logged_name = _get_lock_name_from_fail_logs(cw)
 
         assert logged_name == expected_lock_name
@@ -762,7 +770,7 @@ def _get_lock_name_from_fail_logs(cw: CloudwatchLogsCapture) -> str:
 
 
 def _get_lock_details_from_log_capture(
-    cw: CloudwatchLogsCapture, log_ref: str
+    cw: CloudwatchLogsCapture, log_ref: str, internal_id: str
 ) -> tuple[str, str]:
     """
     Pull out the MESHLOCK**** line and extract the lock_name and execution_id fields.
@@ -772,7 +780,7 @@ def _get_lock_details_from_log_capture(
     search_result = cw.match_events(
         cw.find_logs(),
         re.compile(
-            rf"^.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)'.*owner_id='([a-z0-9\-\:]+)'.*$"
+            rf"^.*{internal_id}.*{log_ref}.*lock_name='(SendLock[a-zA-Z0-9\-\/_\.]+)'.*owner_id='([a-z0-9\-\:]+)'.*$"
         ),
     )
     assert (
