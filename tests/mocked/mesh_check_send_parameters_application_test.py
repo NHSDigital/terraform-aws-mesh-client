@@ -1,18 +1,18 @@
 """ Testing MeshPollMailbox application """
 
-import json
 import sys
 from datetime import UTC, datetime
 from http import HTTPStatus
-from uuid import uuid4
-
-from nhs_aws_helpers import stepfunctions
 
 from .mesh_testing_common import CONTEXT, was_value_logged
 
 
 def test_mesh_check_send_parameters_happy_path_chunked(
-    mesh_s3_bucket: str, environment: str, send_message_sfn_arn: str, capsys
+    mesh_s3_bucket: str,
+    environment: str,
+    send_message_sfn_arn: str,
+    capsys,
+    mocked_lock_table,
 ):
     """Test the lambda as a whole, happy path for small file"""
 
@@ -52,6 +52,8 @@ def test_mesh_check_send_parameters_happy_path_chunked(
                 "total_chunks": 4,
                 "workflow_id": "TESTWORKFLOW",
             },
+            "lock_name": f"SendLock_{mesh_s3_bucket}_X26ABC2/outbound/testfile.json",
+            "execution_id": "TEST1234",
         },
     }
     from mesh_check_send_parameters_application import (
@@ -82,7 +84,11 @@ def test_mesh_check_send_parameters_happy_path_chunked(
 
 
 def test_mesh_check_send_parameters_happy_path_unchunked(
-    mesh_s3_bucket: str, environment: str, send_message_sfn_arn: str, capsys
+    mesh_s3_bucket: str,
+    environment: str,
+    send_message_sfn_arn: str,
+    capsys,
+    mocked_lock_table,
 ):
     """Test the lambda as a whole, happy path for small file"""
     from mesh_check_send_parameters_application import (
@@ -131,6 +137,8 @@ def test_mesh_check_send_parameters_happy_path_unchunked(
                 "total_chunks": 1,
                 "workflow_id": "TESTWORKFLOW",
             },
+            "lock_name": f"SendLock_{mesh_s3_bucket}_X26ABC2/outbound/testfile.json",
+            "execution_id": "TEST1234",
         },
     }
     response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
@@ -149,106 +157,6 @@ def test_mesh_check_send_parameters_happy_path_unchunked(
     assert was_value_logged(logs.out, "LAMBDA0001", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "LAMBDA0002", "Log_Level", "INFO")
     assert was_value_logged(logs.out, "LAMBDA0003", "Log_Level", "INFO")
-
-
-def test_running_as_singleton(
-    mesh_s3_bucket: str,
-    environment: str,
-    send_message_sfn_arn: str,
-    get_messages_sfn_arn: str,
-    capsys,
-):
-    """
-    Test that the singleton check works correctly
-    """
-
-    print("------------------------- TEST 1 -------------------------------")
-
-    # 'start' fake state machine
-    sf_response = stepfunctions().start_execution(
-        stateMachineArn=send_message_sfn_arn,
-        input=json.dumps(sample_trigger_event(mesh_s3_bucket)),
-    )
-    step_func_exec_arn = sf_response.get("executionArn", None)
-    assert step_func_exec_arn is not None
-    # do running check - should pass (1 step function running, just mine)
-    from mesh_check_send_parameters_application import (
-        MeshCheckSendParametersApplication,
-    )
-
-    app = MeshCheckSendParametersApplication()
-
-    response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
-    assert response is not None
-
-    logs = capsys.readouterr()
-
-    assert not was_value_logged(logs.out, "MESHSEND0003", "Log_Level", "ERROR")
-    assert was_value_logged(logs.out, "MESHSEND0004", "Log_Level", "INFO")
-    assert was_value_logged(logs.out, "MESHSEND0004a", "Log_Level", "INFO")
-
-    print("------------------------- TEST 2 -------------------------------")
-
-    # 'start' state machine 2 with my mailbox
-    sf_response = stepfunctions().start_execution(
-        stateMachineArn=get_messages_sfn_arn,
-        input=json.dumps(sample_trigger_event(mesh_s3_bucket)),
-    )
-    step_func_exec_arn = sf_response.get("executionArn", None)
-    assert step_func_exec_arn is not None
-
-    # do running check - should pass (1 step function of my name with my mailbox)
-    response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
-    assert response is not None
-
-    logs = capsys.readouterr()
-    assert not was_value_logged(logs.out, "MESHSEND0003", "Log_Level", "ERROR")
-    assert was_value_logged(logs.out, "MESHSEND0004", "Log_Level", "INFO")
-    assert was_value_logged(logs.out, "MESHSEND0004a", "Log_Level", "INFO")
-
-    print("------------------------- TEST 3 -------------------------------")
-
-    # 'start' state machine with different mailbox
-    sf_response = stepfunctions().start_execution(
-        stateMachineArn=send_message_sfn_arn,
-        input=json.dumps(
-            sample_trigger_event(mesh_s3_bucket, f"X26ABC2/outbound/{uuid4().hex}.json")
-        ),
-    )
-    step_func_exec_arn = sf_response.get("executionArn", None)
-    assert step_func_exec_arn is not None
-
-    # do running check - should pass (1 step function running with my mailbox)
-    response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
-    assert response is not None
-
-    logs = capsys.readouterr()
-
-    assert not was_value_logged(logs.out, "MESHSEND0003", "Log_Level", "ERROR")
-    assert was_value_logged(logs.out, "MESHSEND0004", "Log_Level", "INFO")
-    assert was_value_logged(logs.out, "MESHSEND0004a", "Log_Level", "INFO")
-
-    print("------------------------- TEST 4 -------------------------------")
-
-    # 'start' another instance with same mailbox as mine
-    sf_response = stepfunctions().start_execution(
-        stateMachineArn=send_message_sfn_arn,
-        input=json.dumps(sample_trigger_event(mesh_s3_bucket)),
-    )
-    step_func_exec_arn = sf_response.get("executionArn", None)
-    assert step_func_exec_arn is not None
-    # do running check - should return 503 and log MESHSEND0003 error message
-    response = app.main(event=sample_trigger_event(mesh_s3_bucket), context=CONTEXT)
-    expected_return_code = {"statusCode": HTTPStatus.TOO_MANY_REQUESTS.value}
-    expected_header = {"Retry-After": 18000}
-    assert response == {**response, **expected_return_code}
-    assert response["headers"] == {**response["headers"], **expected_header}
-
-    logs = capsys.readouterr()
-
-    assert was_value_logged(logs.out, "MESHSEND0003", "Log_Level", "ERROR")
-    assert not was_value_logged(logs.out, "MESHSEND0004", "Log_Level", "INFO")
-    assert was_value_logged(logs.out, "MESHSEND0004a", "Log_Level", "INFO")
 
 
 def sample_trigger_event(
@@ -305,7 +213,10 @@ def sample_trigger_event(
         "time": "2021-06-29T14:10:55Z",
         "region": "eu-west-2",
         "resources": [],
-        "detail": s3_event,
+        "EventDetail": {
+            "detail": s3_event,
+        },
+        "ExecutionId": "TEST1234",
     }
 
     return event_bridge_event

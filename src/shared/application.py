@@ -3,10 +3,22 @@ from time import time
 from typing import Any, TypedDict
 
 from mesh_client import MeshClient, optional_header_map
-from nhs_aws_helpers import s3_resource, secrets_client, ssm_client, stepfunctions
+from nhs_aws_helpers import (
+    dynamodb_client,
+    s3_resource,
+    secrets_client,
+    ssm_client,
+    stepfunctions,
+)
 from spine_aws_common import LambdaApplication
 
-from shared.common import get_params
+from shared.common import (
+    LockExists,
+    LockReleaseDenied,
+    acquire_lock,
+    get_params,
+    release_lock,
+)
 from shared.config import EnvConfig
 from shared.send_parameters import SendParameters
 
@@ -35,6 +47,7 @@ class MESHLambdaApplication(LambdaApplication):
         self.ssm = ssm_client()
         self.sfn = stepfunctions()
         self.secrets = secrets_client()
+        self.ddb_client = dynamodb_client()
         self.config = EnvConfig()
         self.environment = self.config.environment
         self.mailbox_params: dict[str, MailboxParams] = {}
@@ -51,6 +64,80 @@ class MESHLambdaApplication(LambdaApplication):
 
     def start(self):
         raise NotImplementedError("this should be implemented in the derived class")
+
+    def _acquire_lock(self, lock_name: str | None, execution_id: str | None):
+        """
+        Attempt to acquire the lock row for this lock name.
+        It's ok for the lock row to exist as long as we (execution_id) are the owner.
+        """
+        if not lock_name or not execution_id:
+            self.log_object.write_log(
+                "MESHLOCK0006",
+                None,
+                {"lock_name": lock_name, "owner_id": execution_id},
+            )
+            return
+
+        try:
+
+            self.log_object.write_log(
+                "MESHLOCK0001",
+                None,
+                {"lock_name": lock_name, "owner_id": execution_id},
+            )
+
+            acquire_lock(
+                self.ddb_client,
+                lock_name,
+                execution_id,
+            )
+
+        except LockExists as e:
+            if e.lock_owner == execution_id:
+                self.log_object.write_log(
+                    "MESHLOCK0004",
+                    None,
+                    {"lock_name": lock_name, "owner_id": execution_id},
+                )
+                return
+            self.log_object.write_log(
+                "MESHLOCK0005",
+                None,
+                {"lock_name": lock_name, "owner_id": execution_id},
+            )
+            raise e
+
+    def _release_lock(self, lock_name: str, execution_id: str):
+        """
+        Release lock_name.
+        Attempting to release a lock which isn't owned by execution_id will be denied and will result in a
+        non-terminal warning.
+        """
+        if not lock_name or not execution_id:
+            self.log_object.write_log(
+                "MESHLOCK0007",
+                None,
+                {"lock_name": lock_name, "owner_id": execution_id},
+            )
+            return
+
+        try:
+            self.log_object.write_log(
+                "MESHLOCK0002",
+                None,
+                {"lock_name": lock_name, "owner_id": execution_id},
+            )
+            release_lock(self.ddb_client, lock_name, execution_id)
+        except LockReleaseDenied as ex:
+            self.log_object.write_log(
+                "MESHLOCK0003",
+                None,
+                {
+                    "lock_name": ex.lock_name,
+                    "execution_id": ex.execution_id,
+                    "lock_owner": ex.lock_owner,
+                },
+            )
 
     def _required_common_params(self) -> tuple[list[str], list[str]]:
         if self._common_params_retrieved:

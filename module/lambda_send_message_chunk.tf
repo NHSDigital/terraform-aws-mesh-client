@@ -154,6 +154,21 @@ data "aws_iam_policy_document" "send_message_chunk" {
       "${aws_s3_bucket.mesh.arn}/*"
     ]
   }
+  statement {
+    sid    = "DynamoDBAccess"
+    effect = "Allow"
+
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:UpdateItem", 
+    ]
+
+    resources = [
+      "arn:aws:dynamodb:eu-west-2:${var.account_id}:table/${local.locktable_name}"
+    ]
+  }
 
   dynamic "statement" {
     for_each = var.use_secrets_manager ? [true] : []

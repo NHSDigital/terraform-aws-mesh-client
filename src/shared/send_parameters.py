@@ -61,6 +61,9 @@ class SendParameters:
             if v is not None and k in _MESH_SEND_KWARGS
         }
 
+    def send_lock_name(self) -> str:
+        return f"SendLock_{self.s3_bucket}_{self.s3_key}"
+
 
 def get_send_parameters_from_mapping(
     s3_object: Object, config: EnvConfig, ssm: SSMClient | None = None

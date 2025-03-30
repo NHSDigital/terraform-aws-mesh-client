@@ -8,12 +8,14 @@ import re
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from json import JSONDecodeError
 from time import sleep, time
 from typing import cast
 
 import requests
 from botocore.exceptions import ClientError
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_lambda.type_defs import InvocationResponseTypeDef
 from mypy_boto3_logs.type_defs import LogStreamTypeDef, OutputLogEventTypeDef
 from mypy_boto3_s3.service_resource import Object
@@ -85,6 +87,15 @@ def parse_lambda_logs(
     ]
 
 
+def assert_all_info_logs(logs: list[dict], allowed_exceptions: list[str] | None = None):
+    if allowed_exceptions is None:
+        allowed_exceptions = []
+    assert all(
+        log.get("Log_Level") == "INFO" or log.get("logReference") in allowed_exceptions
+        for log in logs
+    ), logs
+
+
 def sync_lambda_invocation_successful(
     response: InvocationResponseTypeDef,
 ) -> tuple[str, list[str]]:
@@ -133,7 +144,7 @@ class CloudwatchLogsCapture:
         log_group: str,
         start_timestamp: float | None = None,
     ):
-        self._log_group = log_group
+        self.log_group = log_group
         self._start_timestamp = start_timestamp
         self._logs = cloudwatchlogs_client()
         self.reports: list[dict] = []
@@ -157,12 +168,12 @@ class CloudwatchLogsCapture:
 
         while True:
             try:
-                response = self._logs.describe_log_streams(logGroupName=self._log_group)
+                response = self._logs.describe_log_streams(logGroupName=self.log_group)
                 streams: list = response["logStreams"]
 
                 while "nextToken" in response:
                     response = self._logs.describe_log_streams(
-                        logGroupName=self._log_group,
+                        logGroupName=self.log_group,
                         nextToken=response["nextToken"],
                     )
                     streams.extend(response["logStreams"])
@@ -176,7 +187,7 @@ class CloudwatchLogsCapture:
                     raise client_error
                 if time() > end_wait:
                     raise TimeoutError(
-                        f"error waiting for streams for {self._log_group}"
+                        f"error waiting for streams for {self.log_group}"
                     ) from client_error
                 sleep(0.1)
                 continue
@@ -190,13 +201,13 @@ class CloudwatchLogsCapture:
 
         logs: list[dict] = []
         response = self._logs.filter_log_events(
-            logGroupName=self._log_group, startTime=since_timestamp
+            logGroupName=self.log_group, startTime=since_timestamp
         )
         logs.extend(cast(list[dict], response["events"]))
 
         while "nextToken" in response:
             response = self._logs.filter_log_events(
-                logGroupName=self._log_group,
+                logGroupName=self.log_group,
                 startTime=since_timestamp,
                 nextToken=response["nextToken"],
             )
@@ -244,7 +255,7 @@ class CloudwatchLogsCapture:
 
             if time() > end_wait:
                 raise TimeoutError(
-                    f"failed to match {min_results} json logs for log group {self._log_group} in {max_wait}s",
+                    f"failed to match {min_results} json logs for log group {self.log_group} in {max_wait}s",
                     self.reports,
                 )
 
@@ -388,6 +399,22 @@ def temp_mapping_for_s3_object(
             f"{base_path}/workflow_id",
         ]
     )
+
+
+@contextmanager
+def temp_lock_row(lock_name: str, lock_owner: str, lock_table: Table):
+
+    lock_table.put_item(
+        Item={
+            "LockName": lock_name,
+            "LockOwner": lock_owner,
+            "AcquiredTime": str(datetime.now()),
+        }
+    )
+
+    yield lock_name
+
+    lock_table.delete_item(Key={"LockName": lock_name})
 
 
 @contextmanager

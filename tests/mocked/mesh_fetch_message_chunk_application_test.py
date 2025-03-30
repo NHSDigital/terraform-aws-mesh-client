@@ -39,7 +39,7 @@ def test_mesh_fetch_file_chunk_app_no_chunks_happy_path(
     print(message_id)
 
     mock_input = _sample_first_input_event(
-        internal_id=KNOWN_INTERNAL_ID1, message_id=message_id
+        internal_id=KNOWN_INTERNAL_ID1, message_id=message_id, release_lock=True
     )
     response = app.main(event=mock_input, context=CONTEXT)
 
@@ -331,7 +331,9 @@ def test_mesh_fetch_file_chunk_app_not_found_unhappy_path(
     assert http_error.value.response.status_code == HTTPStatus.NOT_FOUND.value
 
 
-def _sample_first_input_event(internal_id: str, message_id: str):
+def _sample_first_input_event(
+    internal_id: str, message_id: str, release_lock: bool = False
+):
     return {
         "statusCode": HTTPStatus.OK.value,
         "headers": {"Content-Type": "application/json"},
@@ -340,5 +342,6 @@ def _sample_first_input_event(internal_id: str, message_id: str):
             "internal_id": internal_id,
             "message_id": message_id,
             "dest_mailbox": "X26ABC1",
+            "release_lock": release_lock,
         },
     }

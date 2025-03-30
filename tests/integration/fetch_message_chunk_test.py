@@ -3,7 +3,9 @@ import random
 from urllib.parse import quote_plus
 from uuid import uuid4
 
+import pytest
 from mesh_client import MeshClient
+from mypy_boto3_dynamodb.service_resource import Table
 from mypy_boto3_s3.service_resource import Bucket
 from nhs_aws_helpers import lambdas
 
@@ -18,8 +20,15 @@ from integration.test_helpers import (
 _MAX_CHUNK_SIZE = 10 * MB
 
 
+@pytest.fixture(autouse=True)
+def _clear_fetch_locks(local_lock_table: Table):
+    for mailbox in LOCAL_MAILBOXES:
+        local_lock_table.delete_item(Key={"LockName": f"FetchLock_{mailbox}"})
+
+
 def test_fetch_message_single_unchunked_message(
-    mesh_client_one: MeshClient, local_mesh_bucket: Bucket
+    mesh_client_one: MeshClient,
+    local_mesh_bucket: Bucket,
 ):
     recipient = LOCAL_MAILBOXES[2]
     message = f"test: {uuid4().hex}".encode()
@@ -39,7 +48,14 @@ def test_fetch_message_single_unchunked_message(
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps(
-                {"body": {"message_id": sent_message_id, "dest_mailbox": recipient}}
+                {
+                    "body": {
+                        "message_id": sent_message_id,
+                        "dest_mailbox": recipient,
+                        "lock_name": f"FetchLock_{recipient}",
+                        "execution_id": uuid4().hex,
+                    }
+                }
             ).encode("utf-8"),
         )
 
@@ -104,7 +120,14 @@ def test_fetch_message_report_message(
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps(
-                {"body": {"message_id": sent_message_id, "dest_mailbox": recipient}}
+                {
+                    "body": {
+                        "message_id": sent_message_id,
+                        "dest_mailbox": recipient,
+                        "lock_name": f"FetchLock_{recipient}",
+                        "execution_id": uuid4().hex,
+                    }
+                }
             ).encode("utf-8"),
         )
 
@@ -175,7 +198,15 @@ def test_fetch_message_single_chunked_message_completely_reads(
             InvocationType="RequestResponse",
             LogType="Tail",
             Payload=json.dumps(
-                {"body": {"message_id": sent_message_id, "dest_mailbox": recipient}}
+                {
+                    "body": {
+                        "message_id": sent_message_id,
+                        "dest_mailbox": recipient,
+                        "lock_name": f"FetchLock_{recipient}",
+                        "execution_id": uuid4().hex,
+                        "release_lock": True,
+                    }
+                }
             ).encode("utf-8"),
         )
 

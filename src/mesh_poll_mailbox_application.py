@@ -4,7 +4,10 @@ from typing import Any
 from aws_lambda_powertools.shared.functions import strtobool
 from requests import HTTPError
 from shared.application import MESHLambdaApplication
-from shared.common import SingletonCheckFailure, return_failure, singleton_check
+from shared.common import (
+    LockExists,
+    return_failure,
+)
 
 
 class HandshakeFailure(Exception):
@@ -28,12 +31,22 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
 
         self.handshake: bool = False
         self.response: dict[str, Any] = {}
+        self.execution_id = None
 
     def initialise(self):
         # initialise
         self.mailbox_id = self.event["mailbox"]
         self.handshake = bool(strtobool(self.event.get("handshake", "false")))
         self.response = {}
+
+    def process_event(self, event):
+        print("EVENT", event)
+        event_detail = event.get("EventDetail", {})
+        if event_detail:
+            # Enhanced event detail format from the step function
+            self.execution_id = str(event.get("ExecutionId")) or None
+
+        return self.EVENT_TYPE(event_detail or event)
 
     def start(self):
         # in case of crash
@@ -48,19 +61,17 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 return
 
         try:
-            singleton_check(
-                self.config.get_messages_step_function_arn,
-                self.is_same_mailbox_check,
-                self.sfn,
-            )
 
-        except SingletonCheckFailure as e:
+            lock_name = f"FetchLock_{self.mailbox_id}"
+            self._acquire_lock(lock_name, self.execution_id)
+
+        except LockExists as e:
             self.response = return_failure(
                 self.log_object,
                 int(HTTPStatus.TOO_MANY_REQUESTS),
                 "MESHPOLL0002",
                 self.mailbox_id,
-                message=e.msg,
+                message=str(e),
             )
             return
 
@@ -82,10 +93,16 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                     "internal_id": self.log_object.internal_id,
                     "message_id": message,
                     "dest_mailbox": self.mailbox_id,
+                    "lock_name": lock_name,
+                    "execution_id": self.execution_id,
+                    "release_lock": False,
                 },
             }
             for message in message_list
         ]
+
+        if output_list:
+            output_list[-1]["body"]["release_lock"] = True
 
         self.log_object.write_log(
             "MESHPOLL0001",
@@ -104,6 +121,8 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
                 "internal_id": self.log_object.internal_id,
                 "message_count": message_count,
                 "message_list": output_list,
+                "lock_name": lock_name,
+                "execution_id": self.execution_id,
             },
             # Parameters for a follow-up iteration through the messages in this execution
             "mailbox": self.mailbox_id,

@@ -29,7 +29,10 @@ resource "aws_sfn_state_machine" "send_message" {
         OutputPath = "$.Payload"
         Parameters = {
           FunctionName = "${aws_lambda_function.check_send_parameters.arn}:${aws_lambda_function.check_send_parameters.version}"
-          "Payload.$"  = "$"
+          Payload = {
+            "EventDetail.$" = "$"
+            "ExecutionId.$" = "$$.Execution.Id"
+          }
         }
         Resource = "arn:aws:states:::lambda:invoke"
         Retry = [
@@ -50,7 +53,7 @@ resource "aws_sfn_state_machine" "send_message" {
         Choices = [
           {
             BooleanEquals = true
-            Next          = "Success"
+            Next          = "Release Lock"
             Variable      = "$.body.complete"
           },
         ]
@@ -95,6 +98,39 @@ resource "aws_sfn_state_machine" "send_message" {
       }
       Success = {
         Type = "Succeed"
+      }
+      "Release Lock" = {
+        Next = "Success"
+        OutputPath = "$.Payload"
+        Parameters = {
+          FunctionName = "${aws_lambda_function.lock_manager.arn}:${aws_lambda_function.lock_manager.version}"
+          Payload = {
+            "EventDetail.$" = "$"
+            "Operation"     = "release"
+          }
+        }
+        Resource = "arn:aws:states:::lambda:invoke"
+        Retry = [
+          {
+            BackoffRate = 2
+            ErrorEquals = [
+              "Lambda.ServiceException",
+              "Lambda.AWSLambdaException",
+              "Lambda.SdkClientException",
+            ]
+            IntervalSeconds = 2
+            MaxAttempts     = 3
+          },
+          {
+            ErrorEquals = [
+              "States.TaskFailed"
+            ],
+            BackoffRate     = 1,
+            IntervalSeconds = 300,
+            MaxAttempts     = 2
+          },
+        ]
+        Type = "Task"
       }
     }
   })
@@ -179,7 +215,9 @@ data "aws_iam_policy_document" "send_message" {
       aws_lambda_function.send_message_chunk.arn,
       "${aws_lambda_function.send_message_chunk.arn}:*",
       aws_lambda_function.check_send_parameters.arn,
-      "${aws_lambda_function.check_send_parameters.arn}:*"
+      "${aws_lambda_function.check_send_parameters.arn}:*",
+      aws_lambda_function.lock_manager.arn,
+      "${aws_lambda_function.lock_manager.arn}:*"
     ]
   }
 }

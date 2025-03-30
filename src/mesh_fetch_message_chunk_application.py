@@ -88,6 +88,10 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
         self.s3_bucket = self.input.get("s3_bucket", "")  # will be empty on first chunk
         self.s3_key = self.input.get("s3_key", "")  # will be empty on first chunk
 
+        self.lock_name = self.input.get("lock_name") or None
+        self.execution_id = self.input.get("execution_id") or None
+        self.should_release_lock = self.input.get("release_lock", False) or False
+
     @property
     def http_response(self) -> Response:
         assert (
@@ -106,6 +110,8 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
 
         self.mailbox_id = self.input["dest_mailbox"]
 
+        self._acquire_lock(self.lock_name, self.execution_id)
+
         with self:
             # get stream for this chunk
 
@@ -117,9 +123,11 @@ class MeshFetchMessageChunkApplication(MESHLambdaApplication):
             self._ensure_s3_bucket_and_key(is_report)
             if is_report or self.number_of_chunks < 2:
                 self._handle_un_chunked_message(is_report)
-                return
+            else:
+                self._handle_multiple_chunk_message()
 
-            self._handle_multiple_chunk_message()
+            if not self.should_release_lock:
+                return
 
     def _retrieve_current_chunk(self):
         self._http_response = self.get_chunk(

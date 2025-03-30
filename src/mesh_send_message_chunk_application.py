@@ -1,13 +1,11 @@
 from collections.abc import Generator
 from dataclasses import asdict
-from functools import partial
 from http import HTTPStatus
 from io import BytesIO
 from typing import Any
 
 from mypy_boto3_s3.service_resource import Object
 from shared.application import MESHLambdaApplication
-from shared.common import SingletonCheckFailure, return_failure, singleton_check
 from shared.send_parameters import SendParameters, get_send_parameters
 
 
@@ -66,6 +64,15 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
         )
 
         self.response["body"]["send_params"] = asdict(self.send_params)
+
+        # Execution ID can come from the Step Function context or we use the internalID (e.g. direct invocation)
+        self.execution_id = (
+            self.input.get("execution_id") or self.log_object.internal_id
+        )
+        # Again, might not be from the Step Function context if directly invoked via EventBridge.
+        self.lock_name = (
+            self.input.get("lock_name") or self.send_params.send_lock_name()
+        )
 
     def _get_send_params(self) -> SendParameters:
         # invoked from most recent check send params or from another send message chunk
@@ -137,33 +144,7 @@ class MeshSendMessageChunkApplication(MESHLambdaApplication):
             },
         )
 
-        if self.from_event_bridge:
-            self.log_object.write_log(
-                "MESHSEND0002",
-                None,
-                {
-                    "mailbox": send_params.sender,
-                    "bucket": send_params.s3_bucket,
-                    "key": send_params.s3_key,
-                },
-            )
-            try:
-                check = partial(self.is_send_for_same_file, send_params=send_params)
-                singleton_check(
-                    self.config.send_message_step_function_arn,
-                    check,
-                    self.sfn,
-                )
-
-            except SingletonCheckFailure as e:
-                self.response = return_failure(
-                    self.log_object,
-                    int(HTTPStatus.TOO_MANY_REQUESTS),
-                    "MESHSEND0003",
-                    send_params.sender,
-                    message=e.msg,
-                )
-                return
+        self._acquire_lock(self.lock_name, self.execution_id)
 
         if not self.s3_object:
             self.s3_object = self.s3.Object(send_params.s3_bucket, send_params.s3_key)

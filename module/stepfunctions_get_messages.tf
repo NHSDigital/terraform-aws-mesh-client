@@ -30,7 +30,7 @@ resource "aws_sfn_state_machine" "get_messages" {
       "Failed?" = {
         Choices = [
           {
-            Next          = "Poll complete"
+            Next          = "Poll complete release lock"
             NumericEquals = 204
             Variable      = "$.statusCode"
           },
@@ -99,7 +99,10 @@ resource "aws_sfn_state_machine" "get_messages" {
         OutputPath = "$.Payload"
         Parameters = {
           FunctionName = "${aws_lambda_function.poll_mailbox.arn}:${aws_lambda_function.poll_mailbox.version}"
-          "Payload.$"  = "$"
+          Payload = {
+            "EventDetail.$" = "$"
+            "ExecutionId.$" = "$$.Execution.Id"
+          }
         }
         Resource = "arn:aws:states:::lambda:invoke"
         Retry = [
@@ -132,8 +135,41 @@ resource "aws_sfn_state_machine" "get_messages" {
             Variable      = "$.body.message_count"
           },
         ]
-        Default = "Poll complete"
+        Default = "Poll complete release lock"
         Type    = "Choice"
+      }
+      "Poll complete release lock" = {
+        Next       = "Poll complete"
+        OutputPath = "$.Payload"
+        Parameters = {
+          FunctionName = "${aws_lambda_function.lock_manager.arn}:${aws_lambda_function.lock_manager.version}"
+          Payload = {
+            "EventDetail.$" = "$"
+            "Operation"     = "release"
+          }
+        }
+        Resource = "arn:aws:states:::lambda:invoke"
+        Retry = [
+          {
+            BackoffRate = 2
+            ErrorEquals = [
+              "Lambda.ServiceException",
+              "Lambda.AWSLambdaException",
+              "Lambda.SdkClientException",
+            ]
+            IntervalSeconds = 2
+            MaxAttempts     = 3
+          },
+          {
+            ErrorEquals = [
+              "States.TaskFailed"
+            ],
+            BackoffRate     = 1,
+            IntervalSeconds = 300,
+            MaxAttempts     = 2
+          },
+        ]
+        Type = "Task"
       }
     }
   })
@@ -214,7 +250,9 @@ data "aws_iam_policy_document" "get_messages" {
       aws_lambda_function.fetch_message_chunk.arn,
       "${aws_lambda_function.fetch_message_chunk.arn}:*",
       aws_lambda_function.poll_mailbox.arn,
-      "${aws_lambda_function.poll_mailbox.arn}:*"
+      "${aws_lambda_function.poll_mailbox.arn}:*",
+      aws_lambda_function.lock_manager.arn,
+      "${aws_lambda_function.lock_manager.arn}:*"
     ]
 
     actions = ["lambda:InvokeFunction"]
