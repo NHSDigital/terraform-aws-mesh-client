@@ -99,6 +99,6 @@ def get_lambdas() -> LambdaClient:
     return lambdas()
 
 
-@pytest.fixture()
+@pytest.fixture
 def local_mesh_bucket(s3: S3ServiceResource) -> Bucket:
     return s3.Bucket("local-mesh")
