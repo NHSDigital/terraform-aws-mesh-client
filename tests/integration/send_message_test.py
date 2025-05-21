@@ -469,7 +469,7 @@ def test_send_receive_large_file(
         with tempfile.NamedTemporaryFile() as f:
             buffer = f
             if compress:
-                buffer = gzip.open(f, mode="wb")  # noqa: SIM115
+                buffer = gzip.open(f, mode="wb")  # type: ignore[assignment] # noqa: SIM115
 
             while written < size:
                 block = (
