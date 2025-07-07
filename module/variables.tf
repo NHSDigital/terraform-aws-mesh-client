@@ -247,3 +247,15 @@ variable "aws_secrets_endpoints_sg_id" {
   type    = string
   default = ""
 }
+
+variable "fetch_message_lambda_memory_size" {
+  type        = number
+  default     = 128
+  description = "Memory size (in MiB) for the fetch message Lambda. Increase if large files are expected."
+}
+
+variable "send_message_lambda_memory_size" {
+  type        = number
+  default     = 128
+  description = "Memory size (in MiB) for the send message Lambda"
+}

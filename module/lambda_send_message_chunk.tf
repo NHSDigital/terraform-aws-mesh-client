@@ -9,6 +9,7 @@ resource "aws_lambda_function" "send_message_chunk" {
   handler          = "mesh_send_message_chunk_application.lambda_handler"
   runtime          = local.python_runtime
   timeout          = 15 * 60 // 15 minutes
+  memory_size      = var.send_message_lambda_memory_size
   source_code_hash = data.archive_file.app.output_base64sha256
   role             = aws_iam_role.send_message_chunk.arn
   layers           = [aws_lambda_layer_version.mesh_aws_client_dependencies.arn]
