@@ -1,6 +1,7 @@
 #tfsec:ignore:aws-cloudtrail-require-bucket-access-logging tfsec:ignore:aws-s3-enable-versioning
 resource "aws_s3_bucket" "s3logs" {
   bucket = "${local.name}-s3logs"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "s3logs" {
