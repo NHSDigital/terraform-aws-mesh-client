@@ -37,7 +37,7 @@ runs:
         shell: bash
         run: |
           echo base branch "${{ github.base_ref }}"
-          echo pr branch "${{ github.head_ref }}"
+          echo "pr branch ${GITHUB_HEAD_REF}"
           git checkout "${{ github.base_ref }}"
           git checkout -b "merging-${{ github.event.number }}"
           git merge --ff-only "${{ github.event.pull_request.head.sha }}"
@@ -55,14 +55,14 @@ runs:
           python-version: ${{ inputs.force-python-version }}
 
       - name: install terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: 1.4.5
 
       - name: install poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a
         with:
-          version: 1.7.1
+          version: 2.2.1
           virtualenvs-create: true
           virtualenvs-in-project: true
 

@@ -21,6 +21,7 @@ mesh-client = "^3.2.3"
 requests = "^2.32.3"
 
 [tool.poetry.group.dev.dependencies]
+poetry-plugin-export = "^1.9.0"
 # ci / testing dependencies
 boto3 = "^1.33.1"
 mypy = "^1.4.0"
