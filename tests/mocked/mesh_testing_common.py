@@ -41,7 +41,6 @@ def inject_expired_non_delivery_report(
     workflow_id: str,
     subject: str,
     local_id: str,
-    file_name: str,
     linked_message_id: str,
 ) -> str:
     mailbox_id = (mailbox_id or "").strip().upper()
@@ -51,10 +50,9 @@ def inject_expired_non_delivery_report(
         "code": "14",
         "description": "Message not collected by recipient after 5 days",
         "workflow_id": workflow_id,
-        "subject": f"NDR: {subject}",
+        "subject": subject,
         "local_id": local_id,
         "status": "undeliverable",
-        "file_name": file_name,
         "linked_message_id": linked_message_id,
     }
 
