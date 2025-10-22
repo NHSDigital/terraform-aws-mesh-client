@@ -302,8 +302,10 @@ def test_mesh_fetch_file_chunk_app_report(
     s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
     assert s3_object
     s3_object_metadata = s3_object["Metadata"]
-    expected_known_fields = {k: v for k, v in s3_object_metadata.items() if k != "mex-filename"}
-    assert "mex-filename" in s3_object_metadata 
+    expected_known_fields = {
+        k: v for k, v in s3_object_metadata.items() if k != "mex-filename"
+    }
+    assert "mex-filename" in s3_object_metadata
     assert expected_known_fields == {
         "mex-to": mesh_client_one._mailbox,
         "mex-subject": quote_plus(f"NDR: {subject}"),
@@ -313,7 +315,9 @@ def test_mesh_fetch_file_chunk_app_report(
         "mex-messageid": report_message_id,
         "mex-localid": local_id,
         "mex-statuscode": "14",
-        "mex-statusdescription": quote_plus("Message not collected by recipient after 5 days"),
+        "mex-statusdescription": quote_plus(
+            "Message not collected by recipient after 5 days"
+        ),
     }
 
 
