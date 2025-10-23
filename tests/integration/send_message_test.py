@@ -205,12 +205,12 @@ def test_send_receive_with_metadata(
     metadata = received.metadata
     assert metadata.get("mex-from") == sender
     assert metadata.get("mex-to") == recipient
-    assert unquote_plus(metadata.get("mex-filename")) == mex_filename
-    assert unquote_plus(metadata.get("mex-workflowid")) == workflow_id
-    assert unquote_plus(metadata.get("mex-subject")) == subject
-    assert unquote_plus(metadata.get("mex-localid")) == local_id
-    assert unquote_plus(metadata.get("mex-partnerid")) == partner_id
-    assert unquote_plus(metadata.get("mex-content-checksum")) == checksum
+    assert unquote_plus(metadata.get("mex-filename") or "") == mex_filename
+    assert unquote_plus(metadata.get("mex-workflowid") or "") == workflow_id
+    assert unquote_plus(metadata.get("mex-subject") or "") == subject
+    assert unquote_plus(metadata.get("mex-localid") or "") == local_id
+    assert unquote_plus(metadata.get("mex-partnerid") or "") == partner_id
+    assert unquote_plus(metadata.get("mex-content-checksum") or "") == checksum
 
     message = mesh_client_two.retrieve_message(message_id)
     message.status = "acknowledged"  # type: ignore[attr-defined]
@@ -346,14 +346,14 @@ def test_send_receive_with_metadata_all_settings(
     metadata = received.metadata
     assert metadata.get("mex-from") == sender
     assert metadata.get("mex-to") == recipient
-    assert unquote_plus(metadata.get("mex-filename")) == mex_filename
-    assert unquote_plus(metadata.get("mex-workflowid")) == workflow_id
-    assert unquote_plus(metadata.get("mex-subject")) == subject
-    assert unquote_plus(metadata.get("mex-localid")) == local_id
-    assert unquote_plus(metadata.get("mex-partnerid")) == partner_id
-    assert unquote_plus(metadata.get("mex-content-checksum")) == checksum
-    assert unquote_plus(metadata.get("mex-content-encrypted")) == "Y"
-    assert unquote_plus(metadata.get("mex-content-compressed")) == "Y"
+    assert unquote_plus(metadata.get("mex-filename") or "") == mex_filename
+    assert unquote_plus(metadata.get("mex-workflowid") or "") == workflow_id
+    assert unquote_plus(metadata.get("mex-subject") or "") == subject
+    assert unquote_plus(metadata.get("mex-localid") or "") == local_id
+    assert unquote_plus(metadata.get("mex-partnerid") or "") == partner_id
+    assert unquote_plus(metadata.get("mex-content-checksum") or "") == checksum
+    assert unquote_plus(metadata.get("mex-content-encrypted") or "") == "Y"
+    assert unquote_plus(metadata.get("mex-content-compressed") or "") == "Y"
 
     message = mesh_client_two.retrieve_message(message_id)
     message.status = "acknowledged"  # type: ignore[attr-defined]
@@ -469,7 +469,7 @@ def test_send_receive_large_file(
         with tempfile.NamedTemporaryFile() as f:
             buffer = f
             if compress:
-                buffer = gzip.open(f, mode="wb")  # type: ignore[assignment]
+                buffer = gzip.open(f, mode="wb")  # type: ignore[assignment] # noqa:SIM115
 
             while written < size:
                 block = (

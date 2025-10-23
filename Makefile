@@ -31,10 +31,12 @@ endif
 
 
 install:
-	poetry install --sync
+	poetry install
+	poetry sync
 
 install-ci:
-	poetry install --without local --sync
+	poetry install --without local
+	poetry sync
 
 update:
 	poetry update

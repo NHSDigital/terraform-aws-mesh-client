@@ -11,7 +11,7 @@ jobs:
     if: github.repository == 'NHSDigital/terraform-aws-mesh-client' && !contains(github.event.head_commit.message, 'tag release version:')
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -33,7 +33,7 @@ jobs:
 
       - name: publish junit reports
         if: success() || failure()
-        uses: mikepenz/action-junit-report@v4
+        uses: mikepenz/action-junit-report@5b7ee5a21e8674b695313d769f3cbdfd5d4d53a4
         with:
           check_name: junit reports
           report_paths: reports/junit/*.xml

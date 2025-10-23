@@ -267,14 +267,12 @@ def test_mesh_fetch_file_chunk_app_report(
     mesh_s3_bucket: str,
     capsys,
 ):
-    file_name = uuid4().hex
     subject = uuid4().hex
     local_id = uuid4().hex
     linked_message_id = uuid4().hex
     report_message_id = inject_expired_non_delivery_report(
         mailbox_id=mesh_client_one._mailbox,
         workflow_id="TESTWORKFLOW",
-        file_name=file_name,
         subject=subject,
         local_id=local_id,
         linked_message_id=linked_message_id,
@@ -303,15 +301,23 @@ def test_mesh_fetch_file_chunk_app_report(
 
     s3_object = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
     assert s3_object
-    assert s3_object["Metadata"] == {
+    s3_object_metadata = s3_object["Metadata"]
+    expected_known_fields = {
+        k: v for k, v in s3_object_metadata.items() if k != "mex-filename"
+    }
+    assert "mex-filename" in s3_object_metadata
+    assert expected_known_fields == {
         "mex-to": mesh_client_one._mailbox,
         "mex-subject": quote_plus(f"NDR: {subject}"),
         "mex-workflowid": "TESTWORKFLOW",
         "mex-statussuccess": "ERROR",
         "mex-messagetype": "REPORT",
         "mex-messageid": report_message_id,
-        "mex-filename": file_name,
         "mex-localid": local_id,
+        "mex-statuscode": "14",
+        "mex-statusdescription": quote_plus(
+            "Message not collected by recipient after 5 days"
+        ),
     }
 
 

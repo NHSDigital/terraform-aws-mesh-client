@@ -134,14 +134,14 @@ def test_fetch_message_report_message(
     assert headers["mex-messagetype"] == "REPORT"
     # assert headers["mex-statuscode"] == status_code
     assert headers["mex-statussuccess"] == "ERROR"
-    assert headers["mex-subject"] == subject
+    assert headers["mex-subject"] == f"NDR: {subject}"
     assert headers["mex-workflowid"] == workflow_id
 
     assert s3_obj["Metadata"]["mex-messageid"] == sent_message_id
     assert s3_obj["Metadata"]["mex-to"] == recipient
     assert s3_obj["Metadata"]["mex-messagetype"] == "REPORT"
     assert s3_obj["Metadata"]["mex-workflowid"] == workflow_id
-    assert s3_obj["Metadata"]["mex-subject"] == quote_plus(subject)
+    assert s3_obj["Metadata"]["mex-subject"] == quote_plus(f"NDR: {subject}")
     assert s3_obj["Metadata"]["mex-localid"] == local_id
     # assert s3_obj["Metadata"]["mex-statuscode"] == status_code
     assert s3_obj["Metadata"]["mex-statussuccess"] == "ERROR"

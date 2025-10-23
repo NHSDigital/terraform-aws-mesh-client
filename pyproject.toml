@@ -20,6 +20,9 @@ aws-lambda-powertools = "^2.36.0"
 mesh-client = "^3.2.3"
 requests = "^2.32.3"
 
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
+
 [tool.poetry.group.dev.dependencies]
 # ci / testing dependencies
 boto3 = "^1.33.1"
