@@ -111,7 +111,7 @@ jobs:
         run: |
           TFSEC_VERSION="v$(cat .tool-versions | grep tfsec | sed 's#tfsec ##')"
           echo "${TFSEC_VERSION}"
-          wget -q --https-only "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/tfsec-linux-amd64" -O ./tfsec
+          wget -q --https-only --max-redirect=5 "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/tfsec-linux-amd64" -O ./tfsec
           chmod +x ./tfsec
           ./tfsec module --config-file tfsec.yml
 
