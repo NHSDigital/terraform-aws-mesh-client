@@ -1,4 +1,4 @@
-""" Testing MeshPollMailbox application """
+"""Testing MeshPollMailbox application"""
 
 import json
 import sys
