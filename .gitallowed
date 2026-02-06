@@ -30,3 +30,4 @@ tests/integration/send_message_test.py:[0-9]+:\s*url=_SANDBOX_URL, mailbox=mailb
 tests/integration/send_message_test.py:[0-9]+:\s*url=_SANDBOX_URL, mailbox=mailboxes\[1\], password="password", verify=False
 tests/integration/conftest.py:[0-9]+:\s*password="password"
 poetry.lock:.*asttokens = ">=2.1.0"
+poetry.lock:.*:pytokens = ".*"

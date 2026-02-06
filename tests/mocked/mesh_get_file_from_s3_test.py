@@ -1,4 +1,4 @@
-""" Testing Get File From S3 Function """
+"""Testing Get File From S3 Function"""
 
 from nhs_aws_helpers import s3_resource
 
