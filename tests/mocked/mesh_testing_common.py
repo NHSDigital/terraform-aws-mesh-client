@@ -20,7 +20,7 @@ CONTEXT = {"aws_request_id": "TESTREQUEST"}
 
 
 def was_value_logged(logs: str, log_reference: str, key: str, value: str):
-    """Was a particular key-value pair logged for a log reference"""
+    """Was a particular key-value pair logged for a log reference?"""
     for log_line in _get_log_lines(logs):
         if f"logReference={log_reference} " not in log_line:
             continue
