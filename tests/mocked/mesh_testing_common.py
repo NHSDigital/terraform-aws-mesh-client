@@ -1,6 +1,5 @@
 """Common methods and classes used for testing mesh client"""
 
-import json
 from typing import cast
 
 import requests
@@ -58,7 +57,7 @@ def inject_expired_non_delivery_report(
 
     res = requests.post(
         f"{SANDBOX_URL}/messageexchange/admin/report",
-        data=json.dumps(data),
+        json=data,
         verify=False,  # NOSONAR
     )
     res.raise_for_status()
