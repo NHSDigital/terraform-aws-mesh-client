@@ -3,7 +3,7 @@ services:
 
   localstack:
     container_name: localstack
-    image: "${LOCALSTACK_IMAGE:-localstack/localstack:latest}"
+    image: "${LOCALSTACK_IMAGE:-localstack/localstack:4.7.0}"
     restart: always
     environment:
       - PROVIDER_OVERRIDE_STEPFUNCTIONS=v2

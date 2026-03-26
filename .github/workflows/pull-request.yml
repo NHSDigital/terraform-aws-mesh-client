@@ -11,7 +11,7 @@ jobs:
     if: github.repository == 'NHSDigital/terraform-aws-mesh-client'
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
@@ -36,14 +36,14 @@ jobs:
 
       - name: archive reports
         if: github.actor != 'dependabot[bot]' && (success() || failure())
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: reports
           path: reports/**/*
 
       - name: publish junit reports
         if: success() || failure()
-        uses: mikepenz/action-junit-report@5e05ac00ad0604dfb7e313ae412aa3284f4906d6
+        uses: mikepenz/action-junit-report@49b2ca06f62aa7ef83ae6769a2179271e160d8e4
         with:
           check_name: junit reports
           report_paths: reports/junit/*.xml
@@ -61,7 +61,7 @@ jobs:
     if: github.repository == 'NHSDigital/terraform-aws-mesh-client'
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
@@ -94,7 +94,7 @@ jobs:
     if: github.repository == 'NHSDigital/terraform-aws-mesh-client'
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
