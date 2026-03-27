@@ -5,6 +5,8 @@ updates:
       open-pull-requests-limit: 2
       schedule:
           interval: "monthly"
+      cooldown:
+          default-days: 7
       commit-message:
           prefix: "github actions "
           include: scope
@@ -16,6 +18,8 @@ updates:
       schedule:
           interval: "monthly"
           time: "12:00"
+      cooldown:
+          default-days: 7
       commit-message:
           prefix: "py dev "
           include: scope
