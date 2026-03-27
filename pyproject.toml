@@ -16,7 +16,7 @@ importlib-metadata = "8.0.0"
 urllib3 = "^2.6.0"
 spine-aws-common = "^0.2.14"
 nhs-aws-helpers = "^0.8.1"
-aws-lambda-powertools = "^2.36.0"
+aws-lambda-powertools = "^3.25.0"
 mesh-client = "^3.2.3"
 requests = "^2.32.3"
 
