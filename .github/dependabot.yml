@@ -4,11 +4,11 @@ updates:
       directory: "/"
       open-pull-requests-limit: 2
       schedule:
-          interval: "monthly"
+          interval: "daily"
       cooldown:
           default-days: 7
       commit-message:
-          prefix: "github actions "
+          prefix: "MESH-2092 github actions "
           include: scope
 
     - package-ecosystem: "pip"
@@ -16,10 +16,33 @@ updates:
       open-pull-requests-limit: 2
 
       schedule:
-          interval: "monthly"
-          time: "12:00"
+          interval: "daily"
       cooldown:
           default-days: 7
       commit-message:
-          prefix: "py dev "
+          prefix: "MESH-2092 py dev "
+          include: scope
+
+    - package-ecosystem: "terraform"
+      directories:
+          - "/module"
+          - "/stacks/localstack"
+      open-pull-requests-limit: 2
+      schedule:
+          interval: "daily"
+      cooldown:
+          default-days: 7
+      commit-message:
+          prefix: "MESH-2092 terraform "
+          include: scope
+
+    - package-ecosystem: "docker"
+      directory: "/"
+      open-pull-requests-limit: 2
+      schedule:
+          interval: "daily"
+      cooldown:
+          default-days: 7
+      commit-message:
+          prefix: "MESH-2092 docker "
           include: scope
