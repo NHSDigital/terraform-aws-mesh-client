@@ -22,7 +22,7 @@ mypy-boto3-healthlake==1.43.0 ; python_version >= "3.11" and python_version < "4
 mypy-boto3-iam==1.43.2 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-kms==1.42.97 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-lambda==1.42.37 ; python_version >= "3.11" and python_version < "4.0"
-mypy-boto3-logs==1.43.2 ; python_version >= "3.11" and python_version < "4.0"
+mypy-boto3-logs==1.43.3 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-s3==1.42.67 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-secretsmanager==1.42.8 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-ses==1.42.3 ; python_version >= "3.11" and python_version < "4.0"
