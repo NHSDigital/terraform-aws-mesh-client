@@ -17,7 +17,7 @@ mypy-boto3-dynamodb==1.43.0 ; python_version >= "3.11" and python_version < "4.0
 mypy-boto3-ecs==1.43.0 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-events==1.42.3 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-firehose==1.42.3 ; python_version >= "3.11" and python_version < "4.0"
-mypy-boto3-glue==1.42.70 ; python_version >= "3.11" and python_version < "4.0"
+mypy-boto3-glue==1.43.5 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-healthlake==1.43.0 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-iam==1.43.2 ; python_version >= "3.11" and python_version < "4.0"
 mypy-boto3-kms==1.42.97 ; python_version >= "3.11" and python_version < "4.0"
