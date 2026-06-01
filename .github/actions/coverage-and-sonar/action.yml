@@ -17,7 +17,7 @@ runs:
 
     - name: code coverage report
       if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
-      uses: orgoro/coverage@c65003f41276ea33fe3a3a5d53df8b340462e8fa
+      uses: orgoro/coverage@ca0c362dc1a4f100447309405e6dfea47e251495 # v3.3.1
       with:
         coverageFile: reports/coverage.xml
         token: ${{ inputs.github-token }}
@@ -25,7 +25,7 @@ runs:
 
     - name: setup java
       if: success() || failure()
-      uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3
+      uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
       with:
         distribution: "corretto"
         java-version: "17"
