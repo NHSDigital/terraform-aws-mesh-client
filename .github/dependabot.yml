@@ -10,6 +10,18 @@ updates:
       commit-message:
           prefix: "MESH-2092 github actions "
           include: scope
+      groups:
+        patch-and-minor:
+          patterns:
+            - "*"
+          update-types:
+            - "minor"
+            - "patch"
+        major:
+          patterns:
+            - "*"
+          update-types:
+            - "major"
 
     - package-ecosystem: "pip"
       directory: "/"
@@ -22,6 +34,21 @@ updates:
       commit-message:
           prefix: "MESH-2092 py dev "
           include: scope
+      groups:
+        patch-and-minor:
+          patterns:
+            - "*"
+          update-types:
+            - "minor"
+            - "patch"
+        major:
+          patterns:
+            - "*"
+          update-types:
+            - "major"
+      ignore:
+        # Pinned to exact version 8.0.0 in pyproject.toml - requires manual review to update
+        - dependency-name: "importlib-metadata"
 
     - package-ecosystem: "terraform"
       directories:
@@ -35,6 +62,18 @@ updates:
       commit-message:
           prefix: "MESH-2092 terraform "
           include: scope
+      groups:
+        patch-and-minor:
+          patterns:
+            - "*"
+          update-types:
+            - "minor"
+            - "patch"
+        major:
+          patterns:
+            - "*"
+          update-types:
+            - "major"
 
     - package-ecosystem: "docker"
       directory: "/"
@@ -46,3 +85,15 @@ updates:
       commit-message:
           prefix: "MESH-2092 docker "
           include: scope
+      groups:
+        patch-and-minor:
+          patterns:
+            - "*"
+          update-types:
+            - "minor"
+            - "patch"
+        major:
+          patterns:
+            - "*"
+          update-types:
+            - "major"
