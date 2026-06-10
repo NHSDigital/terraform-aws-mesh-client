@@ -334,6 +334,7 @@ def test_mesh_fetch_file_chunk_app_not_found_unhappy_path(
     with pytest.raises(HTTPError) as http_error:
         app.main(event=mock_input, context=CONTEXT)
 
+    assert http_error.value.response is not None
     assert http_error.value.response.status_code == HTTPStatus.NOT_FOUND.value
 
 
