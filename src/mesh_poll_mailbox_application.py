@@ -121,7 +121,12 @@ class MeshPollMailboxApplication(MESHLambdaApplication):
             self.log_object.write_log(
                 "MESHMBOX0004",
                 None,
-                {"mailbox": self.mailbox_id, "http_status": ex.response.status_code},
+                {
+                    "mailbox": self.mailbox_id,
+                    "http_status": (
+                        ex.response.status_code if ex.response is not None else None
+                    ),
+                },
             )
             raise HandshakeFailure from ex
 

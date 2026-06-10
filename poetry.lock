@@ -137,20 +137,20 @@ uvloop = ["uvloop (>=0.15.2) ; sys_platform != \"win32\"", "winloop (>=0.5.0) ; 
 
 [[package]]
 name = "boto3"
-version = "1.42.75"
+version = "1.43.26"
 description = "The AWS SDK for Python"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "boto3-1.42.75-py3-none-any.whl", hash = "sha256:16bc657d16403ee8e11c8b6920c245629e37a36ea60352b919da566f82b4cb4c"},
-    {file = "boto3-1.42.75.tar.gz", hash = "sha256:3c7fd95a50c69271bd7707b7eda07dcfddb30e961a392613010f7ee81d91acb3"},
+    {file = "boto3-1.43.26-py3-none-any.whl", hash = "sha256:7c88bfbde6abcf062d04ac410a1cf4eaf8675f025f35f3ad9accc9b0224ce6b9"},
+    {file = "boto3-1.43.26.tar.gz", hash = "sha256:33f027b7911dffe84f4896b66024c228eb856f4cf8c1ff3465be0eae1f413731"},
 ]
 
 [package.dependencies]
-botocore = ">=1.42.75,<1.43.0"
+botocore = ">=1.43.26,<1.44.0"
 jmespath = ">=0.7.1,<2.0.0"
-s3transfer = ">=0.16.0,<0.17.0"
+s3transfer = ">=0.18.0,<0.19.0"
 
 [package.extras]
 crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
@@ -618,23 +618,23 @@ xray = ["mypy-boto3-xray (>=1.42.0,<1.43.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.42.75"
+version = "1.43.26"
 description = "Low-level, data-driven core of boto 3."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "botocore-1.42.75-py3-none-any.whl", hash = "sha256:915e43b7ac8f50cf3dbc937ba713de5acb999ea48ad8fecd1589d92ad415f787"},
-    {file = "botocore-1.42.75.tar.gz", hash = "sha256:95c8e716b6be903ee1601531caa4f50217400aa877c18fe9a2c3047d2945d477"},
+    {file = "botocore-1.43.26-py3-none-any.whl", hash = "sha256:eeb92265bae289555182a46341c998a656ab49c0dbdb762c65b30fe354fcc9e8"},
+    {file = "botocore-1.43.26.tar.gz", hash = "sha256:fd9280ac868194afcee59c7def62e0031fb4b599f7ef85360d30c7e42357c1dc"},
 ]
 
 [package.dependencies]
 jmespath = ">=0.7.1,<2.0.0"
 python-dateutil = ">=2.1,<3.0.0"
-urllib3 = {version = ">=1.25.4,<2.2.0 || >2.2.0,<3", markers = "python_version >= \"3.10\""}
+urllib3 = ">=1.25.4,<2.2.0 || >2.2.0,<3"
 
 [package.extras]
-crt = ["awscrt (==0.31.2)"]
+crt = ["awscrt (==0.32.2)"]
 
 [[package]]
 name = "botocore-stubs"
@@ -1907,18 +1907,18 @@ files = [
 
 [[package]]
 name = "nhs-aws-helpers"
-version = "0.8.5"
+version = "0.8.11"
 description = ""
 optional = false
 python-versions = "<=4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "nhs_aws_helpers-0.8.5-py3-none-any.whl", hash = "sha256:f943bd65c2d4e263e2a990c8a0d4b1c75672aac79883724c2ca7b3792ac2edee"},
-    {file = "nhs_aws_helpers-0.8.5.tar.gz", hash = "sha256:f958db817888735b26c02d9ed31332ab5ef4b254a25f40f5975039a57931ca91"},
+    {file = "nhs_aws_helpers-0.8.11-py3-none-any.whl", hash = "sha256:554f7c253397a8d6c0abc660a9acb86227d50bc5336a29af18d235e01f463fc2"},
+    {file = "nhs_aws_helpers-0.8.11.tar.gz", hash = "sha256:ec78cd6eeb9e671cb05eb80e07b418c2f85a86d6aa61bb63a237153ddcb3eec8"},
 ]
 
 [package.dependencies]
-boto3 = ">=1.42.59,<2.0.0"
+boto3 = ">=1.43.13,<2.0.0"
 boto3-stubs = {version = ">=1.41.5,<2.0.0", extras = ["athena", "backup", "ce", "cloudwatch", "dynamodb", "ecs", "events", "firehose", "glue", "healthlake", "iam", "kms", "lambda", "logs", "s3", "secretsmanager", "ses", "sns", "sqs", "ssm", "stepfunctions", "sts"]}
 botocore-stubs = ">=1.42.39,<2.0.0"
 
@@ -2271,14 +2271,14 @@ files = [
 
 [[package]]
 name = "requests"
-version = "2.33.0"
+version = "2.34.2"
 description = "Python HTTP for Humans."
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "requests-2.33.0-py3-none-any.whl", hash = "sha256:3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b"},
-    {file = "requests-2.33.0.tar.gz", hash = "sha256:c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652"},
+    {file = "requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"},
+    {file = "requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed"},
 ]
 
 [package.dependencies]
@@ -2289,7 +2289,6 @@ urllib3 = ">=1.26,<3"
 
 [package.extras]
 socks = ["PySocks (>=1.5.6,!=1.5.7)"]
-test = ["PySocks (>=1.5.6,!=1.5.7)", "pytest (>=3)", "pytest-cov", "pytest-httpbin (==2.1.0)", "pytest-mock", "pytest-xdist"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<8)"]
 
 [[package]]
@@ -2342,14 +2341,14 @@ files = [
 
 [[package]]
 name = "s3transfer"
-version = "0.16.0"
+version = "0.18.0"
 description = "An Amazon S3 Transfer Manager"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "s3transfer-0.16.0-py3-none-any.whl", hash = "sha256:18e25d66fed509e3868dc1572b3f427ff947dd2c56f844a5bf09481ad3f3b2fe"},
-    {file = "s3transfer-0.16.0.tar.gz", hash = "sha256:8e990f13268025792229cd52fa10cb7163744bf56e719e0b9cb925ab79abf920"},
+    {file = "s3transfer-0.18.0-py3-none-any.whl", hash = "sha256:239c13b09e65ad0346e1be7348b8a202dcad44ac7ea7c6eb858fc881dce739b6"},
+    {file = "s3transfer-0.18.0.tar.gz", hash = "sha256:3760b8b7ec1315da54048b2d626276732bee4300d054d492d4e1d43e20d4ecbd"},
 ]
 
 [package.dependencies]
@@ -2372,14 +2371,14 @@ files = [
 
 [[package]]
 name = "spine-aws-common"
-version = "0.2.14"
+version = "0.2.16"
 description = "NHS Digital Spine Core common AWS code"
 optional = false
 python-versions = ">=3.6"
 groups = ["main"]
 files = [
-    {file = "spine_aws_common-0.2.14-py3-none-any.whl", hash = "sha256:8f983766484c802583a0b39017cee75b11f0c0396dd3fa56ddd800fbf22261a8"},
-    {file = "spine_aws_common-0.2.14.tar.gz", hash = "sha256:91babe73cf82e8122cb7d86952c9ae76039e3073dee0a65b04c664808f975956"},
+    {file = "spine_aws_common-0.2.16-py3-none-any.whl", hash = "sha256:3f9c4fbd11a7644daed3fd2fbbc4dec121682b817c7926d4bd785291bcea9e6a"},
+    {file = "spine_aws_common-0.2.16.tar.gz", hash = "sha256:841e9f389ccba1804d07755069704eb870a336d576ee6dbf525fd6675876e82e"},
 ]
 
 [package.dependencies]
