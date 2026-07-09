@@ -74,7 +74,8 @@ jobs:
         uses: ./.github/actions/install-ci
 
       - name: install tox-github-ci plugin
-        run: poetry run pip install tox-gh-actions
+        run: |
+          poetry run pip install --only-binary :all: tox-gh-actions
 
       - name: black
         run: make black-check
