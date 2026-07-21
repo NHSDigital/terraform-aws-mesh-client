@@ -259,3 +259,9 @@ variable "send_message_lambda_memory_size" {
   default     = 128
   description = "Memory size (in MiB) for the send message Lambda"
 }
+
+variable "permissions_boundary_arn" {
+  type        = string
+  default     = null
+  description = "ARN of an IAM policy to use as the permissions boundary for all IAM roles created by this module"
+}

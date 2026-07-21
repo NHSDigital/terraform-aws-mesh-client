@@ -112,9 +112,10 @@ resource "aws_cloudwatch_log_group" "send_message" {
 }
 
 resource "aws_iam_role" "send_message" {
-  name               = local.send_message_name
-  description        = local.send_message_name
-  assume_role_policy = data.aws_iam_policy_document.send_message_assume.json
+  name                 = local.send_message_name
+  description          = local.send_message_name
+  assume_role_policy   = data.aws_iam_policy_document.send_message_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 data "aws_iam_policy_document" "send_message_assume" {

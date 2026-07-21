@@ -35,9 +35,10 @@ resource "aws_cloudwatch_log_group" "mesh_cloudtrail" {
 }
 
 resource "aws_iam_role" "mesh_cloudtrail_to_cloudwatch_role" {
-  name               = "cloudtrail-cloudwatch-mesh-role"
-  description        = "cloudtrail-cloudwatch-mesh-role"
-  assume_role_policy = data.aws_iam_policy_document.role_assume.json
+  name                 = "cloudtrail-cloudwatch-mesh-role"
+  description          = "cloudtrail-cloudwatch-mesh-role"
+  assume_role_policy   = data.aws_iam_policy_document.role_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 resource "aws_iam_role_policy_attachment" "policy_attachment" {

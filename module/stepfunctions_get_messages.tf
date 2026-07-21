@@ -151,9 +151,10 @@ resource "aws_cloudwatch_log_group" "get_messages" {
 }
 
 resource "aws_iam_role" "get_messages" {
-  name               = local.get_messages_name
-  description        = local.get_messages_name
-  assume_role_policy = data.aws_iam_policy_document.get_messages_assume.json
+  name                 = local.get_messages_name
+  description          = local.get_messages_name
+  assume_role_policy   = data.aws_iam_policy_document.get_messages_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 data "aws_iam_policy_document" "get_messages_assume" {
