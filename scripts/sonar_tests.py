@@ -115,6 +115,10 @@ def _transform_xunit_results(reports_dir: str, output_sonar: str):
     src_junit = os.path.join(reports_dir, "junit")
     out_tests = os.path.join(output_sonar, "tests.xml")
 
+    if not os.path.exists(src_coverage):
+        print("no coverage found")
+        return
+
     dom_out = dom.getDOMImplementation().createDocument(None, "testExecutions", None)
     dom_out.documentElement.setAttribute("version", "1")
     all_tests: dict[str, list[dom.Element]] = defaultdict(list)
