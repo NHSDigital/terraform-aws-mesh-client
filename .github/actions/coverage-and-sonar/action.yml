@@ -25,6 +25,7 @@ runs:
 
     - name: prepare sonar reports
       if: success() || failure()
+      shell: bash
       run: |
         cat sonar-project.properties
         scripts/sonar_tests.py
