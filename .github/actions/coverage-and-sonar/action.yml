@@ -23,34 +23,16 @@ runs:
         token: ${{ inputs.github-token }}
         thresholdAll: 0.65 # TODO increase to 0.85 as coverage improves
 
-    - name: setup java
-      if: success() || failure()
-      uses: actions/setup-java@17f84c3641ba7b8f6deff6309fc4c864478f5d62 # v3.14.1
-      with:
-        distribution: "corretto"
-        java-version: "17"
-
-    - name: provision sonar-scanner
+    - name: prepare sonar reports
       if: success() || failure()
       shell: bash
       run: |
-        export SONAR_VERSION="5.0.1.3006"
-        wget -q "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_VERSION}.zip" -O sonar-scanner.zip
-        unzip -q ./sonar-scanner.zip
-        mv ./sonar-scanner-${SONAR_VERSION} ./sonar-scanner
+        cat sonar-project.properties
         scripts/sonar_tests.py
 
-    - name: run sonar scan
+    - name: sonar scan
       if: success() || failure()
-      shell: bash
-      run: |
-        PATH="$PWD/sonar-scanner/bin:$PATH"
-        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-          git checkout "${GITHUB_HEAD_REF}"
-          sonar-scanner -Dsonar.pullrequest.branch="{{ github.event.pull_request.head.sha }}" -Dsonar.pullrequest.base="{{ github.event.pull_request.base.sha }}" -Dsonar.pullrequest.key="${{ github.event.number }}"
-        else
-          sonar-scanner
-        fi
+      uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         SONAR_TOKEN: ${{ inputs.sonar-token }}
