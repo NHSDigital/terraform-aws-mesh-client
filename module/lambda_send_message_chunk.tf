@@ -47,9 +47,10 @@ resource "aws_cloudwatch_log_group" "send_message_chunk" {
 }
 
 resource "aws_iam_role" "send_message_chunk" {
-  name               = "${local.send_message_chunk_name}-role"
-  description        = "${local.send_message_chunk_name}-role"
-  assume_role_policy = data.aws_iam_policy_document.send_message_chunk_assume.json
+  name                 = "${local.send_message_chunk_name}-role"
+  description          = "${local.send_message_chunk_name}-role"
+  assume_role_policy   = data.aws_iam_policy_document.send_message_chunk_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 data "aws_iam_policy_document" "send_message_chunk_assume" {

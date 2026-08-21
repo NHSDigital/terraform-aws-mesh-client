@@ -46,9 +46,10 @@ resource "aws_cloudwatch_log_group" "check_send_parameters" {
 }
 
 resource "aws_iam_role" "check_send_parameters" {
-  name               = "${local.check_send_parameters_name}-role"
-  description        = "${local.check_send_parameters_name}-role"
-  assume_role_policy = data.aws_iam_policy_document.check_send_parameters_assume.json
+  name                 = "${local.check_send_parameters_name}-role"
+  description          = "${local.check_send_parameters_name}-role"
+  assume_role_policy   = data.aws_iam_policy_document.check_send_parameters_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 data "aws_iam_policy_document" "check_send_parameters_assume" {

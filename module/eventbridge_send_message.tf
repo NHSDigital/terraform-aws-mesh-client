@@ -48,9 +48,10 @@ resource "aws_cloudwatch_event_target" "send_message_event" {
 }
 
 resource "aws_iam_role" "send_message_event" {
-  name               = "${local.name}-send-message-event"
-  description        = "${local.name}-send-message-event"
-  assume_role_policy = data.aws_iam_policy_document.send_message_event_assume.json
+  name                 = "${local.name}-send-message-event"
+  description          = "${local.name}-send-message-event"
+  assume_role_policy   = data.aws_iam_policy_document.send_message_event_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 data "aws_iam_policy_document" "send_message_event_assume" {

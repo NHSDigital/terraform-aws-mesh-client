@@ -46,9 +46,10 @@ resource "aws_cloudwatch_log_group" "poll_mailbox" {
 }
 
 resource "aws_iam_role" "poll_mailbox" {
-  name               = "${local.poll_mailbox_name}-role"
-  description        = "${local.poll_mailbox_name}-role"
-  assume_role_policy = data.aws_iam_policy_document.poll_mailbox_assume.json
+  name                 = "${local.poll_mailbox_name}-role"
+  description          = "${local.poll_mailbox_name}-role"
+  assume_role_policy   = data.aws_iam_policy_document.poll_mailbox_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 data "aws_iam_policy_document" "poll_mailbox_assume" {

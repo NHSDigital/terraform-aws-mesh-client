@@ -32,9 +32,10 @@ resource "aws_cloudwatch_event_target" "get_messages" {
 }
 
 resource "aws_iam_role" "get_messages_event" {
-  name               = "${local.name}-get-messages-event"
-  description        = "${local.name}-get-messages-event"
-  assume_role_policy = data.aws_iam_policy_document.get_messages_event_assume.json
+  name                 = "${local.name}-get-messages-event"
+  description          = "${local.name}-get-messages-event"
+  assume_role_policy   = data.aws_iam_policy_document.get_messages_event_assume.json
+  permissions_boundary = var.permissions_boundary_arn
 }
 
 data "aws_iam_policy_document" "get_messages_event_assume" {
