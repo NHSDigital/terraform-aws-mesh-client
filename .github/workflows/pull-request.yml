@@ -36,14 +36,14 @@ jobs:
 
       - name: archive reports
         if: github.actor != 'dependabot[bot]' && (success() || failure())
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: reports
           path: reports/**/*
 
       - name: publish junit reports
         if: success() || failure()
-        uses: mikepenz/action-junit-report@d9f48fc87bc235f7e214acf696ca5abc0a986f16 # v6.4.2
+        uses: mikepenz/action-junit-report@b7b80d7ac5b1da46d6aaff9fb57ad50d8453bcb3 # v6.6.0
         with:
           check_name: junit reports
           report_paths: reports/junit/*.xml
