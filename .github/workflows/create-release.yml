@@ -8,6 +8,8 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: github.repository == 'NHSDigital/terraform-aws-mesh-client' && !contains(github.event.head_commit.message, 'tag release version:')
     steps:
       - name: checkout
