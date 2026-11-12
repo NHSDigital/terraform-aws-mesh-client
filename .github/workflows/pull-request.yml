@@ -55,7 +55,7 @@ jobs:
   tox:
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     runs-on: ubuntu-latest
     if: github.repository == 'NHSDigital/terraform-aws-mesh-client'
